@@ -1,0 +1,74 @@
+// app/api/markets/[id]/resolve/route.ts - Admin: resolve a market
+import { NextRequest, NextResponse } from 'next/server'
+import { createClient, createAdminClient } from '@/lib/supabase/server'
+import { z } from 'zod'
+
+const resolveSchema = z.object({
+  outcome: z.enum(['yes', 'no']),
+  resolution_notes: z.string().min(10).max(1000),
+})
+
+export async function POST(
+  req: NextRequest,
+  { params }: { params: { id: string } }
+) {
+  try {
+    const supabase = await createClient()
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
+
+    if (authError || !user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    // Check admin/resolver role
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('role')
+      .eq('id', user.id)
+      .single()
+
+    if (!['admin', 'moderator', 'resolver'].includes(profile?.role || '')) {
+      return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 })
+    }
+
+    const body = await req.json()
+    const parsed = resolveSchema.safeParse(body)
+
+    if (!parsed.success) {
+      return NextResponse.json(
+        { error: 'Invalid request', details: parsed.error.flatten() },
+        { status: 400 }
+      )
+    }
+
+    const { outcome, resolution_notes } = parsed.data
+    const adminClient = await createAdminClient()
+
+    const { data: result, error: resolveError } = await adminClient.rpc('resolve_market', {
+      p_market_id: params.id,
+      p_outcome: outcome,
+      p_resolver_id: user.id,
+      p_resolution_notes: resolution_notes,
+    })
+
+    if (resolveError) {
+      console.error('Market resolution error:', resolveError)
+      return NextResponse.json({ error: 'Failed to resolve market', details: resolveError.message }, { status: 500 })
+    }
+
+    // Audit log
+    await adminClient.from('audit_log').insert({
+      actor_id: user.id,
+      action: 'market_resolved',
+      entity_type: 'market',
+      entity_id: params.id,
+      new_data: { outcome, resolution_notes },
+    })
+
+    return NextResponse.json({ success: true, data: result })
+
+  } catch (error) {
+    console.error('Resolve market error:', error)
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+  }
+}
