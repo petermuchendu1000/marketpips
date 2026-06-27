@@ -5,6 +5,7 @@ import { Toaster } from 'react-hot-toast'
 import './globals.css'
 import { ThemeProvider } from '@/components/layout/theme-provider'
 import { QueryProvider } from '@/components/layout/query-provider'
+import { Navbar } from '@/components/layout/navbar'
 
 const inter = Inter({
   subsets: ['latin'],
@@ -13,6 +14,7 @@ const inter = Inter({
 })
 
 export const metadata: Metadata = {
+  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'),
   title: {
     default: 'MarketPips — East Africa\'s Prediction Market',
     template: '%s | MarketPips',
@@ -84,7 +86,10 @@ export default function RootLayout({
           disableTransitionOnChange
         >
           <QueryProvider>
-            {children}
+            <Navbar />
+            <main className="min-h-screen">
+              {children}
+            </main>
             <Toaster
               position="bottom-right"
               toastOptions={{

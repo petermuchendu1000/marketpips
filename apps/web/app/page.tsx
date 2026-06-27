@@ -88,7 +88,7 @@ async function PlatformStats() {
 
 export default function HomePage() {
   return (
-    <main className="min-h-screen">
+    <div>
       <HeroSection />
 
       <div className="container mx-auto px-4 py-6 max-w-7xl">
@@ -121,6 +121,6 @@ export default function HomePage() {
           <TrendingMarkets />
         </Suspense>
       </div>
-    </main>
+    </div>
   )
 }
