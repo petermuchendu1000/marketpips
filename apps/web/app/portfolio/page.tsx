@@ -1,6 +1,7 @@
 // app/portfolio/page.tsx - User portfolio
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
+import { summarizePortfolio, type PositionPnl } from '@/lib/portfolio'
 import type { Position, Transaction, Wallet } from '@/types'
 
 // Live market data — render dynamically per request (no static prerender)
@@ -42,11 +43,24 @@ async function PortfolioData() {
   const transactions = (transactionsRes.data || []) as Transaction[]
   const wallets = (walletsRes.data || []) as Wallet[]
 
+  // Live mark-to-market P&L — do NOT use the stale positions.current_value_usd
+  // snapshot. summarizePortfolio values open positions at current market prices.
+  const { summary, positions: pnl } = summarizePortfolio(
+    positions.map((p) => ({
+      id: p.id,
+      side: p.side,
+      shares: p.shares,
+      total_invested_usd: p.total_invested_usd,
+      is_active: p.is_active,
+      market: (p as any).market ?? null,
+    })),
+  )
+  const pnlById = new Map(pnl.map((c) => [c.positionId, c]))
+
   const activePositions = positions.filter((p) => p.is_active)
-  const resolvedPositions = positions.filter((p) => !p.is_active)
-  const totalInvested = activePositions.reduce((s, p) => s + p.total_invested_usd, 0)
-  const totalCurrentValue = activePositions.reduce((s, p) => s + p.current_value_usd, 0)
-  const totalPnl = totalCurrentValue - totalInvested
+  const totalInvested = summary.totalInvested
+  const totalCurrentValue = summary.totalCurrentValue
+  const totalPnl = summary.totalUnrealizedPnl
 
   return (
     <div className="space-y-6">
@@ -93,7 +107,7 @@ async function PortfolioData() {
 
           <div className="space-y-3">
             {activePositions.map((pos) => (
-              <PositionRow key={pos.id} position={pos} />
+              <PositionRow key={pos.id} position={pos} pnl={pnlById.get(pos.id) ?? null} />
             ))}
           </div>
         </section>
@@ -114,14 +128,14 @@ async function PortfolioData() {
   )
 }
 
-function PositionRow({ position }: { position: Position }) {
+function PositionRow({ position, pnl: computed }: { position: Position; pnl: PositionPnl | null }) {
   const market = (position as any).market
   if (!market) return null
 
   const isYes = position.side === 'yes'
-  const currentPrice = isYes ? market.yes_price : market.no_price
-  const currentValue = position.shares * currentPrice
-  const pnl = currentValue - position.total_invested_usd
+  // Live values from the shared P&L module (falls back if not supplied).
+  const currentValue = computed?.currentValue ?? position.shares * (isYes ? market.yes_price : market.no_price)
+  const pnl = computed?.totalPnl ?? currentValue - position.total_invested_usd
 
   return (
     <a href={`/markets/${market.slug}`} className="flex items-center justify-between p-4 rounded-2xl border bg-card hover:bg-muted/50 transition-colors">
