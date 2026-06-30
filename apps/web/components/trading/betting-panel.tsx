@@ -34,7 +34,8 @@ export function BettingPanel({ market }: BettingPanelProps) {
   const oppPrice = side === 'yes' ? market.no_price : market.yes_price
 
   // Payout estimate: amount / price = shares, shares * $1 = max payout in USD
-  const shares = amountNum > 0 ? (amountNum / (currencyInfo?.usd_rate ? amountNum * currencyInfo.usd_rate : amountNum)) : 0
+  // shares ≈ stake / price (each share pays out 1 unit if correct)
+  const shares = amountNum > 0 && price > 0 ? amountNum / price : 0
   const estimatedPayout = amountNum > 0 ? (amountNum / price) * (1 - 0.02) : 0
   const potentialProfit = estimatedPayout - amountNum
   const profitPct = amountNum > 0 ? ((potentialProfit / amountNum) * 100) : 0

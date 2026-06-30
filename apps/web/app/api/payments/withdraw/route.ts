@@ -75,9 +75,13 @@ export async function POST(req: NextRequest) {
   const feeAmount = Math.ceil(amount * feeRate)
   const netAmount = amount - feeAmount
 
-  if (wallet.available_balance < amount) {
+  const availableBalance = wallet.available_balance ?? 0
+  const reservedBalance = wallet.reserved_balance ?? 0
+  const totalWithdrawn = wallet.total_withdrawn ?? 0
+
+  if (availableBalance < amount) {
     return NextResponse.json({
-      error: `Insufficient balance. Available: ${wallet.available_balance.toLocaleString()} ${currency}`,
+      error: `Insufficient balance. Available: ${availableBalance.toLocaleString()} ${currency}`,
     }, { status: 400 })
   }
 
@@ -93,8 +97,8 @@ export async function POST(req: NextRequest) {
   const { error: deductError } = await supabase
     .from('wallets')
     .update({
-      available_balance: wallet.available_balance - amount,
-      reserved_balance: wallet.reserved_balance + amount,
+      available_balance: availableBalance - amount,
+      reserved_balance: reservedBalance + amount,
     })
     .eq('id', wallet.id)
 
@@ -125,8 +129,8 @@ export async function POST(req: NextRequest) {
   if (wErr || !withdrawal) {
     // Rollback balance
     await supabase.from('wallets').update({
-      available_balance: wallet.available_balance,
-      reserved_balance: wallet.reserved_balance,
+      available_balance: availableBalance,
+      reserved_balance: reservedBalance,
     }).eq('id', wallet.id)
     return NextResponse.json({ error: 'Failed to create withdrawal' }, { status: 500 })
   }
@@ -143,8 +147,8 @@ export async function POST(req: NextRequest) {
     exchange_rate_to_usd: exchangeRate?.rate || 0.01,
     fee_amount: feeAmount,
     fee_currency: currency,
-    balance_before: wallet.available_balance,
-    balance_after: wallet.available_balance - amount,
+    balance_before: availableBalance,
+    balance_after: availableBalance - amount,
     payment_provider: provider,
     payment_phone: phone_number,
     description: `Withdrawal via ${provider}`,
@@ -172,16 +176,16 @@ export async function POST(req: NextRequest) {
         }).eq('id', withdrawal.id)
 
         await supabase.from('wallets').update({
-          available_balance: wallet.available_balance - amount, // already deducted
-          reserved_balance: wallet.reserved_balance,           // release reserve
-          total_withdrawn: wallet.total_withdrawn + amount,
+          available_balance: availableBalance - amount, // already deducted
+          reserved_balance: reservedBalance,           // release reserve
+          total_withdrawn: totalWithdrawn + amount,
         }).eq('id', wallet.id)
 
         await supabase.from('transactions').update({
           status: 'completed',
           completed_at: new Date().toISOString(),
           provider_reference: result.reference,
-          provider_reference: result.receipt,
+          payment_reference: result.receipt,
         }).eq('idempotency_key', `withdraw_${withdrawal.id}`)
 
         await supabase.from('notifications').insert({

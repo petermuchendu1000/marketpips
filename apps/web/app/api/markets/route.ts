@@ -2,6 +2,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { z } from 'zod'
+import type { Enums } from '@/types/supabase'
 
 // GET - list markets with filters
 export async function GET(req: NextRequest) {
@@ -32,9 +33,14 @@ export async function GET(req: NextRequest) {
         `,
         { count: 'exact' }
       )
-      .in('status', status === 'all' ? ['active', 'closed', 'resolved'] : [status])
+      .in(
+        'status',
+        (status === 'all'
+          ? ['active', 'closed', 'resolved']
+          : [status]) as Enums<'market_status'>[]
+      )
 
-    if (category) query = query.eq('category', category)
+    if (category) query = query.eq('category', category as Enums<'market_category'>)
     if (featured === 'true') query = query.eq('is_featured', true)
     if (trending === 'true') query = query.eq('is_trending', true)
 

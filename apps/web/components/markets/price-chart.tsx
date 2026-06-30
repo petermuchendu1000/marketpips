@@ -10,8 +10,8 @@ import { format } from 'date-fns'
 interface PricePoint {
   yes_price: number
   no_price: number
-  volume_usd: number
-  recorded_at: string
+  volume_usd: number | null
+  recorded_at: string | null
 }
 
 interface PriceChartProps {

@@ -11,6 +11,9 @@ import { MarketComments } from '@/components/markets/market-comments'
 import { RelatedMarkets } from '@/components/markets/related-markets'
 import type { Market } from '@/types'
 
+// Live market data — render dynamically per request (no static prerender)
+export const dynamic = 'force-dynamic'
+
 const getMarket = cache(async (slug: string) => {
   const supabase = await createClient()
   const { data } = await supabase
@@ -27,9 +30,10 @@ const getMarket = cache(async (slug: string) => {
 export async function generateMetadata({
   params,
 }: {
-  params: { slug: string }
+  params: Promise<{ slug: string }>
 }): Promise<Metadata> {
-  const market = await getMarket(params.slug)
+  const { slug } = await params
+  const market = await getMarket(slug)
   if (!market) return { title: 'Market Not Found' }
 
   return {
@@ -73,9 +77,10 @@ async function MarketActivityFeed({ marketId }: { marketId: string }) {
 export default async function MarketPage({
   params,
 }: {
-  params: { slug: string }
+  params: Promise<{ slug: string }>
 }) {
-  const market = await getMarket(params.slug)
+  const { slug } = await params
+  const market = await getMarket(slug)
 
   if (!market) {
     notFound()

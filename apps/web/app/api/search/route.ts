@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import type { Enums } from '@/types/supabase'
 
 export async function GET(req: NextRequest) {
   const supabase = await createClient()
@@ -23,12 +24,12 @@ export async function GET(req: NextRequest) {
   if (status === 'all') {
     queryBuilder = queryBuilder.in('status', ['active', 'closed', 'resolved'])
   } else {
-    queryBuilder = queryBuilder.eq('status', status)
+    queryBuilder = queryBuilder.eq('status', status as Enums<'market_status'>)
   }
 
   // Category filter
   if (category && category !== 'all') {
-    queryBuilder = queryBuilder.eq('category', category)
+    queryBuilder = queryBuilder.eq('category', category as Enums<'market_category'>)
   }
 
   // Full-text search

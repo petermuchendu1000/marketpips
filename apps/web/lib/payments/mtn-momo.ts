@@ -4,7 +4,7 @@
 // ============================================================
 
 import axios from 'axios'
-import { v4 as uuidv4 } from 'uuid'
+import { randomUUID } from 'crypto'
 
 const BASE_URL = process.env.MTN_MOMO_BASE_URL || 'https://sandbox.momodeveloper.mtn.com'
 const SUBSCRIPTION_KEY = process.env.MTN_MOMO_SUBSCRIPTION_KEY!
@@ -86,7 +86,7 @@ export async function mtnRequestToPay({
   country?: 'UG' | 'RW' | 'GH'
 }): Promise<{ referenceId: string }> {
   const token = await getMoMoToken()
-  const referenceId = uuidv4()
+  const referenceId = randomUUID()
   const formattedPhone = formatMoMoPhone(phone, country)
 
   await axios.post(
@@ -164,7 +164,7 @@ export async function mtnTransfer({
   country?: 'UG' | 'RW' | 'GH'
 }): Promise<{ referenceId: string }> {
   const token = await getDisburseToken()
-  const referenceId = uuidv4()
+  const referenceId = randomUUID()
   const formattedPhone = formatMoMoPhone(phone, country)
 
   await axios.post(

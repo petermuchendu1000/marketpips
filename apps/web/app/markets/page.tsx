@@ -1,26 +1,33 @@
 // app/markets/page.tsx - Markets browser
 import { Suspense } from 'react'
+import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
 import { MarketCard } from '@/components/markets/market-card'
 import { MarketCardSkeleton } from '@/components/markets/market-card-skeleton'
 import { CategoryFilter } from '@/components/markets/category-filter'
 import type { Market, MarketCategory, MarketStatus } from '@/types'
 
+// Live market data — render dynamically per request (no static prerender)
+export const dynamic = 'force-dynamic'
+
 export const metadata = { title: 'Markets' }
 
+interface SearchParams {
+  category?: MarketCategory
+  status?: MarketStatus
+  search?: string
+  sort?: string
+  page?: string
+}
+
 interface MarketsPageProps {
-  searchParams: {
-    category?: MarketCategory
-    status?: MarketStatus
-    search?: string
-    sort?: string
-    page?: string
-  }
+  searchParams: Promise<SearchParams>
 }
 
 async function MarketsList({ searchParams }: MarketsPageProps) {
   const supabase = await createClient()
-  const page = parseInt(searchParams.page || '1')
+  const sp = await searchParams
+  const page = parseInt(sp.page || '1')
   const perPage = 24
   const offset = (page - 1) * perPage
 
@@ -30,11 +37,11 @@ async function MarketsList({ searchParams }: MarketsPageProps) {
       *,
       creator:profiles!markets_creator_id_fkey(id, display_name, username)
     `, { count: 'exact' })
-    .in('status', searchParams.status ? [searchParams.status] : ['active'])
+    .in('status', sp.status ? [sp.status] : ['active'])
     .range(offset, offset + perPage - 1)
 
-  if (searchParams.category) {
-    query = query.eq('category', searchParams.category)
+  if (sp.category) {
+    query = query.eq('category', sp.category)
   }
 
   const sortMap: Record<string, { col: string; asc: boolean }> = {
@@ -43,7 +50,7 @@ async function MarketsList({ searchParams }: MarketsPageProps) {
     closing: { col: 'closes_at', asc: true },
     bettors: { col: 'unique_bettors', asc: false },
   }
-  const sort = sortMap[searchParams.sort || 'volume'] || sortMap.volume
+  const sort = sortMap[sp.sort || 'volume'] || sortMap.volume
   query = query.order(sort.col, { ascending: sort.asc })
 
   const { data: markets, count } = await query
@@ -56,9 +63,9 @@ async function MarketsList({ searchParams }: MarketsPageProps) {
       <div className="flex items-center justify-between mb-4">
         <p className="text-sm text-muted-foreground">
           {count || 0} market{count !== 1 ? 's' : ''}
-          {searchParams.category && ` in ${searchParams.category}`}
+          {sp.category && ` in ${sp.category}`}
         </p>
-        <SortDropdown current={searchParams.sort} />
+        <SortDropdown current={sp.sort} />
       </div>
 
       {!markets?.length ? (
@@ -81,8 +88,8 @@ async function MarketsList({ searchParams }: MarketsPageProps) {
           {Array.from({ length: Math.min(totalPages, 7) }, (_, i) => {
             const p = i + 1
             const params = new URLSearchParams()
-            if (searchParams.category) params.set('category', searchParams.category)
-            if (searchParams.sort) params.set('sort', searchParams.sort)
+            if (sp.category) params.set('category', sp.category)
+            if (sp.sort) params.set('sort', sp.sort)
             params.set('page', String(p))
             return (
               <a
@@ -135,12 +142,12 @@ export default function MarketsPage({ searchParams }: MarketsPageProps) {
     <div className="container mx-auto px-4 py-6 max-w-7xl">
       <div className="flex items-center justify-between mb-4">
         <h1 className="text-2xl font-black">Markets</h1>
-        <a
+        <Link
           href="/markets/create"
           className="text-sm font-medium px-4 py-2 rounded-xl bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
         >
           + Create Market
-        </a>
+        </Link>
       </div>
 
       <CategoryFilter />

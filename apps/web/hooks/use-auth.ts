@@ -10,6 +10,8 @@ interface UseAuthReturn {
   user: User | null
   profile: Profile | null
   isLoading: boolean
+  /** Alias of isLoading for ergonomic call sites */
+  loading: boolean
   isAuthenticated: boolean
   signOut: () => Promise<void>
   refreshProfile: () => Promise<void>
@@ -74,6 +76,7 @@ export function useAuth(): UseAuthReturn {
     user,
     profile,
     isLoading,
+    loading: isLoading,
     isAuthenticated: !!user,
     signOut,
     refreshProfile,

@@ -7,6 +7,9 @@ import type { Market } from '@/types'
 import { IconFire, IconStar, IconTrendUp, IconArrowRight } from '@/components/ui/icons'
 import Link from 'next/link'
 
+// Live market data — render dynamically per request (no static prerender)
+export const dynamic = 'force-dynamic'
+
 async function getData() {
   const supabase = await createClient()
 

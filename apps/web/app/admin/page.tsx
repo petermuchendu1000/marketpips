@@ -2,6 +2,9 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 
+// Live market data — render dynamically per request (no static prerender)
+export const dynamic = 'force-dynamic'
+
 export const metadata = { title: 'Admin Dashboard' }
 
 export default async function AdminPage() {
@@ -84,7 +87,7 @@ export default async function AdminPage() {
               <span>{tx.description}</span>
               <span className="font-medium">${tx.amount_usd.toFixed(2)}</span>
               <span className="text-muted-foreground text-xs">
-                {new Date(tx.created_at).toLocaleString('en-KE', { dateStyle: 'short', timeStyle: 'short' })}
+                {tx.created_at ? new Date(tx.created_at).toLocaleString('en-KE', { dateStyle: 'short', timeStyle: 'short' }) : '—'}
               </span>
             </div>
           ))}

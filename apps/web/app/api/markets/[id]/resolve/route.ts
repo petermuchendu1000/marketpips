@@ -10,9 +10,10 @@ const resolveSchema = z.object({
 
 export async function POST(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id: marketId } = await params
     const supabase = await createClient()
     const { data: { user }, error: authError } = await supabase.auth.getUser()
 
@@ -45,7 +46,7 @@ export async function POST(
     const adminClient = await createAdminClient()
 
     const { data: result, error: resolveError } = await adminClient.rpc('resolve_market', {
-      p_market_id: params.id,
+      p_market_id: marketId,
       p_outcome: outcome,
       p_resolver_id: user.id,
       p_resolution_notes: resolution_notes,
@@ -61,7 +62,7 @@ export async function POST(
       actor_id: user.id,
       action: 'market_resolved',
       entity_type: 'market',
-      entity_id: params.id,
+      entity_id: marketId,
       new_data: { outcome, resolution_notes },
     })
 

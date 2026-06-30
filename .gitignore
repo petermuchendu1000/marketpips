@@ -1,0 +1,51 @@
+# ───────────── Dependencies ─────────────
+node_modules/
+.pnp
+.pnp.js
+.yarn/install-state.gz
+
+# ───────────── Build output ─────────────
+.next/
+out/
+build/
+dist/
+*.tsbuildinfo
+next-env.d.ts
+
+# ───────────── Environment & secrets ─────────────
+.env
+.env.*
+!.env.example
+!.env.local.template
+*.pem
+*.key
+
+# ───────────── Logs ─────────────
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+*.log
+
+# ───────────── Testing ─────────────
+coverage/
+.nyc_output/
+playwright-report/
+test-results/
+
+# ───────────── Supabase ─────────────
+supabase/.branches
+supabase/.temp
+supabase/.env
+
+# ───────────── Editor / OS ─────────────
+.DS_Store
+.vscode/*
+!.vscode/extensions.json
+.idea/
+*.swp
+Thumbs.db
+
+# ───────────── Misc ─────────────
+.vercel
+.fly/
+*.local

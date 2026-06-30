@@ -10,7 +10,7 @@ interface ActivityItem {
   amount_usd: number | null
   side: 'yes' | 'no' | null
   price: number | null
-  created_at: string
+  created_at: string | null | null
   user?: {
     display_name: string | null
     username: string | null
@@ -64,7 +64,7 @@ export function MarketActivity({ activity }: MarketActivityProps) {
                 </span>
               )}
               <span className="text-xs text-muted-foreground">
-                {formatDistanceToNow(new Date(item.created_at), { addSuffix: true })}
+                {item.created_at ? formatDistanceToNow(new Date(item.created_at), { addSuffix: true }) : ''}
               </span>
             </div>
           </div>

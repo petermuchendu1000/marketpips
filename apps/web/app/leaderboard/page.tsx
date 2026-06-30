@@ -2,6 +2,9 @@ import { createClient } from '@/lib/supabase/server'
 import Link from 'next/link'
 import type { Profile } from '@/types'
 
+// Live market data — render dynamically per request (no static prerender)
+export const dynamic = 'force-dynamic'
+
 async function getLeaderboard() {
   const supabase = await createClient()
   const { data } = await supabase

@@ -3,6 +3,9 @@ import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import type { Position, Transaction, Wallet } from '@/types'
 
+// Live market data — render dynamically per request (no static prerender)
+export const dynamic = 'force-dynamic'
+
 export const metadata = { title: 'My Portfolio' }
 
 async function PortfolioData() {

@@ -7,10 +7,11 @@ interface IconProps {
   size?: number
   className?: string
   strokeWidth?: number
+  style?: React.CSSProperties
 }
 
 const icon = (path: React.ReactNode, viewBox = '0 0 24 24') =>
-  function Icon({ size = 16, className = '', strokeWidth = 1.75 }: IconProps) {
+  function Icon({ size = 16, className = '', strokeWidth = 1.75, style }: IconProps) {
     return (
       <svg
         width={size}
@@ -22,6 +23,7 @@ const icon = (path: React.ReactNode, viewBox = '0 0 24 24') =>
         strokeLinecap="round"
         strokeLinejoin="round"
         className={className}
+        style={style}
         aria-hidden="true"
       >
         {path}

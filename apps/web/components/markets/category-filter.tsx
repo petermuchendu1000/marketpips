@@ -1,6 +1,7 @@
 'use client'
 
 import { useRef } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { CATEGORY_LABELS } from '@/types'
 import { IconChevronLeft, IconChevronRight } from '@/components/ui/icons'
 
@@ -10,13 +11,28 @@ const CATEGORIES = [
 ]
 
 interface CategoryFilterProps {
-  selected: string
-  onChange: (cat: string) => void
+  /** Controlled selection. If omitted, derived from the `category` URL param. */
+  selected?: string
+  /** Change handler. If omitted, navigates to /markets?category=… */
+  onChange?: (cat: string) => void
   counts?: Record<string, number>
 }
 
 export function CategoryFilter({ selected, onChange, counts = {} }: CategoryFilterProps) {
   const scrollRef = useRef<HTMLDivElement>(null)
+  const router = useRouter()
+  const searchParams = useSearchParams()
+
+  const activeKey = selected ?? searchParams.get('category') ?? 'all'
+  const handleChange =
+    onChange ??
+    ((cat: string) => {
+      const sp = new URLSearchParams(Array.from(searchParams.entries()))
+      if (cat === 'all') sp.delete('category')
+      else sp.set('category', cat)
+      const qs = sp.toString()
+      router.push(qs ? `/markets?${qs}` : '/markets')
+    })
 
   const scroll = (dir: 'left' | 'right') => {
     scrollRef.current?.scrollBy({ left: dir === 'left' ? -160 : 160, behavior: 'smooth' })
@@ -40,11 +56,11 @@ export function CategoryFilter({ selected, onChange, counts = {} }: CategoryFilt
       >
         {CATEGORIES.map(cat => {
           const count = counts[cat.key]
-          const active = selected === cat.key
+          const active = activeKey === cat.key
           return (
             <button
               key={cat.key}
-              onClick={() => onChange(cat.key)}
+              onClick={() => handleChange(cat.key)}
               className={`tab-pill flex-shrink-0 flex items-center gap-1.5 ${active ? 'active' : ''}`}
             >
               <span>{cat.emoji}</span>
