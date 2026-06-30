@@ -56,10 +56,20 @@ Legend: ☐ todo · ◐ in progress · ☑ done
   · 10 lifecycle tests · 70/70 total · tsc clean · `next build` · DB-live: LMSR
   parity (TS≡DB) + create-market defaults (status=draft, 0.50/0.50, rolled back).
 
-### Module 4 — Trading (orders & positions)  ☐
-- `place_bet` RPC path, fees (2% / 0.25% creator), positions aggregation.
-- **Gate:** DB-live: place bet moves balance + price + position atomically;
-  insufficient-balance + closed-market rejection paths.
+### Module 4 — Trading (orders & positions)  ☑
+- Corrected `place_bet` (migration 004): fixed the **reserve leak** (filled bets
+  now debit available_balance only), **true slippage-aware LMSR** share
+  allocation via a numerically-stable closed-form inverse (replacing
+  `net_usd/price`), and **creator reward** (0.25%) carved from the platform fee
+  (2%), credited to the creator's USD wallet — skipped on self-bets
+  (anti wash-trading). Also fixed a latent `order_side→position_side` cast bug. ✓
+- `lib/trading.ts`: fee economics + `previewBet` mirroring the RPC so UI previews
+  equal execution; hardened orders route (full SQLSTATE→HTTP mapping, limit-price
+  validation). ✓
+- **Gate:** ✓ DB-live (rolled back): bet moves balance (debit, no reserve leak) +
+  price (0.50→0.5075) + position + creator reward atomically; rejection paths
+  P0006 insufficient & P0002 closed verified. 7 trading unit tests (fee split,
+  min-bet, preview≡DB). 77/77 total · tsc clean · `next build`.
 
 ### Module 5 — Portfolio & price history  ☐
 - Holdings, P&L, history; price_history time-series for charts.

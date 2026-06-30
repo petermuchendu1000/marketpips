@@ -11,7 +11,22 @@ const placeBetSchema = z.object({
   currency: z.enum(['KES', 'UGX', 'TZS', 'RWF', 'ZMW', 'ETB', 'BIF', 'USD']),
   order_type: z.enum(['market', 'limit']).default('market'),
   limit_price: z.number().min(0.01).max(0.99).optional(),
+}).refine((d) => d.order_type !== 'limit' || d.limit_price != null, {
+  message: 'limit_price is required for limit orders',
+  path: ['limit_price'],
 })
+
+// Map place_bet SQLSTATE codes -> HTTP responses (single source of truth).
+const BET_ERRORS: Record<string, { status: number; error: string }> = {
+  P0001: { status: 404, error: 'Market not found or not active' },
+  P0002: { status: 409, error: 'Market is closed for betting' },
+  P0003: { status: 400, error: 'Unsupported currency' },
+  P0004: { status: 400, error: 'Minimum bet is 0.10 USD equivalent' },
+  P0005: { status: 400, error: 'Wallet not found for this currency' },
+  P0006: { status: 402, error: 'Insufficient balance' },
+  P0007: { status: 400, error: 'Limit orders require a limit price' },
+  P0008: { status: 422, error: 'Could not compute a valid trade size' },
+}
 
 export async function POST(req: NextRequest) {
   try {
@@ -62,15 +77,11 @@ export async function POST(req: NextRequest) {
     })
 
     if (betError) {
-      // Parse Postgres error codes
-      if (betError.message.includes('P0001')) {
-        return NextResponse.json({ error: 'Market not found or not active' }, { status: 404 })
-      }
-      if (betError.message.includes('P0006')) {
-        return NextResponse.json({ error: 'Insufficient balance' }, { status: 402 })
-      }
-      if (betError.message.includes('P0002')) {
-        return NextResponse.json({ error: 'Market is closed for betting' }, { status: 409 })
+      // Map known SQLSTATE codes from place_bet to precise HTTP responses.
+      const code = Object.keys(BET_ERRORS).find((c) => betError.message.includes(c))
+      if (code) {
+        const { status, error } = BET_ERRORS[code]
+        return NextResponse.json({ error }, { status })
       }
       console.error('Bet placement error:', betError)
       return NextResponse.json({ error: 'Failed to place bet' }, { status: 500 })
