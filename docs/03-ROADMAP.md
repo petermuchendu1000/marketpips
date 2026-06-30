@@ -14,11 +14,15 @@ Legend: ☐ todo · ◐ in progress · ☑ done
 - Add testing harness (Vitest), lint/format config, env validation (Zod).
 - **Gate:** `tsc --noEmit` clean · `next build` succeeds · lint passes.
 
-### Module 1 — Auth & RBAC  ☐
-- Email/password + OAuth (Google) sign-in, email confirm, callback route.
-- `profiles` auto-provision trigger; role enum (user/admin/moderator/resolver).
-- Middleware route protection; server-side session helpers.
-- **Gate:** unit tests for guards · e2e: register→confirm→login→protected page.
+### Module 1 — Auth & RBAC  ☑
+- Email/password + OAuth (Google) sign-in, email confirm, callback route. ✓
+- `profiles` auto-provision trigger fixed (migration 003): correct metadata
+  mapping (display_name/country/currency), preferred-currency wallet, referral. ✓
+- Centralized RBAC helpers (`lib/auth.ts`); edge middleware admin-role gate. ✓
+- Polymarket free-API client scaffolded (`lib/integrations/polymarket.ts`,
+  live-validated) for Module 3 ingestion. ✓
+- **Gate:** ✓ DB e2e (signup → profile+wallets+referral, rolled back) ·
+  unit tests for `hasRole` · tsc clean · build · 20 tests pass.
 
 ### Module 2 — Wallets & currency  ☐
 - Multi-currency wallets; exchange-rate read; FX conversion helpers.

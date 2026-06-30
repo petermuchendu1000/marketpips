@@ -55,6 +55,19 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(loginUrl)
   }
 
+  // Defense-in-depth: enforce admin/moderator role at the edge for /admin.
+  // The page & admin APIs also check, but this blocks non-staff earlier.
+  if (isAdmin && user) {
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('role')
+      .eq('id', user.id)
+      .single()
+    if (!profile || !['admin', 'moderator'].includes(profile.role)) {
+      return NextResponse.redirect(new URL('/', request.url))
+    }
+  }
+
   // Redirect authenticated users away from auth pages
   if (user && (pathname.startsWith('/auth/login') || pathname.startsWith('/auth/register'))) {
     return NextResponse.redirect(new URL('/', request.url))

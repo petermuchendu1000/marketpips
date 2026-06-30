@@ -1,7 +1,8 @@
 // app/api/markets/[id]/resolve/route.ts - Admin: resolve a market
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient, createAdminClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/server'
 import { z } from 'zod'
+import { requireRole, RESOLVER_ROLES } from '@/lib/auth'
 
 const resolveSchema = z.object({
   outcome: z.enum(['yes', 'no']),
@@ -14,23 +15,9 @@ export async function POST(
 ) {
   try {
     const { id: marketId } = await params
-    const supabase = await createClient()
-    const { data: { user }, error: authError } = await supabase.auth.getUser()
-
-    if (authError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-
-    // Check admin/resolver role
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('role')
-      .eq('id', user.id)
-      .single()
-
-    if (!['admin', 'moderator', 'resolver'].includes(profile?.role || '')) {
-      return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 })
-    }
+    const guard = await requireRole(RESOLVER_ROLES)
+    if (!guard.ok) return guard.response
+    const { user } = guard.ctx
 
     const body = await req.json()
     const parsed = resolveSchema.safeParse(body)
