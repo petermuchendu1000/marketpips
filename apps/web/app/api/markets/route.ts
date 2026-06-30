@@ -123,10 +123,24 @@ export async function POST(req: NextRequest) {
 
     const data = parsed.data
 
-    // Validate close date
+    // Validate dates: minimum 1-hour trading window, and resolution at/after close.
+    const now = Date.now()
     const closesAt = new Date(data.closes_at)
-    if (closesAt <= new Date()) {
-      return NextResponse.json({ error: 'Close date must be in the future' }, { status: 400 })
+    const MIN_LEAD_MS = 60 * 60 * 1000 // 1 hour
+    if (Number.isNaN(closesAt.getTime()) || closesAt.getTime() <= now + MIN_LEAD_MS) {
+      return NextResponse.json(
+        { error: 'Close date must be at least 1 hour in the future' },
+        { status: 400 },
+      )
+    }
+    if (data.resolves_at) {
+      const resolvesAt = new Date(data.resolves_at)
+      if (Number.isNaN(resolvesAt.getTime()) || resolvesAt.getTime() < closesAt.getTime()) {
+        return NextResponse.json(
+          { error: 'Resolution date must be on or after the close date' },
+          { status: 400 },
+        )
+      }
     }
 
     // Generate slug

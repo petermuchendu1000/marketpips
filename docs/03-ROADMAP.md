@@ -40,10 +40,21 @@ Legend: ☐ todo · ◐ in progress · ☑ done
   fallback, formatting) · 42/42 total tests · tsc clean · `next build` · DB-live:
   FX completeness (8/8 currencies) + `handle_new_user` provisions preferred-currency wallet.
 
-### Module 3 — Markets & LMSR pricing  ☐
-- Market CRUD, lifecycle (draft→pending→active→closed→resolved), categories.
-- Verify `lmsr_price` / `lmsr_cost_to_buy` numerically.
-- **Gate:** unit tests for LMSR math vs. reference values · DB-live: create market.
+### Module 3 — Markets & LMSR pricing  ☑
+- Canonical TS LMSR module (`lib/lmsr.ts`): numerically-stable (log-sum-exp)
+  port of the authoritative Postgres `lmsr_price` / `lmsr_cost_to_buy` —
+  `lmsrPrices` / `lmsrCost` / `lmsrCostToBuy` / `spreadFromPrices` /
+  `sharesForBudget` (true LMSR inversion w/ slippage) / `bFromLiquidity`. ✓
+- Market lifecycle state machine (`lib/market-lifecycle.ts`):
+  draft→pending→active→closed→resolved (+ disputed/cancelled), terminal-state
+  guards, `validateTransition`. ✓
+- API: single-market GET (`/api/markets/[id]`, by UUID or slug) + admin
+  lifecycle PATCH (`/api/markets/[id]/status`) enforcing the state machine,
+  optimistic concurrency guard, `cancel_market` RPC for cancellations, audit log. ✓
+- Hardened create-market validation (≥1h trading window, resolves_at ≥ closes_at). ✓
+- **Gate:** ✓ 18 LMSR unit tests vs DB reference values (+ stability/monotonicity)
+  · 10 lifecycle tests · 70/70 total · tsc clean · `next build` · DB-live: LMSR
+  parity (TS≡DB) + create-market defaults (status=draft, 0.50/0.50, rolled back).
 
 ### Module 4 — Trading (orders & positions)  ☐
 - `place_bet` RPC path, fees (2% / 0.25% creator), positions aggregation.
