@@ -165,6 +165,48 @@ export async function airtelTransactionStatus(transactionId: string, country: st
   }
 }
 
+// Parse an Airtel Money collection IPN/callback.
+// Airtel posts a transaction block with a status_code: TS=success, TF=failed,
+// TIP/TA=pending. The `id` echoes our deposit reference.
+export interface AirtelCallbackBody {
+  transaction?: {
+    id?: string
+    message?: string
+    status_code?: string
+    airtel_money_id?: string
+  }
+  data?: {
+    transaction?: {
+      id?: string
+      message?: string
+      status_code?: string
+      airtel_money_id?: string
+    }
+  }
+}
+
+export function parseAirtelCallback(body: AirtelCallbackBody): {
+  success: boolean
+  failed: boolean
+  pending: boolean
+  reference?: string
+  airtelMoneyId?: string
+  message?: string
+  statusCode?: string
+} {
+  const txn = body.transaction || body.data?.transaction || {}
+  const code = (txn.status_code || '').toUpperCase()
+  return {
+    success: code === 'TS',
+    failed: code === 'TF',
+    pending: code !== 'TS' && code !== 'TF',
+    reference: txn.id,
+    airtelMoneyId: txn.airtel_money_id,
+    message: txn.message,
+    statusCode: code,
+  }
+}
+
 // Disburse (withdrawal)
 export async function airtelDisburse({
   phone,

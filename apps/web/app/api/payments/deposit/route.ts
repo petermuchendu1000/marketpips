@@ -151,6 +151,8 @@ export async function POST(req: NextRequest) {
       updateData.mtn_reference_id = paymentResult.providerReference || ''
     } else if (provider === 'airtel_money') {
       updateData.airtel_reference = paymentResult.providerReference || ''
+    } else if (provider === 'pesapal') {
+      updateData.pesapal_order_id = paymentResult.providerReference || ''
     }
 
     await adminClient
@@ -162,6 +164,9 @@ export async function POST(req: NextRequest) {
       success: true,
       deposit_id: deposit.id,
       provider_reference: paymentResult.providerReference,
+      // Redirect-based providers (PesaPal) return a hosted-payment URL the
+      // client must navigate to; STK providers return null here.
+      redirect_url: paymentResult.redirectUrl ?? null,
       message: paymentResult.message,
       requires_polling: paymentResult.requiresPolling,
     })

@@ -1,102 +1,65 @@
-// app/api/webhooks/mtn-momo/route.ts - MTN MoMo callback
+// app/api/webhooks/mtn-momo/route.ts — MTN MoMo collection callback
+//
+// Idempotent + atomic via the shared creditDeposit()/failDeposit() helpers.
+// MTN's callback can be lightweight, so we authoritatively re-query the
+// collection status before crediting (defends against spoofed callbacks).
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/server'
-import { getUsdRate, localToUsd } from '@/lib/currency'
+import { getMoMoPaymentStatus } from '@/lib/payments/mtn-momo'
+import { creditDeposit, failDeposit } from '@/lib/payments/credit'
 import type { CurrencyCode } from '@/types'
 
 export async function POST(req: NextRequest) {
   try {
-    const body = await req.json()
+    const body = await req.json().catch(() => ({}))
     const adminClient = await createAdminClient()
 
     const { searchParams } = new URL(req.url)
-    const referenceId = searchParams.get('ref') || body.externalId
+    const referenceId = searchParams.get('ref') || body.externalId || body.referenceId
 
-    const isSuccess = body.status === 'SUCCESSFUL'
-    const isFailed = body.status === 'FAILED'
-
-    if (!isSuccess && !isFailed) {
-      // Still pending
+    if (!referenceId) {
       return NextResponse.json({ received: true })
     }
 
     const { data: deposit } = await adminClient
       .from('deposits')
-      .select('*, wallets(available_balance)')
+      .select('id, status, amount, currency')
       .eq('mtn_reference_id', referenceId)
-      .single()
+      .maybeSingle()
 
-    if (!deposit || deposit.status === 'completed') {
+    if (!deposit) {
+      console.error('MTN callback: deposit not found for', referenceId)
       return NextResponse.json({ received: true })
     }
 
-    if (isFailed) {
-      await adminClient.from('deposits').update({
-        status: 'failed',
-        failed_at: new Date().toISOString(),
-        failure_reason: body.reason || 'MTN MoMo payment failed',
-        raw_callback: body,
-      }).eq('id', deposit.id)
-      return NextResponse.json({ received: true })
+    // Trust the provider, not the payload: re-query the authoritative status.
+    let status = body.status as string | undefined
+    let financialTransactionId = body.financialTransactionId as string | undefined
+    let reason = body.reason as string | undefined
+    try {
+      const live = await getMoMoPaymentStatus(referenceId)
+      status = live.status
+      financialTransactionId = live.financialTransactionId ?? financialTransactionId
+      reason = live.reason ?? reason
+    } catch {
+      // Fall back to the callback payload if the status query is unavailable.
     }
 
-    const { data: rateData } = await adminClient
-      .from('exchange_rates')
-      .select('rate')
-      .eq('from_currency', deposit.currency)
-      .eq('to_currency', 'USD')
-      .single()
-
-    // Canonical FX — live rate wins, else currency-correct last-known-good.
-    // (Was `|| 0.000267`, which silently priced every non-UGX deposit as UGX.)
-    const _liveRate = rateData?.rate != null ? Number(rateData.rate) : undefined
-    const _rateMap = _liveRate ? { [deposit.currency as CurrencyCode]: _liveRate } : undefined
-    const exchangeRate = getUsdRate(deposit.currency as CurrencyCode, _rateMap)
-    const amountUsd = localToUsd(deposit.amount, deposit.currency as CurrencyCode, _rateMap)
-    const currentBalance = deposit.wallets?.available_balance || 0
-
-    await adminClient.from('deposits').update({
-      status: 'completed',
-      confirmed_at: new Date().toISOString(),
-      provider_receipt: body.financialTransactionId,
-      raw_callback: body,
-    }).eq('id', deposit.id)
-
-    await adminClient.from('wallets').update({
-      available_balance: currentBalance + deposit.amount,
-    }).eq('id', deposit.wallet_id)
-
-    await adminClient.from('transactions').insert({
-      user_id: deposit.user_id,
-      wallet_id: deposit.wallet_id,
-      type: 'deposit',
-      status: 'completed',
-      amount: deposit.amount,
-      currency: deposit.currency,
-      amount_usd: amountUsd,
-      exchange_rate_to_usd: exchangeRate,
-      balance_before: currentBalance,
-      balance_after: currentBalance + deposit.amount,
-      payment_reference: body.financialTransactionId,
-      payment_provider: 'mtn_momo',
-      payment_phone: deposit.phone_number,
-      payment_metadata: body,
-      description: 'MTN MoMo deposit',
-      completed_at: new Date().toISOString(),
-      initiated_at: new Date().toISOString(),
-      idempotency_key: `mtn_${referenceId}`,
-    })
-
-    await adminClient.from('notifications').insert({
-      user_id: deposit.user_id,
-      type: 'deposit_completed',
-      title: '✅ Deposit Confirmed',
-      body: `${deposit.amount.toLocaleString()} ${deposit.currency} added to your account via MTN MoMo.`,
-      data: { amount: deposit.amount, currency: deposit.currency },
-    })
+    if (status === 'SUCCESSFUL') {
+      await creditDeposit(adminClient, {
+        depositId: deposit.id,
+        amount: Number(deposit.amount),
+        currency: deposit.currency as CurrencyCode,
+        providerReceipt: financialTransactionId ?? null,
+        rawCallback: body,
+        idempotencyKey: `mtn_${referenceId}`,
+      })
+    } else if (status === 'FAILED') {
+      await failDeposit(adminClient, deposit.id, reason || 'MTN MoMo payment failed', body)
+    }
+    // else still pending → no-op, provider will call again.
 
     return NextResponse.json({ received: true })
-
   } catch (error) {
     console.error('MTN MoMo webhook error:', error)
     return NextResponse.json({ received: true })

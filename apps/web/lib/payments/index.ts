@@ -8,6 +8,7 @@ import { localToUsd, type RatesMap } from '@/lib/currency'
 import { initiateMpesaSTKPush, formatMpesaPhone } from './mpesa'
 import { mtnRequestToPay, formatMoMoPhone } from './mtn-momo'
 import { airtelCollect, formatAirtelPhone } from './airtel-money'
+import { submitPesaPalOrder } from './pesapal'
 
 export interface PaymentRequest {
   provider: PaymentProvider
@@ -23,7 +24,9 @@ export interface PaymentRequest {
 export interface PaymentResult {
   success: boolean
   provider: PaymentProvider
-  providerReference?: string // checkout request ID, reference ID, etc.
+  providerReference?: string // checkout request ID, reference ID, order tracking ID, etc.
+  /** For redirect-based providers (PesaPal): the hosted-payment-page URL. */
+  redirectUrl?: string
   message: string
   requiresPolling: boolean
 }
@@ -116,6 +119,26 @@ export async function initiateDeposit(req: PaymentRequest): Promise<PaymentResul
           provider: 'airtel_money',
           providerReference: result.transactionId,
           message: 'Approve the payment on your Airtel Money app.',
+          requiresPolling: true,
+        }
+      }
+
+      case 'pesapal': {
+        // Redirect-based: no STK. We get a hosted-payment URL and send the
+        // user's browser there. Confirmation arrives via the PesaPal IPN.
+        const result = await submitPesaPalOrder({
+          depositId: req.depositId,
+          amount: req.amount,
+          currency: req.currency,
+          description: req.description || 'MarketPips Deposit',
+          phone: req.phone,
+        })
+        return {
+          success: true,
+          provider: 'pesapal',
+          providerReference: result.orderTrackingId,
+          redirectUrl: result.redirectUrl,
+          message: 'Continue to PesaPal to complete your payment.',
           requiresPolling: true,
         }
       }

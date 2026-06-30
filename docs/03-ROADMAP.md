@@ -75,10 +75,31 @@ Legend: ☐ todo · ◐ in progress · ☑ done
 - Holdings, P&L, history; price_history time-series for charts.
 - **Gate:** e2e: bet → appears in portfolio with correct P&L.
 
-### Module 6 — Payments: deposits  ☐
-- M-Pesa STK, MTN MoMo collection, Airtel, PesaPal initiate + webhooks.
-- Idempotent webhook handling; deposit→wallet credit.
-- **Gate:** sandbox provider simulation; webhook idempotency test.
+### Module 6 — Payments: deposits  ☑
+- Atomic, idempotent `credit_deposit` / `fail_deposit` RPCs (migration 005),
+  mirroring the `place_bet` pattern: `FOR UPDATE` deposit lock serialises
+  concurrent callbacks, `status='completed'` short-circuit + UNIQUE
+  `idempotency_key` backstop prevent double credits, wallet
+  `available_balance`/`total_deposited` INCREMENTED (fixed the old
+  `= balance + amount` bug and MTN's missing `total_deposited`), transaction
+  row with before/after balances, and the in-app notification — all in ONE
+  transaction. `service_role`-only EXECUTE grant. ✓
+- Shared `lib/payments/credit.ts` helper (`creditDeposit`/`failDeposit`):
+  resolves the USD rate via the canonical FX module then calls the RPC; the
+  single chokepoint every webhook uses. ✓
+- Webhooks refactored to the helper (M-Pesa STK, MTN MoMo) + added the two
+  missing providers (Airtel collection IPN, PesaPal v3 IPN). MTN/Airtel/PesaPal
+  re-query the provider's authoritative status before crediting (defence
+  against spoofed callbacks); PesaPal IPN is unsigned so status is NEVER
+  trusted from the payload. ✓
+- New PesaPal v3 client (`lib/payments/pesapal.ts`): token, IPN registration,
+  redirect-based SubmitOrderRequest, GetTransactionStatus. Deposit route +
+  orchestrator now support the PesaPal redirect flow (`redirect_url`,
+  `pesapal_order_id`). ✓
+- **Gate:** ✓ 11 payment unit tests (M-Pesa/Airtel/PesaPal callback parsing,
+  phone formatters, provider selection) · 110/110 total · tsc clean · DB-live
+  (rolled back): same deposit credited twice → balance 0→100→100,
+  total_deposited 0→100, r1.credited / r2.already_processed, exactly 1 txn row.
 
 ### Module 7 — Payments: withdrawals + KYC gate  ☐
 - B2C/disbursement; KYC required > threshold; fee handling.
