@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { z } from 'zod'
 import { initiateDeposit } from '@/lib/payments'
+import { getUsdRate } from '@/lib/currency'
 import type { PaymentProvider, CurrencyCode } from '@/types'
 
 const depositSchema = z.object({
@@ -88,7 +89,14 @@ export async function POST(req: NextRequest) {
       .eq('to_currency', 'USD')
       .single()
 
-    const exchangeRate = rateData?.rate || 1
+    // Resolve via the canonical helper: live rate wins, else last-known-good
+    // (currency-correct) fallback — never the dangerous `|| 1` that treats a
+    // local amount as if it were USD.
+    const liveRate = rateData?.rate != null ? Number(rateData.rate) : undefined
+    const exchangeRate = getUsdRate(
+      currency as CurrencyCode,
+      liveRate ? { [currency as CurrencyCode]: liveRate } : undefined,
+    )
 
     // Create deposit record
     const { data: deposit, error: depositError } = await adminClient

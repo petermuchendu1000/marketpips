@@ -1,6 +1,8 @@
 // app/api/webhooks/mtn-momo/route.ts - MTN MoMo callback
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/server'
+import { getUsdRate, localToUsd } from '@/lib/currency'
+import type { CurrencyCode } from '@/types'
 
 export async function POST(req: NextRequest) {
   try {
@@ -45,8 +47,12 @@ export async function POST(req: NextRequest) {
       .eq('to_currency', 'USD')
       .single()
 
-    const exchangeRate = rateData?.rate || 0.000267
-    const amountUsd = deposit.amount * exchangeRate
+    // Canonical FX — live rate wins, else currency-correct last-known-good.
+    // (Was `|| 0.000267`, which silently priced every non-UGX deposit as UGX.)
+    const _liveRate = rateData?.rate != null ? Number(rateData.rate) : undefined
+    const _rateMap = _liveRate ? { [deposit.currency as CurrencyCode]: _liveRate } : undefined
+    const exchangeRate = getUsdRate(deposit.currency as CurrencyCode, _rateMap)
+    const amountUsd = localToUsd(deposit.amount, deposit.currency as CurrencyCode, _rateMap)
     const currentBalance = deposit.wallets?.available_balance || 0
 
     await adminClient.from('deposits').update({

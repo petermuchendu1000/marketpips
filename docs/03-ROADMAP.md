@@ -24,9 +24,21 @@ Legend: ☐ todo · ◐ in progress · ☑ done
 - **Gate:** ✓ DB e2e (signup → profile+wallets+referral, rolled back) ·
   unit tests for `hasRole` · tsc clean · build · 20 tests pass.
 
-### Module 2 — Wallets & currency  ☐
-- Multi-currency wallets; exchange-rate read; FX conversion helpers.
-- **Gate:** unit tests for conversion · DB-live: wallet creation on signup.
+### Module 2 — Wallets & currency  ☑
+- Canonical FX module (`lib/currency.ts`): decimal-precise (big.js) conversion,
+  single source of truth — `getUsdRate` / `localToUsd` / `usdToLocal` / `convert`,
+  `CURRENCY_META`, `FALLBACK_USD_RATES`, `buildRatesMap`, `fetchRatesMap`. ✓
+- Live-rate client hook (`hooks/use-rates.ts`) reading anon-readable
+  `exchange_rates` with module-level cache (5-min TTL) + de-duped in-flight fetch. ✓
+- `use-wallets.ts` now values balances via live rates (removed hardcoded
+  `APPROX_RATES`). ✓
+- Eliminated dangerous magic-number FX fallbacks (`|| 0.01`, `|| 1`,
+  `|| 0.00775`, `|| 0.000267`) in withdraw/deposit/mpesa/mtn-momo routes — all
+  now route through `getUsdRate` (currency-correct last-known-good fallback). ✓
+- Legacy `convertCurrency` in `lib/payments` delegates to the canonical module. ✓
+- **Gate:** ✓ 22 currency unit tests (round-trip, cross-currency, precision,
+  fallback, formatting) · 42/42 total tests · tsc clean · `next build` · DB-live:
+  FX completeness (8/8 currencies) + `handle_new_user` provisions preferred-currency wallet.
 
 ### Module 3 — Markets & LMSR pricing  ☐
 - Market CRUD, lifecycle (draft→pending→active→closed→resolved), categories.

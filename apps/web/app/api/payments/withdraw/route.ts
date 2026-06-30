@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { z } from 'zod'
 import { processWithdrawal } from '@/lib/payments'
+import { getUsdRate, localToUsd } from '@/lib/currency'
 import type { CurrencyCode, PaymentProvider } from '@/types'
 
 const WithdrawSchema = z.object({
@@ -50,7 +51,12 @@ export async function POST(req: NextRequest) {
     .eq('to_currency', 'USD')
     .single()
 
-  const amountUSD = amount * (exchangeRate?.rate || 0.01)
+  // Canonical FX: live rate wins, else last-known-good (currency-correct)
+  // fallback — never the dangerous `|| 0.01` that mis-priced every KYC/review gate.
+  const liveRate = exchangeRate?.rate != null ? Number(exchangeRate.rate) : undefined
+  const rateMap = liveRate ? { [currency as CurrencyCode]: liveRate } : undefined
+  const usdRate = getUsdRate(currency as CurrencyCode, rateMap)
+  const amountUSD = localToUsd(amount, currency as CurrencyCode, rateMap)
   if (amountUSD > 100 && profile.kyc_status !== 'verified') {
     return NextResponse.json({
       error: 'KYC verification required for withdrawals over $100. Please verify your identity first.',
@@ -118,7 +124,7 @@ export async function POST(req: NextRequest) {
       amount,
       currency,
       phone_number,
-      exchange_rate_to_usd: exchangeRate?.rate || 0.01,
+      exchange_rate_to_usd: usdRate,
       fee_amount: feeAmount,
       requires_review: requiresReview,
       initiated_at: new Date().toISOString(),
@@ -144,7 +150,7 @@ export async function POST(req: NextRequest) {
     amount,
     currency,
     amount_usd: amountUSD,
-    exchange_rate_to_usd: exchangeRate?.rate || 0.01,
+    exchange_rate_to_usd: usdRate,
     fee_amount: feeAmount,
     fee_currency: currency,
     balance_before: availableBalance,

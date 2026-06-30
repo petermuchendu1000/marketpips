@@ -2,6 +2,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/server'
 import { parseMpesaCallback } from '@/lib/payments/mpesa'
+import { getUsdRate, localToUsd } from '@/lib/currency'
+import type { CurrencyCode } from '@/types'
 
 export async function POST(req: NextRequest) {
   try {
@@ -54,8 +56,12 @@ export async function POST(req: NextRequest) {
       .eq('to_currency', 'USD')
       .single()
 
-    const exchangeRate = rateData?.rate || 0.00775
-    const amountUsd = deposit.amount * exchangeRate
+    // Canonical FX — live rate wins, else currency-correct last-known-good.
+    // (Was `|| 0.00775`, which silently priced every non-KES deposit as KES.)
+    const _liveRate = rateData?.rate != null ? Number(rateData.rate) : undefined
+    const _rateMap = _liveRate ? { [deposit.currency as CurrencyCode]: _liveRate } : undefined
+    const exchangeRate = getUsdRate(deposit.currency as CurrencyCode, _rateMap)
+    const amountUsd = localToUsd(deposit.amount, deposit.currency as CurrencyCode, _rateMap)
 
     // Use a DB transaction-like approach: update deposit + wallet + create transaction
     // Mark deposit as complete

@@ -5,6 +5,8 @@ import { useEffect, useState, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import type { Wallet, CurrencyCode } from '@/types'
 import { useAuth } from './use-auth'
+import { useRates } from './use-rates'
+import { localToUsd } from '@/lib/currency'
 
 interface UseWalletsReturn {
   wallets: Wallet[]
@@ -16,20 +18,9 @@ interface UseWalletsReturn {
   refresh: () => Promise<void>  // alias for refreshWallets
 }
 
-// Approximate exchange rates (will be replaced by real rates)
-const APPROX_RATES: Record<string, number> = {
-  KES: 0.00775,
-  UGX: 0.000267,
-  TZS: 0.000385,
-  RWF: 0.000714,
-  ZMW: 0.0385,
-  ETB: 0.00714,
-  BIF: 0.000333,
-  USD: 1.0,
-}
-
 export function useWallets(): UseWalletsReturn {
   const { user, profile } = useAuth()
+  const { rates } = useRates()
   const [wallets, setWallets] = useState<Wallet[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const supabase = createClient()
@@ -60,9 +51,15 @@ export function useWallets(): UseWalletsReturn {
     [wallets]
   )
 
+  // Live, decimal-precise USD valuation of all wallet balances. Conversion is
+  // centralized in lib/currency (getUsdRate handles fallbacks) so this never
+  // depends on hardcoded approximations.
   const totalBalanceUsd = wallets.reduce((sum, w) => {
-    const rate = APPROX_RATES[w.currency] || 1
-    return sum + w.available_balance * rate
+    try {
+      return sum + localToUsd(w.available_balance ?? 0, w.currency, rates)
+    } catch {
+      return sum
+    }
   }, 0)
 
   return {

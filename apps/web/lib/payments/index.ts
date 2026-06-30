@@ -4,6 +4,7 @@
 // ============================================================
 
 import type { CurrencyCode, PaymentProvider } from '@/types'
+import { localToUsd, type RatesMap } from '@/lib/currency'
 import { initiateMpesaSTKPush, formatMpesaPhone } from './mpesa'
 import { mtnRequestToPay, formatMoMoPhone } from './mtn-momo'
 import { airtelCollect, formatAirtelPhone } from './airtel-money'
@@ -133,16 +134,16 @@ export async function initiateDeposit(req: PaymentRequest): Promise<PaymentResul
   }
 }
 
-// Currency conversion utility
+// Currency conversion utility.
+// Thin backward-compatible wrapper around the canonical, decimal-precise FX
+// module (lib/currency). Kept so existing call sites keep working; new code
+// should import { localToUsd } from '@/lib/currency' directly.
 export function convertCurrency(
   amount: number,
   fromCurrency: CurrencyCode,
   rates: Record<string, number>
 ): number {
-  if (fromCurrency === 'USD') return amount
-  const rate = rates[fromCurrency]
-  if (!rate) throw new Error(`Unknown currency: ${fromCurrency}`)
-  return amount * rate // rate is localCurrency -> USD
+  return localToUsd(amount, fromCurrency, rates as RatesMap)
 }
 
 // Format phone for display
