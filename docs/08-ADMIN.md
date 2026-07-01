@@ -693,11 +693,58 @@ Delivered on branch `module-11-admin-users-kyc` (stacked on Phase A):
 - **Gates**: `admin-users.test.ts` (+10) green; full suite **195/195**; `tsc`
   clean; `next build` passes.
 
-### Phases C–F — pending
+### Phase C — Markets & Finance ✅ (shipped)
+
+Delivered on branch `module-11-admin-markets-finance` (stacked on Phase B):
+
+- **Migration `011_admin_markets_finance.sql`**:
+  - Capability-gated `SELECT` policy on `markets` so reviewers/resolvers see
+    non-public (draft/pending/closed/disputed) markets from their own session
+    (tracks `markets:approve|resolve|cancel`); reads reuse the migration-009
+    staff-read policies on `deposits`/`withdrawals`/`transactions` + publicly
+    viewable `profiles`.
+  - Atomic, capability-checked, audited **SECURITY DEFINER RPCs** wrapping the
+    existing money/lifecycle primitives (each writes `audit_log` with
+    before/after + reason):
+    - Markets: `admin_approve_market`, `admin_reject_market`,
+      `admin_close_market`, `admin_dispute_market`, `admin_set_market_featured`,
+      `admin_resolve_market` (wraps atomic `resolve_market` → payouts),
+      `admin_cancel_market` (wraps atomic `cancel_market` → refunds).
+    - Finance: `admin_approve_withdrawal` (clear review hold),
+      `admin_reject_withdrawal` (atomic refund via `fail_withdrawal`),
+      `admin_complete_withdrawal` (manual reconcile via `complete_withdrawal`),
+      `admin_retry_withdrawal` (re-reserve funds + back to `processing`,
+      balance-checked), `admin_fail_deposit` (cancel stuck deposit, no money
+      moves). Every RPC self-checks `has_capability()` — defence in depth over
+      the route/page guards.
+- **App**:
+  - `lib/admin/markets.ts` (pure param parsing + filter builder + fetch +
+    `availableMarketActions` state→capability map) and `lib/admin/finance.ts`
+    (deposits/withdrawals/ledger param parsing + fetch + pure `summariseLedger`
+    reconciliation) — both unit-tested.
+  - `/admin/markets` review queue (search/status/category/sort/paginate),
+    `/admin/markets/[id]` detail with capability-gated lifecycle actions
+    (approve/reject/close/dispute/resolve/cancel/feature),
+    `/admin/markets/disputes` SLA-aged dispute queue.
+  - `/admin/finance` overview (in-flight/failed/review KPIs),
+    `/admin/finance/deposits` console (inspect + cancel stuck),
+    `/admin/finance/withdrawals` console (approve/reject/retry/complete),
+    `/admin/finance/ledger` unified transactions + reconciliation summary +
+    CSV export.
+  - API: `markets/[id]/action`, `finance/withdrawals/[id]/action`,
+    `finance/deposits/[id]/action`, `finance/ledger/export` — each
+    `requireCapability`-guarded and calling the audited RPCs via the operator
+    session.
+  - Client action panels (`MarketActions`, `WithdrawalActions`,
+    `DepositActions`) with reason-required destructive flows + status pills.
+- **Gates**: `admin-markets-finance.test.ts` (+16) green; full suite
+  **211/211**; `tsc` clean; lint clean; `next build` passes.
+
+### Phases D–F — pending
 
 Stub pages exist and are capability-guarded; each will be replaced with full
-functionality per §8. Order: Users & KYC → Markets & Finance → Gateways &
-Settings ⭐ → Creators & Marketers → Moderation/Announcements/Audit.
+functionality per §8. Order: Gateways & Settings ⭐ → Creators & Marketers →
+Moderation/Announcements/Audit.
 
 ---
 
