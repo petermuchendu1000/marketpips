@@ -595,6 +595,81 @@ critical flows), consistent with the project's existing test gates.
 
 ---
 
+## 10.5. Implementation status & Superadmin invariants
+
+> Living log of what is actually built, updated as each phase lands.
+
+### Phase A — Foundation ✅ (shipped)
+
+Delivered on branch `module-11-admin-foundation`:
+
+- **Role enum extended** (`supabase/migrations/008_admin_roles_enum.sql`):
+  adds `creator`, `marketer`, `support`, `finance`, `superadmin`. Kept in a
+  standalone migration because Postgres cannot use a newly added enum value in
+  the same transaction that added it.
+- **RBAC core** (`supabase/migrations/009_admin_rbac.sql`):
+  - `role_permissions(role, capability)` table + seeded capability matrix
+    (§2.2).
+  - `has_capability(cap)` — the single capability source of truth; **superadmin
+    short-circuits to TRUE for every capability** (god-mode).
+  - `is_staff()`, `is_superadmin()`, `staff_roles()`; `is_admin()` now also
+    recognises `superadmin`.
+  - Staff-wide read RLS on `transactions`, `deposits`, `withdrawals`,
+    `wallets`, and an `audit:read`-gated policy on `audit_log`.
+- **Superadmin invariants — enforced by DB triggers** (not just app code, so
+  they hold against the service-role key and direct SQL):
+  1. *God-like:* implicitly holds every capability.
+  2. *Cannot be demoted:* `guard_profile_role_change` blocks any change of a
+     superadmin's role away from `superadmin`.
+  3. *Cannot be removed:* `guard_profile_delete` blocks deleting a superadmin
+     row; the same update guard blocks suspending/closing a superadmin.
+  4. *Grant control:* assigning/revoking any staff role (incl. `superadmin`)
+     from a real user session (`auth.uid()` present) requires the actor to be a
+     superadmin.
+  5. *Break-glass:* a session may `SET LOCAL app.superadmin_override = 'on'`
+     (direct DB access only) to bypass invariants for disaster recovery — treat
+     every use as a security event.
+- **App layer**:
+  - `lib/admin/rbac.ts` — pure, tested mirror of the DB matrix +
+    `canGrantRole` / `canChangeUserRole` / `canChangeAccountStatus` guardrails
+    (incl. superadmin immutability).
+  - `lib/auth.ts` — `requireCapability(cap)`, `requireAdminPortal()`,
+    `hasCapability(ctx, cap)`, `requireStaffRoleGrant(...)`.
+  - `lib/admin/audit.ts` — `writeAudit()`, `requestContext()`, `redact()`.
+  - `lib/admin/nav.ts` + `components/admin/AdminNav.tsx` — capability-filtered
+    navigation; `middleware.ts` widened to `ADMIN_PORTAL_ROLES`
+    (staff + `resolver`).
+  - Admin shell (`app/admin/layout.tsx`), capability-aware overview
+    (`app/admin/page.tsx`), and **guarded stub pages for every nav route**
+    (no dead links) pending their phase.
+- **Gates**: `rbac.test.ts` (23) + `admin-nav.test.ts` (8) green; full suite
+  185/185; `tsc` clean; `next build` passes.
+
+### Bootstrapping the first superadmin
+
+Because staff-role grants from a user session are superadmin-only, the very
+first superadmin must be created out-of-band via the service role / SQL console
+(where `auth.uid()` is NULL, so the grant guard is intentionally skipped while
+the immutability guards still hold):
+
+```sql
+-- Run once, after the owner has signed up via normal auth.
+UPDATE public.profiles
+SET role = 'superadmin'
+WHERE id = (SELECT id FROM auth.users WHERE email = 'owner@marketpips.co.ke');
+```
+
+Thereafter, that superadmin can grant every other staff role from the UI, and
+can never be demoted or removed through the application.
+
+### Phases B–F — pending
+
+Stub pages exist and are capability-guarded; each will be replaced with full
+functionality per §8. Order: Users & KYC → Markets & Finance → Gateways &
+Settings ⭐ → Creators & Marketers → Moderation/Announcements/Audit.
+
+---
+
 ## 10. Related docs
 
 - `01-ARCHITECTURE.md` — topology, stack, trust boundaries, secrets.

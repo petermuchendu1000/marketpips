@@ -9,6 +9,24 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      role_permissions: {
+        Row: {
+          role: Database["public"]["Enums"]["user_role"]
+          capability: string
+          created_at: string
+        }
+        Insert: {
+          role: Database["public"]["Enums"]["user_role"]
+          capability: string
+          created_at?: string
+        }
+        Update: {
+          role?: Database["public"]["Enums"]["user_role"]
+          capability?: string
+          created_at?: string
+        }
+        Relationships: []
+      }
       audit_log: {
         Row: {
           id: string
@@ -1422,7 +1440,7 @@ export type Database = {
       position_side: "yes" | "no"
       transaction_status: "pending" | "processing" | "completed" | "failed" | "refunded"
       transaction_type: "deposit" | "withdrawal" | "bet_placed" | "bet_won" | "bet_lost" | "bet_refunded" | "fee" | "bonus" | "referral_bonus" | "creator_reward"
-      user_role: "user" | "admin" | "moderator" | "resolver"
+      user_role: "user" | "admin" | "moderator" | "resolver" | "creator" | "marketer" | "support" | "finance" | "superadmin"
     }
     CompositeTypes: {
       [_ in never]: never

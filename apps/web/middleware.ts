@@ -1,6 +1,9 @@
 // middleware.ts - Auth middleware
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
+import { ADMIN_PORTAL_ROLES } from '@/lib/admin/rbac'
+
+const ADMIN_PORTAL_ROLE_SET = new Set<string>(ADMIN_PORTAL_ROLES)
 
 // Protected routes that require authentication
 const PROTECTED_ROUTES = [
@@ -55,15 +58,16 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(loginUrl)
   }
 
-  // Defense-in-depth: enforce admin/moderator role at the edge for /admin.
-  // The page & admin APIs also check, but this blocks non-staff earlier.
+  // Defense-in-depth: enforce the staff/portal role set at the edge for /admin.
+  // Individual pages & admin APIs additionally check per-capability; this blocks
+  // non-portal users earlier. superadmin is included via ADMIN_PORTAL_ROLES.
   if (isAdmin && user) {
     const { data: profile } = await supabase
       .from('profiles')
       .select('role')
       .eq('id', user.id)
       .single()
-    if (!profile || !['admin', 'moderator'].includes(profile.role)) {
+    if (!profile || !ADMIN_PORTAL_ROLE_SET.has(profile.role)) {
       return NextResponse.redirect(new URL('/', request.url))
     }
   }

@@ -1,98 +1,116 @@
-// app/admin/page.tsx - Admin dashboard
-import { redirect } from 'next/navigation'
+// app/admin/page.tsx — Admin overview / operational cockpit.
+//
+// Access is enforced by app/admin/layout.tsx (portal gate) + middleware + RLS.
+// KPIs and queues are filtered by the operator's capabilities so each role sees
+// only what it may act on. superadmin sees everything (god-mode).
+import Link from 'next/link'
+import { getAuthContext } from '@/lib/auth'
 import { createClient } from '@/lib/supabase/server'
+import { roleHasCapability, isSuperadmin } from '@/lib/admin/rbac'
 
-// Live market data — render dynamically per request (no static prerender)
 export const dynamic = 'force-dynamic'
+export const metadata = { title: 'Admin — Overview' }
 
-export const metadata = { title: 'Admin Dashboard' }
+type CountableTable = 'profiles' | 'markets' | 'withdrawals' | 'deposits'
 
-export default async function AdminPage() {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) redirect('/auth/login')
+async function count(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  table: CountableTable,
+  build?: (q: any) => any
+): Promise<number> {
+  let q: any = supabase.from(table).select('id', { count: 'exact', head: true })
+  if (build) q = build(q)
+  const { count } = await q
+  return count ?? 0
+}
 
-  const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single()
-  if (!['admin', 'moderator'].includes(profile?.role || '')) redirect('/')
+export default async function AdminOverviewPage() {
+  const ctx = await getAuthContext()
+  // Layout already guards; this is belt-and-suspenders + gives us the role.
+  if (!ctx) return null
+  const role = ctx.role
+  const supabase = ctx.supabase
+
+  const can = (c: Parameters<typeof roleHasCapability>[1]) => roleHasCapability(role, c)
+  const startOfToday = new Date()
+  startOfToday.setHours(0, 0, 0, 0)
+
+  // Build the KPI set the operator is allowed to see.
+  const kpis: { label: string; value: number; emoji: string; alert?: boolean; href?: string }[] = []
 
   const [
-    pendingMarketsRes,
-    totalUsersRes,
-    activeMarketsRes,
-    pendingDepositsRes,
-    recentTransactionsRes,
+    totalUsers,
+    activeMarkets,
+    pendingMarkets,
+    pendingKyc,
+    pendingWithdrawals,
+    depositsToday,
   ] = await Promise.all([
-    supabase.from('markets').select('id', { count: 'exact', head: true }).eq('status', 'pending'),
-    supabase.from('profiles').select('id', { count: 'exact', head: true }),
-    supabase.from('markets').select('id', { count: 'exact', head: true }).eq('status', 'active'),
-    supabase.from('deposits').select('id', { count: 'exact', head: true }).eq('status', 'pending'),
-    supabase.from('transactions').select('*').eq('status', 'completed').eq('type', 'bet_placed').order('created_at', { ascending: false }).limit(10),
+    can('users:read') ? count(supabase, 'profiles') : Promise.resolve(0),
+    count(supabase, 'markets', (q) => q.eq('status', 'active')),
+    can('markets:approve') ? count(supabase, 'markets', (q) => q.eq('status', 'pending')) : Promise.resolve(0),
+    can('kyc:review') ? count(supabase, 'profiles', (q) => q.eq('kyc_status', 'pending')) : Promise.resolve(0),
+    can('finance:withdrawals')
+      ? count(supabase, 'withdrawals', (q) => q.eq('status', 'pending'))
+      : Promise.resolve(0),
+    can('finance:deposits')
+      ? count(supabase, 'deposits', (q) => q.gte('created_at', startOfToday.toISOString()))
+      : Promise.resolve(0),
   ])
 
+  if (can('users:read')) kpis.push({ label: 'Total Users', value: totalUsers, emoji: '👥', href: '/admin/users' })
+  kpis.push({ label: 'Active Markets', value: activeMarkets, emoji: '🏪', href: '/admin/markets' })
+  if (can('markets:approve'))
+    kpis.push({ label: 'Pending Markets', value: pendingMarkets, emoji: '⏳', alert: pendingMarkets > 0, href: '/admin/markets' })
+  if (can('kyc:review'))
+    kpis.push({ label: 'Pending KYC', value: pendingKyc, emoji: '🪪', alert: pendingKyc > 0, href: '/admin/kyc' })
+  if (can('finance:withdrawals'))
+    kpis.push({ label: 'Pending Withdrawals', value: pendingWithdrawals, emoji: '💸', alert: pendingWithdrawals > 0, href: '/admin/finance/withdrawals' })
+  if (can('finance:deposits'))
+    kpis.push({ label: 'Deposits Today', value: depositsToday, emoji: '💰', href: '/admin/finance/deposits' })
+
   return (
-    <div className="container mx-auto px-4 py-6 max-w-6xl">
-      <h1 className="text-2xl font-black mb-6">🛠️ Admin Dashboard</h1>
-
-      {/* Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-        {[
-          { label: 'Total Users', value: totalUsersRes.count || 0, emoji: '👥' },
-          { label: 'Active Markets', value: activeMarketsRes.count || 0, emoji: '🏪' },
-          { label: 'Pending Markets', value: pendingMarketsRes.count || 0, emoji: '⏳', alert: (pendingMarketsRes.count || 0) > 0 },
-          { label: 'Pending Deposits', value: pendingDepositsRes.count || 0, emoji: '💰', alert: (pendingDepositsRes.count || 0) > 0 },
-        ].map((stat) => (
-          <div key={stat.label} className={`rounded-2xl border bg-card p-4 ${stat.alert ? 'border-amber-500/50 bg-amber-50/5' : ''}`}>
-            <div className="flex items-center justify-between mb-1">
-              <span className="text-2xl">{stat.emoji}</span>
-              {stat.alert && <span className="text-xs text-amber-500 font-medium">Needs attention</span>}
-            </div>
-            <p className="text-3xl font-black">{stat.value.toLocaleString()}</p>
-            <p className="text-xs text-muted-foreground">{stat.label}</p>
-          </div>
-        ))}
+    <div>
+      <div className="mb-6 flex items-center gap-3">
+        <h1 className="text-2xl font-black">Overview</h1>
+        {isSuperadmin(role) && (
+          <span className="rounded-full bg-amber-500/15 px-2.5 py-0.5 text-xs font-semibold text-amber-600 dark:text-amber-400">
+            👑 Full control
+          </span>
+        )}
       </div>
 
-      {/* Admin actions */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-        <a href="/admin/markets" className="flex items-center gap-3 p-4 rounded-2xl border bg-card hover:bg-muted transition-colors">
-          <span className="text-2xl">🏪</span>
-          <div>
-            <p className="font-semibold">Markets</p>
-            <p className="text-xs text-muted-foreground">Review, approve, resolve</p>
-          </div>
-        </a>
-        <a href="/admin/users" className="flex items-center gap-3 p-4 rounded-2xl border bg-card hover:bg-muted transition-colors">
-          <span className="text-2xl">👥</span>
-          <div>
-            <p className="font-semibold">Users</p>
-            <p className="text-xs text-muted-foreground">KYC, roles, accounts</p>
-          </div>
-        </a>
-        <a href="/admin/transactions" className="flex items-center gap-3 p-4 rounded-2xl border bg-card hover:bg-muted transition-colors">
-          <span className="text-2xl">💸</span>
-          <div>
-            <p className="font-semibold">Transactions</p>
-            <p className="text-xs text-muted-foreground">Deposits, withdrawals</p>
-          </div>
-        </a>
+      <div className="grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-6">
+        {kpis.map((stat) => {
+          const card = (
+            <div
+              className={
+                'h-full rounded-2xl border bg-card p-4 transition-colors ' +
+                (stat.alert ? 'border-amber-500/50' : 'hover:bg-muted')
+              }
+            >
+              <div className="mb-1 flex items-center justify-between">
+                <span className="text-2xl">{stat.emoji}</span>
+                {stat.alert && <span className="text-xs font-medium text-amber-500">Attention</span>}
+              </div>
+              <p className="text-3xl font-black">{stat.value.toLocaleString()}</p>
+              <p className="text-xs text-muted-foreground">{stat.label}</p>
+            </div>
+          )
+          return stat.href ? (
+            <Link key={stat.label} href={stat.href}>
+              {card}
+            </Link>
+          ) : (
+            <div key={stat.label}>{card}</div>
+          )
+        })}
       </div>
 
-      {/* Recent bets */}
-      <section>
-        <h2 className="font-semibold mb-3">Recent Bets</h2>
-        <div className="rounded-2xl border bg-card divide-y">
-          {recentTransactionsRes.data?.map((tx) => (
-            <div key={tx.id} className="flex items-center justify-between px-4 py-3 text-sm">
-              <span className="text-muted-foreground">{tx.user_id.slice(0, 8)}...</span>
-              <span>{tx.description}</span>
-              <span className="font-medium">${tx.amount_usd.toFixed(2)}</span>
-              <span className="text-muted-foreground text-xs">
-                {tx.created_at ? new Date(tx.created_at).toLocaleString('en-KE', { dateStyle: 'short', timeStyle: 'short' }) : '—'}
-              </span>
-            </div>
-          ))}
-        </div>
-      </section>
+      <p className="mt-8 text-sm text-muted-foreground">
+        Use the navigation to manage users, creators, marketers, markets, finance, gateways,
+        settings, compliance, and audit. Sections you can see are scoped to your role.
+      </p>
     </div>
   )
 }

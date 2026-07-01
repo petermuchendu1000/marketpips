@@ -17,9 +17,6 @@ jobs:
   quality:
     name: Type Check & Lint
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: apps/web
 
     steps:
       - uses: actions/checkout@v4
@@ -29,9 +26,10 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
-          cache-dependency-path: apps/web/package-lock.json
+          # This is an npm-workspaces repo: the lockfile lives at the root.
+          cache-dependency-path: package-lock.json
 
-      - name: Install dependencies
+      - name: Install dependencies (workspaces)
         run: npm ci
 
       - name: Type check
@@ -40,6 +38,9 @@ jobs:
       - name: Lint
         run: npm run lint
 
+      - name: Unit tests
+        run: npm run --workspace apps/web test
+
   # ============================================================
   # Build
   # ============================================================
@@ -47,9 +48,6 @@ jobs:
     name: Build
     runs-on: ubuntu-latest
     needs: quality
-    defaults:
-      run:
-        working-directory: apps/web
 
     steps:
       - uses: actions/checkout@v4
@@ -59,9 +57,9 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
-          cache-dependency-path: apps/web/package-lock.json
+          cache-dependency-path: package-lock.json
 
-      - name: Install dependencies
+      - name: Install dependencies (workspaces)
         run: npm ci
 
       - name: Build
