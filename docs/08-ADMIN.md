@@ -662,7 +662,38 @@ WHERE id = (SELECT id FROM auth.users WHERE email = 'owner@marketpips.co.ke');
 Thereafter, that superadmin can grant every other staff role from the UI, and
 can never be demoted or removed through the application.
 
-### Phases B–F — pending
+### Phase B — Users & KYC ✅ (shipped)
+
+Delivered on branch `module-11-admin-users-kyc` (stacked on Phase A):
+
+- **Migration `010_admin_users.sql`**:
+  - `admin_user_notes` (operator-only internal notes) + RLS.
+  - `impersonation_sessions` (time-boxed, audited) + RLS.
+  - Atomic, capability-checked **SECURITY DEFINER RPCs** (column-level control
+    RLS can't express, each writes `audit_log`):
+    `admin_set_account_status`, `admin_set_user_role` (full grant guardrails +
+    superadmin immutability), `admin_adjust_balance` (atomic wallet delta →
+    `transactions` + notification, FX to USD), `admin_add_user_note`.
+  - Capability-based read policies so non-admin KYC reviewers (`support`) can
+    read `kyc_documents` + storage objects. KYC review reuses the existing
+    `admin_review_kyc` RPC.
+- **App**:
+  - `lib/admin/users.ts` (pure param parsing + filter builder + fetch) and
+    `lib/admin/csv.ts` (RFC-4180 export) — both unit-tested.
+  - `/admin/users` — server-rendered search / role / status / KYC / country
+    filters, sort, pagination, CSV export.
+  - `/admin/users/[id]` — profile, wallets, transactions, KYC docs, effective
+    capabilities, internal notes, and server-authoritative action controls.
+  - `/admin/kyc` — review queue (approve/reject with reason).
+  - API: `users/[id]/{role,status,adjust-balance,note,impersonate}`,
+    `users/export`, `kyc/[id]/review` — each `requireCapability`-guarded.
+  - Actions computed server-side per operator (`canGrantRole`,
+    `canChangeAccountStatus`, impersonation guardrails); a superadmin target is
+    rendered immutable with all actions disabled.
+- **Gates**: `admin-users.test.ts` (+10) green; full suite **195/195**; `tsc`
+  clean; `next build` passes.
+
+### Phases C–F — pending
 
 Stub pages exist and are capability-guarded; each will be replaced with full
 functionality per §8. Order: Users & KYC → Markets & Finance → Gateways &

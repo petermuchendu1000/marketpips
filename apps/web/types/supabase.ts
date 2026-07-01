@@ -9,6 +9,66 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      admin_user_notes: {
+        Row: {
+          id: string
+          user_id: string
+          author_id: string | null
+          note: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          author_id?: string | null
+          note: string
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          author_id?: string | null
+          note?: string
+          created_at?: string
+        }
+        Relationships: []
+      }
+      impersonation_sessions: {
+        Row: {
+          id: string
+          admin_id: string
+          target_user_id: string
+          reason: string | null
+          started_at: string
+          expires_at: string
+          ended_at: string | null
+          ip_address: string | null
+          user_agent: string | null
+        }
+        Insert: {
+          id?: string
+          admin_id: string
+          target_user_id: string
+          reason?: string | null
+          started_at?: string
+          expires_at: string
+          ended_at?: string | null
+          ip_address?: string | null
+          user_agent?: string | null
+        }
+        Update: {
+          id?: string
+          admin_id?: string
+          target_user_id?: string
+          reason?: string | null
+          started_at?: string
+          expires_at?: string
+          ended_at?: string | null
+          ip_address?: string | null
+          user_agent?: string | null
+        }
+        Relationships: []
+      }
       role_permissions: {
         Row: {
           role: Database["public"]["Enums"]["user_role"]
@@ -1333,6 +1393,52 @@ export type Database = {
       }
     }
     Functions: {
+      admin_add_user_note: {
+        Args: {
+          p_user_id: string
+          p_note: string
+        }
+        Returns: Json
+      }
+      admin_adjust_balance: {
+        Args: {
+          p_user_id: string
+          p_currency: Database["public"]["Enums"]["currency_code"]
+          p_amount: number
+          p_reason: string
+          p_type?: Database["public"]["Enums"]["transaction_type"] | null
+        }
+        Returns: Json
+      }
+      admin_set_account_status: {
+        Args: {
+          p_user_id: string
+          p_status: Database["public"]["Enums"]["account_status"]
+          p_reason?: string | null
+        }
+        Returns: Json
+      }
+      admin_set_user_role: {
+        Args: {
+          p_user_id: string
+          p_new_role: Database["public"]["Enums"]["user_role"]
+        }
+        Returns: Json
+      }
+      has_capability: {
+        Args: {
+          cap: string
+        }
+        Returns: boolean
+      }
+      is_staff: {
+        Args: Record<PropertyKey, never>
+        Returns: boolean
+      }
+      is_superadmin: {
+        Args: Record<PropertyKey, never>
+        Returns: boolean
+      }
       admin_review_kyc: {
         Args: {
           p_doc_id: string
