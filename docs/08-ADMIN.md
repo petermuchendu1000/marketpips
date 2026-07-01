@@ -693,6 +693,22 @@ Delivered on branch `module-11-admin-users-kyc` (stacked on Phase A):
 - **Gates**: `admin-users.test.ts` (+10) green; full suite **195/195**; `tsc`
   clean; `next build` passes.
 
+### Hardening — Exactly one superadmin ✅ (shipped)
+
+Migration `011_single_superadmin.sql` locks the system to a **single** superadmin
+(the owner/break-glass identity), enforced at the DB level:
+- **Partial unique index** `one_superadmin_only` — the hard guarantee that at
+  most one profile row may have `role = 'superadmin'`.
+- `guard_profile_role_change` extended to reject promoting a *second* user to
+  superadmin with a friendly error (before the index fires).
+- `admin_set_user_role` refuses `p_new_role = 'superadmin'` outright — the sole
+  superadmin is fixed at bootstrap and can never be reassigned.
+- App guardrail (`rbac.ts` `canGrantRole`) never offers `superadmin` as a
+  grantable role, so the UI can't attempt it.
+
+Combined with the 009 immutability triggers, the result is **exactly one
+superadmin, immutable** for the lifetime of the system.
+
 ### Phases C–F — pending
 
 Stub pages exist and are capability-guarded; each will be replaced with full

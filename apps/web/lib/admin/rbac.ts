@@ -168,7 +168,9 @@ export function effectiveCapabilities(role: Role | null | undefined): Capability
 /**
  * Can `actorRole` assign `targetRole` to some user?
  *   • Must hold `users:role_grant`.
- *   • Granting a STAFF role (incl. superadmin) is SUPERADMIN-ONLY.
+ *   • `superadmin` can NEVER be granted via the app — the system allows exactly
+ *     one superadmin, fixed at bootstrap and immutable thereafter.
+ *   • Granting any other STAFF role is SUPERADMIN-ONLY.
  *   • Non-staff roles (user/creator/marketer/resolver) may be granted by anyone
  *     with `users:role_grant` (admin or superadmin).
  */
@@ -177,6 +179,7 @@ export function canGrantRole(
   targetRole: Role
 ): boolean {
   if (!roleHasCapability(actorRole, 'users:role_grant')) return false
+  if (targetRole === 'superadmin') return false // exactly one, bootstrap-only
   if (isStaffRole(targetRole)) return isSuperadmin(actorRole)
   return true
 }

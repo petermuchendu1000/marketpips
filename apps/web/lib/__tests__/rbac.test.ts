@@ -93,8 +93,13 @@ describe('role classification', () => {
 })
 
 describe('canGrantRole (grant guardrails)', () => {
-  it('only superadmin can grant STAFF roles', () => {
-    const staff: Role[] = ['support', 'finance', 'moderator', 'admin', 'superadmin']
+  it('superadmin can NEVER be granted via the app (exactly one, bootstrap-only)', () => {
+    for (const actor of ['superadmin', 'admin', 'moderator', 'user'] as Role[]) {
+      expect(canGrantRole(actor, 'superadmin')).toBe(false)
+    }
+  })
+  it('only superadmin can grant the other STAFF roles', () => {
+    const staff: Role[] = ['support', 'finance', 'moderator', 'admin']
     for (const target of staff) {
       expect(canGrantRole('superadmin', target)).toBe(true)
       expect(canGrantRole('admin', target)).toBe(false)
