@@ -1,8 +1,34 @@
+// app/api/payments/withdraw/route.ts — request a withdrawal (payout)
+//
+// Money movement is atomic + idempotent via the migration-006 RPCs, funnelled
+// through lib/payments/withdraw.ts:
+//   1. request_withdrawal reserves the balance (available → reserved) and
+//      creates the pending withdrawal + transaction in ONE locked transaction.
+//      A concurrent withdrawal can NEVER overdraw (wallet is FOR UPDATE'd).
+//   2. Disbursement is ASYNC: we initiate it with the provider and leave the
+//      withdrawal in 'processing'. The provider's result webhook later calls
+//      complete_withdrawal (release reserve) or fail_withdrawal (refund).
+//   3. If the provider rejects synchronously, we fail_withdrawal immediately so
+//      the reserved funds are refunded — money is never stuck reserved.
+//
+// KYC gate: DEFERRED (Module 8). The hook is marked below — re-enable it by
+// restoring the kyc_status check before the reserve. Account-status and the
+// USD review-threshold gates remain active.
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
+import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { z } from 'zod'
 import { processWithdrawal } from '@/lib/payments'
-import { getUsdRate, localToUsd } from '@/lib/currency'
+import {
+  computeWithdrawalFee,
+  withdrawalNetAmount,
+  meetsMinWithdrawal,
+  minWithdrawal,
+  withdrawalAmountUsd,
+  requestWithdrawal,
+  failWithdrawal,
+  REVIEW_THRESHOLD_USD,
+  INSUFFICIENT_BALANCE_CODE,
+} from '@/lib/payments/withdraw'
 import type { CurrencyCode, PaymentProvider } from '@/types'
 
 const WithdrawSchema = z.object({
@@ -13,230 +39,176 @@ const WithdrawSchema = z.object({
 })
 
 export async function POST(req: NextRequest) {
-  const supabase = await createClient()
+  try {
+    const supabase = await createClient()
+    const admin = await createAdminClient()
 
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  }
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
 
-  const body = await req.json()
-  const parsed = WithdrawSchema.safeParse(body)
-  if (!parsed.success) {
-    return NextResponse.json({ error: parsed.error.errors[0].message }, { status: 400 })
-  }
+    const body = await req.json().catch(() => null)
+    const parsed = WithdrawSchema.safeParse(body)
+    if (!parsed.success) {
+      return NextResponse.json({ error: parsed.error.errors[0].message }, { status: 400 })
+    }
 
-  const { amount, currency, phone_number, provider } = parsed.data
+    const { amount, currency, phone_number, provider } = parsed.data
+    const cur = currency as CurrencyCode
+    const prov = provider as PaymentProvider
 
-  // Get profile (for KYC check)
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('kyc_status, account_status')
-    .eq('id', user.id)
-    .single()
+    // Account-status gate (KYC gate deferred — see file header).
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('account_status')
+      .eq('id', user.id)
+      .single()
 
-  if (!profile) {
-    return NextResponse.json({ error: 'Profile not found' }, { status: 400 })
-  }
+    if (!profile) {
+      return NextResponse.json({ error: 'Profile not found' }, { status: 400 })
+    }
+    if (profile.account_status !== 'active') {
+      return NextResponse.json({ error: 'Account is suspended' }, { status: 403 })
+    }
 
-  if (profile.account_status !== 'active') {
-    return NextResponse.json({ error: 'Account is suspended' }, { status: 403 })
-  }
+    // -----------------------------------------------------------------
+    // KYC GATE — DEFERRED (Module 8). To re-enable, uncomment:
+    //
+    //   if (amountUSD > 100 && profile.kyc_status !== 'verified') {
+    //     return NextResponse.json(
+    //       { error: 'KYC verification required for withdrawals over $100.',
+    //         kyc_required: true }, { status: 403 })
+    //   }
+    // -----------------------------------------------------------------
 
-  // Check KYC for larger withdrawals
-  const { data: exchangeRate } = await supabase
-    .from('exchange_rates')
-    .select('rate')
-    .eq('from_currency', currency)
-    .eq('to_currency', 'USD')
-    .single()
+    // Minimum withdrawal (currency-specific).
+    if (!meetsMinWithdrawal(amount, cur)) {
+      return NextResponse.json(
+        { error: `Minimum withdrawal is ${minWithdrawal(cur)} ${currency}` },
+        { status: 400 },
+      )
+    }
 
-  // Canonical FX: live rate wins, else last-known-good (currency-correct)
-  // fallback — never the dangerous `|| 0.01` that mis-priced every KYC/review gate.
-  const liveRate = exchangeRate?.rate != null ? Number(exchangeRate.rate) : undefined
-  const rateMap = liveRate ? { [currency as CurrencyCode]: liveRate } : undefined
-  const usdRate = getUsdRate(currency as CurrencyCode, rateMap)
-  const amountUSD = localToUsd(amount, currency as CurrencyCode, rateMap)
-  if (amountUSD > 100 && profile.kyc_status !== 'verified') {
-    return NextResponse.json({
-      error: 'KYC verification required for withdrawals over $100. Please verify your identity first.',
-      kyc_required: true,
-    }, { status: 403 })
-  }
+    // Resolve the user's wallet for this currency.
+    const { data: wallet } = await admin
+      .from('wallets')
+      .select('id')
+      .eq('user_id', user.id)
+      .eq('currency', currency)
+      .single()
 
-  // Check wallet balance
-  const { data: wallet } = await supabase
-    .from('wallets')
-    .select('*')
-    .eq('user_id', user.id)
-    .eq('currency', currency)
-    .single()
+    if (!wallet) {
+      return NextResponse.json({ error: 'Wallet not found' }, { status: 400 })
+    }
 
-  if (!wallet) {
-    return NextResponse.json({ error: 'Wallet not found' }, { status: 400 })
-  }
+    // Fee + review decision. Large payouts (by USD value) are held for admin
+    // review instead of being disbursed immediately.
+    const feeAmount = computeWithdrawalFee(amount, prov)
+    const netAmount = withdrawalNetAmount(amount, prov)
+    const amountUSD = await withdrawalAmountUsd(admin, amount, cur)
+    const requiresReview = amountUSD > REVIEW_THRESHOLD_USD
 
-  // Calculate fee (1% for mobile money, 0.5% for bank)
-  const feeRate = provider === 'bank_transfer' ? 0.005 : 0.01
-  const feeAmount = Math.ceil(amount * feeRate)
-  const netAmount = amount - feeAmount
-
-  const availableBalance = wallet.available_balance ?? 0
-  const reservedBalance = wallet.reserved_balance ?? 0
-  const totalWithdrawn = wallet.total_withdrawn ?? 0
-
-  if (availableBalance < amount) {
-    return NextResponse.json({
-      error: `Insufficient balance. Available: ${availableBalance.toLocaleString()} ${currency}`,
-    }, { status: 400 })
-  }
-
-  // Minimum withdrawal
-  const minimums: Record<string, number> = {
-    KES: 100, UGX: 5000, TZS: 2000, RWF: 500, ZMW: 10, ETB: 100, BIF: 2000, USD: 5,
-  }
-  if (amount < (minimums[currency] || 5)) {
-    return NextResponse.json({ error: `Minimum withdrawal is ${minimums[currency]} ${currency}` }, { status: 400 })
-  }
-
-  // Deduct balance immediately (reserve)
-  const { error: deductError } = await supabase
-    .from('wallets')
-    .update({
-      available_balance: availableBalance - amount,
-      reserved_balance: reservedBalance + amount,
-    })
-    .eq('id', wallet.id)
-
-  if (deductError) {
-    return NextResponse.json({ error: 'Failed to reserve balance' }, { status: 500 })
-  }
-
-  // Create withdrawal record
-  const requiresReview = amountUSD > 500
-  const { data: withdrawal, error: wErr } = await supabase
-    .from('withdrawals')
-    .insert({
-      user_id: user.id,
-      wallet_id: wallet.id,
-      status: 'pending',
-      provider,
-      amount,
-      currency,
-      phone_number,
-      exchange_rate_to_usd: usdRate,
-      fee_amount: feeAmount,
-      requires_review: requiresReview,
-      initiated_at: new Date().toISOString(),
-    })
-    .select()
-    .single()
-
-  if (wErr || !withdrawal) {
-    // Rollback balance
-    await supabase.from('wallets').update({
-      available_balance: availableBalance,
-      reserved_balance: reservedBalance,
-    }).eq('id', wallet.id)
-    return NextResponse.json({ error: 'Failed to create withdrawal' }, { status: 500 })
-  }
-
-  // Create transaction record
-  await supabase.from('transactions').insert({
-    user_id: user.id,
-    wallet_id: wallet.id,
-    type: 'withdrawal',
-    status: 'pending',
-    amount,
-    currency,
-    amount_usd: amountUSD,
-    exchange_rate_to_usd: usdRate,
-    fee_amount: feeAmount,
-    fee_currency: currency,
-    balance_before: availableBalance,
-    balance_after: availableBalance - amount,
-    payment_provider: provider,
-    payment_phone: phone_number,
-    description: `Withdrawal via ${provider}`,
-    idempotency_key: `withdraw_${withdrawal.id}`,
-    initiated_at: new Date().toISOString(),
-  })
-
-  // For amounts not requiring review, process immediately
-  if (!requiresReview) {
+    // Atomic reserve + pending withdrawal/transaction creation.
+    let reserved
     try {
-      const result = await processWithdrawal(provider as PaymentProvider, {
-        amount: netAmount,
-        currency: currency as CurrencyCode,
+      reserved = await requestWithdrawal(admin, {
+        userId: user.id,
+        walletId: wallet.id,
+        amount,
+        currency: cur,
+        provider: prov,
         phone: phone_number,
-        reference: withdrawal.id,
+        feeAmount,
+        requiresReview,
+      })
+    } catch (e) {
+      const code = (e as { code?: string }).code
+      if (code === INSUFFICIENT_BALANCE_CODE) {
+        return NextResponse.json({ error: 'Insufficient balance' }, { status: 400 })
+      }
+      if (code === 'P0011') {
+        return NextResponse.json({ error: 'Wallet not found' }, { status: 400 })
+      }
+      if (code === 'P0012') {
+        return NextResponse.json({ error: 'Wallet is inactive' }, { status: 403 })
+      }
+      console.error('request_withdrawal failed:', e)
+      return NextResponse.json({ error: 'Failed to reserve balance' }, { status: 500 })
+    }
+
+    const withdrawalId = reserved.withdrawal_id
+
+    // Held for review → do NOT disburse. Admin processes it later; the reserve
+    // stays in place until complete/fail. Notify the user it's under review.
+    if (requiresReview) {
+      await admin.from('notifications').insert({
+        user_id: user.id,
+        type: 'withdrawal_completed',
+        title: 'Withdrawal Under Review',
+        body: `Your withdrawal of ${amount.toLocaleString()} ${currency} is under review. Funds will arrive within 24 hours.`,
+        data: { withdrawal_id: withdrawalId },
       })
 
-      if (result.success) {
-        await supabase.from('withdrawals').update({
-          status: 'completed',
-          provider_reference: result.reference,
-          provider_receipt: result.receipt,
-          completed_at: new Date().toISOString(),
-          raw_response: result.raw as any,
-        }).eq('id', withdrawal.id)
-
-        await supabase.from('wallets').update({
-          available_balance: availableBalance - amount, // already deducted
-          reserved_balance: reservedBalance,           // release reserve
-          total_withdrawn: totalWithdrawn + amount,
-        }).eq('id', wallet.id)
-
-        await supabase.from('transactions').update({
-          status: 'completed',
-          completed_at: new Date().toISOString(),
-          provider_reference: result.reference,
-          payment_reference: result.receipt,
-        }).eq('idempotency_key', `withdraw_${withdrawal.id}`)
-
-        await supabase.from('notifications').insert({
-          user_id: user.id,
-          type: 'withdrawal_completed',
-          title: '✅ Withdrawal Successful',
-          body: `${netAmount.toLocaleString()} ${currency} has been sent to ${phone_number}. Receipt: ${result.receipt || withdrawal.id}`,
-          data: { withdrawal_id: withdrawal.id },
-        })
-
-        return NextResponse.json({
-          success: true,
-          withdrawal_id: withdrawal.id,
-          status: 'completed',
-          message: `${netAmount.toLocaleString()} ${currency} has been sent to ${phone_number}.`,
-          receipt: result.receipt,
-        })
-      }
-    } catch (e) {
-      // Provider failed — leave as pending for manual retry
-      console.error('Withdrawal provider error:', e)
+      return NextResponse.json({
+        success: true,
+        withdrawal_id: withdrawalId,
+        status: 'under_review',
+        message: 'Withdrawal under review. Funds will arrive within 24 hours.',
+        fee: feeAmount,
+        net_amount: netAmount,
+      })
     }
+
+    // Initiate the disbursement. The net amount (after fee) is what leaves.
+    try {
+      const result = await processWithdrawal(prov, {
+        amount: netAmount,
+        currency: cur,
+        phone: phone_number,
+        reference: withdrawalId,
+      })
+
+      if (!result.success) {
+        // Provider rejected up-front → refund the reserve immediately.
+        await failWithdrawal(admin, withdrawalId, result.message || 'Disbursement rejected', result.raw)
+        return NextResponse.json(
+          { error: result.message || 'Withdrawal could not be processed. You have not been charged.' },
+          { status: 502 },
+        )
+      }
+
+      // Accepted for processing. Store the provider reference so the result
+      // webhook can correlate the async completion back to this withdrawal.
+      await admin
+        .from('withdrawals')
+        .update({ provider_reference: result.reference ?? null })
+        .eq('id', withdrawalId)
+
+      return NextResponse.json({
+        success: true,
+        withdrawal_id: withdrawalId,
+        status: 'processing',
+        message: `Processing ${netAmount.toLocaleString()} ${currency} to ${phone_number}. You'll be notified once it completes.`,
+        fee: feeAmount,
+        net_amount: netAmount,
+        provider_reference: result.reference ?? null,
+      })
+    } catch (e) {
+      // Network/exception during disbursement → refund the reserve.
+      console.error('Withdrawal disbursement error:', e)
+      await failWithdrawal(admin, withdrawalId, 'Disbursement request failed', {
+        error: e instanceof Error ? e.message : String(e),
+      })
+      return NextResponse.json(
+        { error: 'Withdrawal could not be processed. You have not been charged.' },
+        { status: 502 },
+      )
+    }
+  } catch (error) {
+    console.error('Withdraw route error:', error)
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
-
-  // Notification
-  await supabase.from('notifications').insert({
-    user_id: user.id,
-    type: 'withdrawal_completed',
-    title: requiresReview ? '⏳ Withdrawal Under Review' : '💸 Withdrawal Processing',
-    body: requiresReview
-      ? `Your withdrawal of ${amount.toLocaleString()} ${currency} is under review. Funds will arrive within 24 hours.`
-      : `Your withdrawal of ${netAmount.toLocaleString()} ${currency} is being processed.`,
-    data: { withdrawal_id: withdrawal.id },
-  })
-
-  return NextResponse.json({
-    success: true,
-    withdrawal_id: withdrawal.id,
-    status: requiresReview ? 'under_review' : 'processing',
-    message: requiresReview
-      ? `Withdrawal under review. Funds will arrive within 24 hours.`
-      : `Processing ${netAmount.toLocaleString()} ${currency} to ${phone_number}.`,
-    fee: feeAmount,
-    net_amount: netAmount,
-  })
 }
 
 export async function GET(req: NextRequest) {
