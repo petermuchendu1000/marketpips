@@ -221,6 +221,58 @@ export function parseMpesaCallback(body: MpesaCallbackBody): {
   }
 }
 
+// Parse an M-Pesa B2C Result callback (disbursement outcome for a withdrawal).
+// Safaricom POSTs { Result: { ResultCode, ResultParameters, ... } } to the
+// ResultURL. ResultCode 0 = success. We echo the ConversationID (stored as the
+// withdrawal.provider_reference) so the webhook can correlate the result.
+export interface MpesaB2CResultBody {
+  Result?: {
+    ResultCode?: number | string
+    ResultDesc?: string
+    ConversationID?: string
+    OriginatorConversationID?: string
+    TransactionID?: string
+    ResultParameters?: {
+      ResultParameter?: Array<{ Key: string; Value: string | number }>
+    }
+  }
+}
+
+export function parseMpesaB2CResult(body: MpesaB2CResultBody): {
+  success: boolean
+  resultCode: number
+  resultDesc: string
+  conversationId?: string
+  originatorConversationId?: string
+  transactionId?: string
+  transactionReceipt?: string
+  transactionAmount?: number
+  receiverName?: string
+} {
+  const result = body?.Result ?? {}
+  const code = Number(result.ResultCode ?? -1)
+
+  const params = result.ResultParameters?.ResultParameter ?? []
+  const getParam = (key: string) =>
+    params.find((p) => p.Key === key)?.Value
+
+  const receipt = getParam('TransactionReceipt')
+  const amount = getParam('TransactionAmount')
+  const receiver = getParam('ReceiverPartyPublicName')
+
+  return {
+    success: code === 0,
+    resultCode: code,
+    resultDesc: result.ResultDesc ?? '',
+    conversationId: result.ConversationID,
+    originatorConversationId: result.OriginatorConversationID,
+    transactionId: result.TransactionID,
+    transactionReceipt: receipt != null ? String(receipt) : undefined,
+    transactionAmount: amount != null ? Number(amount) : undefined,
+    receiverName: receiver != null ? String(receiver) : undefined,
+  }
+}
+
 // B2C - Send money to user (for withdrawals)
 export async function initiateMpesaB2C({
   phone,

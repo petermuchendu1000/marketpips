@@ -101,9 +101,36 @@ Legend: ☐ todo · ◐ in progress · ☑ done
   (rolled back): same deposit credited twice → balance 0→100→100,
   total_deposited 0→100, r1.credited / r2.already_processed, exactly 1 txn row.
 
-### Module 7 — Payments: withdrawals + KYC gate  ☐
-- B2C/disbursement; KYC required > threshold; fee handling.
-- **Gate:** withdraw reserves balance, completes/fails atomically; KYC gate test.
+### Module 7 — Payments: withdrawals  ☑  (KYC gate deferred → M8)
+- Atomic, idempotent `request_withdrawal` / `complete_withdrawal` /
+  `fail_withdrawal` RPCs (migration 006), mirroring the M5/M6 pattern:
+  `request_withdrawal` locks the wallet `FOR UPDATE` so the balance check +
+  reserve are atomic (fixes the old TOCTOU overdraw), moves `amount`
+  available→reserved, and creates the pending withdrawal + transaction in ONE
+  transaction. `complete_withdrawal` releases the reserve + tallies
+  `total_withdrawn` (available was already debited → payout leaves once);
+  `fail_withdrawal` refunds reserved→available. Both are idempotent
+  (status short-circuit) so duplicate result webhooks are no-ops, and neither
+  clobbers a terminal state. `service_role`-only EXECUTE. ✓
+- Shared `lib/payments/withdraw.ts`: pure fee/limit logic
+  (`computeWithdrawalFee` 0.5% bank / 1% mobile, ceil; `MIN_WITHDRAWALS`;
+  `REVIEW_THRESHOLD_USD`) + RPC wrappers (`requestWithdrawal` /
+  `completeWithdrawal` / `failWithdrawal`). ✓
+- Withdraw route refactored: atomic reserve via RPC, **async-first** — initiate
+  disbursement then leave the withdrawal `processing`; the provider result
+  webhook finalizes it. Synchronous provider rejection → immediate
+  `fail_withdrawal` refund (money never stuck reserved). ✓
+- Disbursement-result webhooks added: M-Pesa B2C (`/webhooks/mpesa-b2c`),
+  MTN (`/webhooks/mtn-disbursement`), Airtel (`/webhooks/airtel-disbursement`)
+  — match by `provider_reference`, funnel through complete/fail. Airtel
+  re-queries authoritative status. B2C result parser added to `lib/payments/mpesa`. ✓
+- **KYC gate DEFERRED** to Module 8 (per instruction). Clean hook left in the
+  route; account-status + USD review-threshold gates remain active. ✓
+- **Gate:** ✓ 12 withdrawal unit tests (fee/net/limits/B2C parsing) · 122/122
+  total · tsc clean · DB-live (rolled back): reserve 1000→900 (reserved 100) ·
+  complete releases reserve, total_withdrawn→100, 2nd call already_processed ·
+  reserve 200 → fail refunds to 900, 2nd call already_processed · insufficient
+  balance → P0006 · generated net_amount = 99 · zero leaked rows.
 
 ### Module 8 — KYC  ☐
 - Private bucket upload, admin review (`admin_review_kyc`).
