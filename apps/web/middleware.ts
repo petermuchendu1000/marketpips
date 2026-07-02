@@ -10,6 +10,7 @@ import {
   rateLimitHeaders,
 } from '@/lib/security/rate-limit'
 import { securityHeaders } from '@/lib/security/headers'
+import { REQUEST_ID_HEADER, resolveRequestId } from '@/lib/observability/request-id'
 
 const ADMIN_PORTAL_ROLE_SET = new Set<string>(ADMIN_PORTAL_ROLES)
 
@@ -19,8 +20,9 @@ const SECURITY_HEADERS = securityHeaders({
   allowUnsafeEval: process.env.NODE_ENV !== 'production',
 })
 
-function applySecurityHeaders(res: NextResponse): NextResponse {
+function applySecurityHeaders(res: NextResponse, requestId?: string): NextResponse {
   for (const [k, v] of Object.entries(SECURITY_HEADERS)) res.headers.set(k, v)
+  if (requestId) res.headers.set(REQUEST_ID_HEADER, requestId)
   return res
 }
 
@@ -39,6 +41,12 @@ const ADMIN_ROUTES = ['/admin']
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
 
+  // ---- Correlation id -------------------------------------------------------
+  // Resolve (or mint) a request id and propagate it to handlers via request
+  // headers; it's echoed on every response by applySecurityHeaders.
+  const requestId = resolveRequestId(request.headers)
+  request.headers.set(REQUEST_ID_HEADER, requestId)
+
   // ---- Rate limiting (fail-open) --------------------------------------------
   // Applied early so abusive traffic is shed before doing session work. The
   // default store is per-isolate in-memory; back it with Upstash in production.
@@ -50,9 +58,10 @@ export async function middleware(request: NextRequest) {
     if (!decision.allowed) {
       return applySecurityHeaders(
         NextResponse.json(
-          { error: 'Too many requests. Please slow down.' },
+          { error: 'Too many requests. Please slow down.', code: 'rate_limited', request_id: requestId },
           { status: 429, headers: rateLimitHeaders(decision) }
-        )
+        ),
+        requestId
       )
     }
   }
@@ -115,7 +124,7 @@ export async function middleware(request: NextRequest) {
   }
 
   // Security headers (CSP, HSTS, X-Frame-Options, etc.) — centralised set.
-  return applySecurityHeaders(response)
+  return applySecurityHeaders(response, requestId)
 }
 
 export const config = {
