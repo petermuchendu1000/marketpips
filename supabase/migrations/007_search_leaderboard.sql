@@ -106,7 +106,10 @@ LANGUAGE plpgsql
 STABLE
 SECURITY DEFINER
 SET search_path = public
-SET pg_trgm.word_similarity_threshold = 0.3
+-- NOTE: intentionally no `SET pg_trgm.word_similarity_threshold` — ranking uses
+-- the word_similarity() function (not the `%>` operator), so the session GUC is
+-- irrelevant, and a function-level SET of it fails on Supabase's migration role
+-- (SQLSTATE 42501) which would break a fresh `db reset` / DR restore.
 AS $$
 DECLARE
   v_limit    int  := LEAST(GREATEST(COALESCE(p_limit, 20), 1), 100);
