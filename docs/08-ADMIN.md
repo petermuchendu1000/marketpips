@@ -788,11 +788,65 @@ the UI with zero redeploys, plus a typed settings store and FX management.
   green; full suite **231/231**; `tsc` clean; lint clean; `next build` passes
   (all new routes compiled).
 
-### Phases E–F — pending
+### Phase E — Creators & Marketers ⭐ ✅ (shipped)
+
+Delivered on branch `module-11-admin-creators-marketers` (stacked on Phase D).
+Turns the creator/marketer/payout stub pages into full, capability-guarded
+control planes: creator consoles & tiers, marketer consoles, commission plans,
+promo campaigns, and the payout-run engine (§4.3, §4.4, §6.4).
+
+**Key design decision (money-flow honesty).** Creator rewards are *already*
+credited to the creator's USD wallet the instant a bet is placed (migration 004
+`place_bet` + `creator_reward` transactions). Re-paying them in a payout run
+would double-pay. So **creator payout runs are statements** (`settlement =
+'statement_only'`): compute aggregates the already-credited rewards in the
+period; disburse only reconciles them. **Marketer commissions genuinely accrue**
+(nothing credited at signup/bet time): compute derives an amount from the
+marketer's plan + attribution; disburse credits the marketer's USD wallet and
+writes a `referral_bonus` transaction (`settlement = 'credited'`). We reuse the
+existing `creator_reward` / `referral_bonus` transaction types rather than
+`ALTER TYPE`, keeping money-flow reporting consistent.
+
+- **Migration `013_admin_creators_marketers.sql`** — 9 tables: `creator_tiers`,
+  `creator_profiles`, `commission_plans`, `marketer_profiles`,
+  `role_applications`, `campaigns`, `campaign_redemptions`, `payout_runs`,
+  `payout_items`. RLS: SELECT via `has_capability()` + self-read for own
+  profile/items (no write policies — writes are RPC/service-role only, plus a
+  narrow self-apply INSERT on `role_applications`). A run-total recompute trigger
+  and the `IMMUTABLE marketer_commission_usd()` helper (mirrored in TS). **21
+  SECURITY DEFINER RPCs** (capability-gated + audited): creator approve/update/
+  set-status + tier upsert; marketer approve/update-plan/set-status/regen-code +
+  commission-plan upsert; application reject (capability by kind); campaign
+  upsert + set-status; and the **payout state machine** `admin_create_payout_run`
+  → `admin_compute_payout_run` → `admin_approve_payout_run` →
+  `admin_disburse_payout_run`, plus `admin_cancel_payout_run` and
+  `admin_clawback_payout_item`. Seeds default tiers + commission plans.
+- **App**:
+  - `lib/admin/marketers.ts` (commission math mirroring the SQL, plan
+    normalisation, attribution fetch), `lib/admin/payouts.ts` (run state machine,
+    hold-gate eligibility, run summaries, default period), `lib/admin/creators.ts`
+    (effective reward/limit resolution, stats), `lib/admin/campaigns.ts`
+    (eligibility engine + value/budget math). **+49 unit tests**.
+  - `/admin/creators` (directory + applications + tiers) & `/admin/creators/[id]`
+    (stats + tier/privilege editor); `/admin/marketers` (directory +
+    applications) & `/admin/marketers/[id]` (**live commission preview** +
+    plan editor + code regen); `/admin/marketers/campaigns` (management + plan
+    catalog); `/admin/marketers/payouts` (runs list + create) &
+    `/admin/marketers/payouts/[id]` (item ledger + state-machine actions +
+    per-item clawback).
+  - API: 13 capability-gated handlers (creator/marketer/application lifecycle,
+    tiers, commission plans, campaigns, payout create/action/clawback, and
+    creator/marketer directory + payout statement CSV exports) — each
+    `requireCapability`-guarded and calling the audited RPCs.
+- **Gates**: `admin-marketers.test.ts`, `admin-payouts.test.ts`,
+  `admin-creators-campaigns.test.ts` green; full suite **280/280**; `tsc` clean;
+  lint clean (no new warnings); `next build` passes (all Module E routes compiled,
+  35/35 pages).
+
+### Phase F — pending
 
 Stub pages exist and are capability-guarded; each will be replaced with full
-functionality per §8. Order: Creators & Marketers →
-Moderation/Announcements/Audit.
+functionality per §8. Remaining: Moderation / Announcements / Audit.
 
 ---
 
