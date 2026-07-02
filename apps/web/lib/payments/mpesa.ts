@@ -4,13 +4,56 @@
 // ============================================================
 
 import axios from 'axios'
+import { createAdminClient } from '@/lib/supabase/server'
+import { getGatewayConfig, envFallbackConfig, type GatewayEnv } from '@/lib/admin/gateways'
 
-const MPESA_BASE_URL = process.env.MPESA_BASE_URL || 'https://sandbox.safaricom.co.ke'
-const CONSUMER_KEY = process.env.MPESA_CONSUMER_KEY!
-const CONSUMER_SECRET = process.env.MPESA_CONSUMER_SECRET!
-const SHORTCODE = process.env.MPESA_SHORTCODE || '174379'
-const PASSKEY = process.env.MPESA_PASSKEY!
-const CALLBACK_URL = process.env.MPESA_CALLBACK_URL!
+// ------------------------------------------------------------
+// Runtime configuration (DB-first with env fallback — §4.7)
+// ------------------------------------------------------------
+// Previously every value was a module-level `process.env` constant, so changing
+// a paybill or key required a redeploy. Config is now resolved at call time from
+// the admin-managed `payment_gateways` table (encrypted secrets included) and
+// falls back to the historical env vars per-field so nothing breaks pre-rollout.
+export interface MpesaConfig {
+  baseUrl: string
+  consumerKey: string
+  consumerSecret: string
+  shortcode: string
+  partyB: string
+  passkey: string
+  callbackUrl: string
+  transactionType: string
+  initiatorName: string
+  securityCredential: string
+  b2cShortcode: string
+}
+
+async function resolveMpesaConfig(country?: string): Promise<MpesaConfig> {
+  const env: GatewayEnv = process.env.PAYMENTS_ENV === 'production' ? 'production' : 'sandbox'
+  let resolved
+  try {
+    const admin = await createAdminClient()
+    resolved = await getGatewayConfig(admin, 'mpesa', country ?? null, env)
+  } catch {
+    resolved = envFallbackConfig('mpesa')
+  }
+  const c = resolved.config
+  const s = resolved.secrets
+  const shortcode = c.business_shortcode || process.env.MPESA_SHORTCODE || '174379'
+  return {
+    baseUrl: c.base_url || process.env.MPESA_BASE_URL || 'https://sandbox.safaricom.co.ke',
+    consumerKey: c.consumer_key || process.env.MPESA_CONSUMER_KEY || '',
+    consumerSecret: s.consumer_secret || process.env.MPESA_CONSUMER_SECRET || '',
+    shortcode,
+    partyB: c.party_b || shortcode,
+    passkey: s.passkey || process.env.MPESA_PASSKEY || '',
+    callbackUrl: c.stk_callback_url || process.env.MPESA_CALLBACK_URL || '',
+    transactionType: c.transaction_type || 'CustomerPayBillOnline',
+    initiatorName: c.initiator_name || process.env.MPESA_INITIATOR_NAME || 'testapi',
+    securityCredential: s.security_credential || process.env.MPESA_SECURITY_CREDENTIAL || '',
+    b2cShortcode: c.b2c_shortcode || shortcode,
+  }
+}
 
 interface MpesaAccessTokenResponse {
   access_token: string
@@ -52,11 +95,11 @@ interface MpesaCallbackBody {
 }
 
 // Get OAuth access token
-async function getAccessToken(): Promise<string> {
-  const credentials = Buffer.from(`${CONSUMER_KEY}:${CONSUMER_SECRET}`).toString('base64')
+async function getAccessToken(cfg: MpesaConfig): Promise<string> {
+  const credentials = Buffer.from(`${cfg.consumerKey}:${cfg.consumerSecret}`).toString('base64')
 
   const response = await axios.get<MpesaAccessTokenResponse>(
-    `${MPESA_BASE_URL}/oauth/v1/generate?grant_type=client_credentials`,
+    `${cfg.baseUrl}/oauth/v1/generate?grant_type=client_credentials`,
     {
       headers: {
         Authorization: `Basic ${credentials}`,
@@ -69,8 +112,8 @@ async function getAccessToken(): Promise<string> {
 }
 
 // Generate password (Base64 of Shortcode + Passkey + Timestamp)
-function generatePassword(timestamp: string): string {
-  const data = `${SHORTCODE}${PASSKEY}${timestamp}`
+function generatePassword(cfg: MpesaConfig, timestamp: string): string {
+  const data = `${cfg.shortcode}${cfg.passkey}${timestamp}`
   return Buffer.from(data).toString('base64')
 }
 
@@ -109,35 +152,38 @@ export async function initiateMpesaSTKPush({
   accountReference,
   transactionDesc,
   depositId,
+  country,
 }: {
   phone: string
   amount: number
   accountReference: string
   transactionDesc: string
   depositId: string
+  country?: string
 }): Promise<STKPushResponse> {
-  const token = await getAccessToken()
+  const cfg = await resolveMpesaConfig(country)
+  const token = await getAccessToken(cfg)
   const timestamp = getTimestamp()
-  const password = generatePassword(timestamp)
+  const password = generatePassword(cfg, timestamp)
   const formattedPhone = formatMpesaPhone(phone)
   const roundedAmount = Math.ceil(amount) // M-Pesa requires integer
 
   const payload = {
-    BusinessShortCode: SHORTCODE,
+    BusinessShortCode: cfg.shortcode,
     Password: password,
     Timestamp: timestamp,
-    TransactionType: 'CustomerPayBillOnline',
+    TransactionType: cfg.transactionType,
     Amount: roundedAmount,
     PartyA: formattedPhone,
-    PartyB: SHORTCODE,
+    PartyB: cfg.partyB,
     PhoneNumber: formattedPhone,
-    CallBackURL: `${CALLBACK_URL}?deposit_id=${depositId}`,
+    CallBackURL: `${cfg.callbackUrl}?deposit_id=${depositId}`,
     AccountReference: accountReference.slice(0, 12), // max 12 chars
     TransactionDesc: transactionDesc.slice(0, 13), // max 13 chars
   }
 
   const response = await axios.post<STKPushResponse>(
-    `${MPESA_BASE_URL}/mpesa/stkpush/v1/processrequest`,
+    `${cfg.baseUrl}/mpesa/stkpush/v1/processrequest`,
     payload,
     {
       headers: {
@@ -156,15 +202,16 @@ export async function initiateMpesaSTKPush({
 }
 
 // Query STK Push status
-export async function queryMpesaSTKStatus(checkoutRequestId: string): Promise<STKQueryResponse> {
-  const token = await getAccessToken()
+export async function queryMpesaSTKStatus(checkoutRequestId: string, country?: string): Promise<STKQueryResponse> {
+  const cfg = await resolveMpesaConfig(country)
+  const token = await getAccessToken(cfg)
   const timestamp = getTimestamp()
-  const password = generatePassword(timestamp)
+  const password = generatePassword(cfg, timestamp)
 
   const response = await axios.post<STKQueryResponse>(
-    `${MPESA_BASE_URL}/mpesa/stkpushquery/v1/query`,
+    `${cfg.baseUrl}/mpesa/stkpushquery/v1/query`,
     {
-      BusinessShortCode: SHORTCODE,
+      BusinessShortCode: cfg.shortcode,
       Password: password,
       Timestamp: timestamp,
       CheckoutRequestID: checkoutRequestId,
@@ -279,27 +326,30 @@ export async function initiateMpesaB2C({
   amount,
   remarks,
   occasion,
+  country,
 }: {
   phone: string
   amount: number
   remarks: string
   occasion: string
+  country?: string
 }): Promise<{ ConversationID: string; OriginatorConversationID: string; ResponseDescription: string }> {
-  const token = await getAccessToken()
+  const cfg = await resolveMpesaConfig(country)
+  const token = await getAccessToken(cfg)
   const formattedPhone = formatMpesaPhone(phone)
 
   const response = await axios.post(
-    `${MPESA_BASE_URL}/mpesa/b2c/v3/paymentrequest`,
+    `${cfg.baseUrl}/mpesa/b2c/v3/paymentrequest`,
     {
-      InitiatorName: process.env.MPESA_INITIATOR_NAME || 'testapi',
-      SecurityCredential: process.env.MPESA_SECURITY_CREDENTIAL || '',
+      InitiatorName: cfg.initiatorName,
+      SecurityCredential: cfg.securityCredential,
       CommandID: 'BusinessPayment',
       Amount: Math.floor(amount),
-      PartyA: SHORTCODE,
+      PartyA: cfg.b2cShortcode,
       PartyB: formattedPhone,
       Remarks: remarks.slice(0, 100),
-      QueueTimeOutURL: `${CALLBACK_URL}/timeout`,
-      ResultURL: `${CALLBACK_URL}/b2c-result`,
+      QueueTimeOutURL: `${cfg.callbackUrl}/timeout`,
+      ResultURL: `${cfg.callbackUrl}/b2c-result`,
       Occasion: occasion.slice(0, 100),
     },
     {

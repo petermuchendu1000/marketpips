@@ -72,6 +72,7 @@ export async function initiateDeposit(req: PaymentRequest): Promise<PaymentResul
           accountReference: `FB${req.depositId.slice(0, 10)}`,
           transactionDesc: 'MarketPips Deposit',
           depositId: req.depositId,
+          country: req.country,
         })
         return {
           success: true,

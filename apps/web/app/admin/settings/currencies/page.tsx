@@ -1,21 +1,36 @@
+// app/admin/settings/currencies/page.tsx — Currencies & FX management.
+import Link from 'next/link'
 import { requirePageCapability } from '@/lib/admin/page-guard'
-import { SectionPlaceholder } from '@/components/admin/SectionPlaceholder'
+import { CurrencyManager, type RateRow } from '@/components/admin/settings/CurrencyManager'
 
 export const dynamic = 'force-dynamic'
 export const metadata = { title: 'Admin — Currencies & FX' }
 
-export default async function Page() {
-  await requirePageCapability('settings:write')
+const ALL = ['KES', 'UGX', 'TZS', 'RWF', 'ZMW', 'ETB', 'BIF', 'USD']
+
+export default async function CurrenciesPage() {
+  const ctx = await requirePageCapability('settings:write')
+
+  const [{ data: rates }, { data: enabledRow }] = await Promise.all([
+    ctx.supabase
+      .from('exchange_rates')
+      .select('from_currency, to_currency, rate, source, fetched_at')
+      .eq('to_currency', 'USD'),
+    ctx.supabase.from('platform_settings').select('value').eq('key', 'currencies.enabled').maybeSingle(),
+  ])
+
+  const enabled = Array.isArray(enabledRow?.value) ? (enabledRow?.value as string[]) : ALL
+
   return (
-    <SectionPlaceholder
-      title="Currencies & FX"
-      description="Enable currencies, manage exchange rates, and configure the FX source and cadence."
-      phase="Phase D"
-      bullets={[
-        "Enable/disable supported currencies",
-        "Manage exchange_rates with source & refresh cadence",
-        "Manual override with expiry",
-      ]}
-    />
+    <div className="max-w-3xl">
+      <div className="mb-6 flex items-center gap-3">
+        <Link href="/admin/settings" className="text-sm text-muted-foreground hover:underline">← Settings</Link>
+        <h1 className="text-2xl font-black">Currencies &amp; FX</h1>
+      </div>
+      <p className="mb-6 text-sm text-muted-foreground">
+        Enable the currencies your markets support and maintain the exchange rates used for USD normalisation. Manual edits are audited.
+      </p>
+      <CurrencyManager enabled={enabled} rates={(rates ?? []) as RateRow[]} />
+    </div>
   )
 }
