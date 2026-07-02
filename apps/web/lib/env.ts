@@ -20,6 +20,11 @@ const serverSchema = z.object({
   // USD-base, which is exactly what we need. Absent -> job degrades gracefully
   // to last-known-good fallback rates without failing.
   OPENEXCHANGERATES_APP_ID: z.string().optional(),
+  // Distributed cache / rate-limit store (Module 15). Upstash Redis REST.
+  // Absent -> read-through cache no-ops and rate-limiting falls back to the
+  // in-memory store; never a hard failure.
+  UPSTASH_REDIS_REST_URL: z.string().url().optional(),
+  UPSTASH_REDIS_REST_TOKEN: z.string().optional(),
 })
 
 export type PublicEnv = z.infer<typeof publicSchema>
