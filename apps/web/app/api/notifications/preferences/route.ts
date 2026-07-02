@@ -1,0 +1,50 @@
+// app/api/notifications/preferences — read & update per-user delivery prefs.
+//
+// GET  -> current channel preferences for the signed-in user.
+// PATCH-> toggle email/sms/push. These gate the outbox fan-out (migration 015):
+// the enqueue trigger only queues a channel when the user has it enabled AND a
+// destination exists. Uses the RLS-scoped client (a user can only touch their row).
+import { NextRequest, NextResponse } from 'next/server'
+import { z } from 'zod'
+import { requireUser } from '@/lib/auth'
+
+const schema = z
+  .object({
+    email_notifications: z.boolean().optional(),
+    sms_notifications: z.boolean().optional(),
+    push_notifications: z.boolean().optional(),
+  })
+  .refine((o) => Object.keys(o).length > 0, { message: 'No preferences provided' })
+
+const COLUMNS = 'email_notifications, sms_notifications, push_notifications'
+
+export async function GET() {
+  const guard = await requireUser()
+  if (!guard.ok) return guard.response
+  const { data, error } = await guard.ctx.supabase
+    .from('profiles')
+    .select(COLUMNS)
+    .eq('id', guard.ctx.user.id)
+    .single()
+  if (error) return NextResponse.json({ error: error.message }, { status: 400 })
+  return NextResponse.json({ preferences: data })
+}
+
+export async function PATCH(req: NextRequest) {
+  const parsed = schema.safeParse(await req.json().catch(() => ({})))
+  if (!parsed.success) {
+    return NextResponse.json({ error: 'Invalid request', details: parsed.error.flatten() }, { status: 400 })
+  }
+
+  const guard = await requireUser()
+  if (!guard.ok) return guard.response
+
+  const { data, error } = await guard.ctx.supabase
+    .from('profiles')
+    .update(parsed.data)
+    .eq('id', guard.ctx.user.id)
+    .select(COLUMNS)
+    .single()
+  if (error) return NextResponse.json({ error: error.message }, { status: 400 })
+  return NextResponse.json({ success: true, preferences: data })
+}
