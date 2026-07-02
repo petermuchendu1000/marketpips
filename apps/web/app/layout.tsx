@@ -3,6 +3,7 @@ import { Inter } from 'next/font/google'
 import './globals.css'
 import { Navbar } from '@/components/layout/navbar'
 import { Providers } from '@/components/layout/providers'
+import { WebVitals } from '@/components/perf/web-vitals'
 
 const inter = Inter({
   subsets: ['latin'],
@@ -58,6 +59,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <Providers>
           <Navbar />
           <main>{children}</main>
+          <WebVitals />
         </Providers>
       </body>
     </html>
