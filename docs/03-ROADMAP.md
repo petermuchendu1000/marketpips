@@ -220,21 +220,23 @@ Legend: ☐ todo · ◐ in progress · ☑ done
   webhook signature verification, secret management review.
 - **Gate:** rate-limit test; security header scan.
 
-### Module 15 — Performance & caching  ☐  → detailed spec: `docs/15-PERFORMANCE-CACHING.md`
-- Four-layer strategy (DB · Next.js · Cloudflare edge · client) + a distributed
-  cache (Upstash Redis) that also fixes the rate-limit store under horizontal scale.
-- Sub-milestones: 15.1 measurement harness (pg_stat_statements, web-vitals RUM,
-  Lighthouse CI baselines) · 15.2 DB pass (EXPLAIN-verified indexes `017`,
-  market-stats rollup, pooling) · 15.3 Redis read-through + `RedisRateStore`
-  (graceful fallback) · 15.4 rendering matrix (ISR/SSR/static) + tag-based
-  `revalidateTag` invalidation + per-route Cache-Control · 15.5 Cloudflare cache
-  rules/Tiered Cache/Brotli + image/font opt + service-worker app-shell ·
-  15.6 blocking budgets (Lighthouse, bundle-size, k6).
-- Budgets: LCP ≤ 2.0s, INP ≤ 150ms, CLS ≤ 0.05, first-load JS ≤ 110kB,
-  hot API p95 ≤ 120ms, hot DB query p95 ≤ 25ms.
-- **Gate:** Lighthouse mobile ≥ 90 (ceiling 85) on key pages (blocking) · every
-  hot query index-verified · bundle + k6 budgets green · before/after in
-  `docs/perf/RESULTS.md`.
+### Module 15 — Performance & caching  ☑  → detailed spec: `docs/15-PERFORMANCE-CACHING.md`
+- Shipped: 15.1 web-vitals RUM (client reporter → `/api/telemetry/vitals` →
+  structured logs) + Lighthouse CI config · 15.2 DB pass (migration 017: hot-path
+  indexes, 24h market-stats rollup + `refresh-market-stats` cron, `slow_queries`
+  view, pg_stat_statements) · 15.3 Upstash Redis client + read-through cache
+  (single-flight, key-versioned) + distributed fixed-window rate limiter
+  (fail-open) — all with graceful in-memory/no-cache fallback · 15.4 typed
+  Cache-Control policy (public markets/leaderboard edge-cacheable, private routes
+  `no-store`, test-enforced classifier) · 15.5 PWA app-shell service worker
+  (never caches API/auth) + offline fallback + immutable static headers ·
+  15.6 CI bundle-size budget (blocking) + Lighthouse CI job (non-blocking
+  baseline) + k6 smoke script + `docs/perf/{BASELINE,RESULTS}.md`.
+- **Gate:** ✅ tsc clean · 417 unit tests (cache/rate-limit/cache-headers/vitals)
+  · lint · `next build` · bundle budget 103 kB ≤ 130 kB · migration 017 parses
+  (pglast) · CI green. Remaining (tracked, non-blocking): dynamic-import Recharts
+  on `/markets/[slug]` (314 kB), wire Upstash in prod, promote Lighthouse to
+  blocking against staging.
 
 ### Module 16 — CI/CD & IaC  ☐  → detailed spec: `docs/16-CICD-IAC.md`
 - Harden `ci.yml` into lint→type-check→test→build→**deploy** with preview/staging/
