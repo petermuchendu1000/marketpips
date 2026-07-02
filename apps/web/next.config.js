@@ -35,6 +35,20 @@ const nextConfig = {
           { key: 'Access-Control-Allow-Headers', value: 'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version, Authorization' },
         ],
       },
+      {
+        // The service worker must revalidate on every load so new versions ship
+        // promptly (the SW itself is tiny; its cached assets are hashed).
+        source: '/sw.js',
+        headers: [
+          { key: 'Cache-Control', value: 'no-cache, no-store, must-revalidate' },
+          { key: 'Service-Worker-Allowed', value: '/' },
+        ],
+      },
+      {
+        // Content-hashed build assets are immutable — cache hard at the edge/browser.
+        source: '/_next/static/:path*',
+        headers: [{ key: 'Cache-Control', value: 'public, max-age=31536000, immutable' }],
+      },
     ]
   },
   async rewrites() {

@@ -4,6 +4,7 @@ import './globals.css'
 import { Navbar } from '@/components/layout/navbar'
 import { Providers } from '@/components/layout/providers'
 import { WebVitals } from '@/components/perf/web-vitals'
+import { ServiceWorkerRegister } from '@/components/perf/service-worker-register'
 
 const inter = Inter({
   subsets: ['latin'],
@@ -60,6 +61,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <Navbar />
           <main>{children}</main>
           <WebVitals />
+          <ServiceWorkerRegister />
         </Providers>
       </body>
     </html>
