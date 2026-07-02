@@ -220,18 +220,52 @@ Legend: ☐ todo · ◐ in progress · ☑ done
   webhook signature verification, secret management review.
 - **Gate:** rate-limit test; security header scan.
 
-### Module 15 — Performance & caching  ☐
-- Query/Cache strategy, CDN rules, image optimization, DB indexes review.
-- **Gate:** Lighthouse mobile ≥ target; key queries use indexes.
+### Module 15 — Performance & caching  ☐  → detailed spec: `docs/15-PERFORMANCE-CACHING.md`
+- Four-layer strategy (DB · Next.js · Cloudflare edge · client) + a distributed
+  cache (Upstash Redis) that also fixes the rate-limit store under horizontal scale.
+- Sub-milestones: 15.1 measurement harness (pg_stat_statements, web-vitals RUM,
+  Lighthouse CI baselines) · 15.2 DB pass (EXPLAIN-verified indexes `017`,
+  market-stats rollup, pooling) · 15.3 Redis read-through + `RedisRateStore`
+  (graceful fallback) · 15.4 rendering matrix (ISR/SSR/static) + tag-based
+  `revalidateTag` invalidation + per-route Cache-Control · 15.5 Cloudflare cache
+  rules/Tiered Cache/Brotli + image/font opt + service-worker app-shell ·
+  15.6 blocking budgets (Lighthouse, bundle-size, k6).
+- Budgets: LCP ≤ 2.0s, INP ≤ 150ms, CLS ≤ 0.05, first-load JS ≤ 110kB,
+  hot API p95 ≤ 120ms, hot DB query p95 ≤ 25ms.
+- **Gate:** Lighthouse mobile ≥ 90 (ceiling 85) on key pages (blocking) · every
+  hot query index-verified · bundle + k6 budgets green · before/after in
+  `docs/perf/RESULTS.md`.
 
-### Module 16 — CI/CD & IaC  ☐
-- GitHub Actions: lint→typecheck→test→build→deploy (Fly), Supabase migration
-  step; Fly `fly.toml`, Cloudflare config; rollback strategy.
-- **Gate:** green pipeline; staging deploy; documented rollback.
+### Module 16 — CI/CD & IaC  ☐  → detailed spec: `docs/16-CICD-IAC.md`
+- Harden `ci.yml` into lint→type-check→test→build→**deploy** with preview/staging/
+  production promotion (image-by-digest), and codify Cloudflare→Fly→Supabase as
+  Terraform IaC with a rehearsed rollback.
+- Sub-milestones: 16.1 CI hardening (parallel jobs, caching, concurrency,
+  migration-lint, security scans) · 16.2 container + `fly.toml` (multi-stage,
+  standalone, non-root, `/api/health` HEALTHCHECK, release_command migrate) ·
+  16.3 CD deploy jobs (staging auto, prod approval-gated, health-gated cutover,
+  post-deploy smoke) · 16.4 Cloudflare/Fly Terraform (`infra/terraform/`,
+  plan-on-PR/gated-apply) · 16.5 rollback strategy + `docs/RUNBOOK.md` (drill on
+  staging) · 16.6 release mgmt (semver tags, CHANGELOG, feature flags).
+- Migration rule: expand/contract, backward-compatible, forward-only.
+- **Gate:** green pipeline · staging deploy with passing smoke · prod promotes
+  same image by digest behind approval · documented + drilled rollback.
 
-### Module 17 — Accessibility, i18n, docs, launch  ☐
-- a11y pass, EA localization scaffolding, full docs, runbook, DR/backup.
-- **Gate:** a11y audit; restore-from-backup drill documented.
+### Module 17 — Accessibility, i18n, docs, launch  ☐  → detailed spec: `docs/17-ACCESSIBILITY-I18N-DOCS-LAUNCH.md`
+- WCAG 2.1 AA pass · `next-intl` i18n + EA locale scaffolding (en full, sw stub,
+  fr/am scaffolded; locale+timezone-aware formatting on the existing
+  `CURRENCY_META` base) · consolidated user/dev/API/ops/legal docs · DR/backup
+  program with a rehearsed restore drill · staged go-live.
+- Sub-milestones: 17.1 a11y foundation + automated gates (axe/Playwright,
+  jsx-a11y) · 17.2 WCAG AA deep pass (keyboard, SR, contrast, motion/zoom,
+  accessible charts) · 17.3 i18n framework + English extraction (ICU) ·
+  17.4 localization scaffolding + pseudo-locale + `preferred_locale` (`018`) ·
+  17.5 documentation consolidation (`docs/INDEX.md`, `docs/API.md`) · 17.6 DR/
+  backups/HA/capacity (PITR, RPO ≤ 5min / RTO ≤ 60min, restore drill,
+  `docs/DR.md`) · 17.7 launch readiness + staged rollout + maintenance cadence.
+- **Gate:** axe zero critical/serious + manual AA sign-off · English catalog
+  complete + locale switch · restore-from-backup drill executed & documented ·
+  go-live checklist fully green.
 
 ---
 
