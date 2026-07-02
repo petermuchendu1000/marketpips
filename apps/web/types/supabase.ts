@@ -665,6 +665,10 @@ export type Database = {
           platform_fee_rate: number | null
           is_featured: boolean | null
           is_trending: boolean | null
+          is_hidden: boolean
+          hidden_at: string | null
+          hidden_by: string | null
+          hidden_reason: string | null
           featured_order: number | null
           tags: string[] | null
           cover_image_url: string | null
@@ -707,6 +711,10 @@ export type Database = {
           platform_fee_rate?: number | null
           is_featured?: boolean | null
           is_trending?: boolean | null
+          is_hidden?: boolean
+          hidden_at?: string | null
+          hidden_by?: string | null
+          hidden_reason?: string | null
           featured_order?: number | null
           tags?: string[] | null
           cover_image_url?: string | null
@@ -749,6 +757,10 @@ export type Database = {
           platform_fee_rate?: number | null
           is_featured?: boolean | null
           is_trending?: boolean | null
+          is_hidden?: boolean
+          hidden_at?: string | null
+          hidden_by?: string | null
+          hidden_reason?: string | null
           featured_order?: number | null
           tags?: string[] | null
           cover_image_url?: string | null
@@ -1848,6 +1860,99 @@ export type Database = {
         }
         Relationships: []
       }
+      content_reports: {
+        Row: {
+          id: string
+          entity_type: string
+          entity_id: string
+          reporter_id: string | null
+          reason: string
+          details: string | null
+          status: string
+          resolution: string | null
+          resolution_note: string | null
+          handled_by: string | null
+          handled_at: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          entity_type: string
+          entity_id: string
+          reporter_id?: string | null
+          reason: string
+          details?: string | null
+          status?: string
+          resolution?: string | null
+          resolution_note?: string | null
+          handled_by?: string | null
+          handled_at?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          entity_type?: string
+          entity_id?: string
+          reporter_id?: string | null
+          reason?: string
+          details?: string | null
+          status?: string
+          resolution?: string | null
+          resolution_note?: string | null
+          handled_by?: string | null
+          handled_at?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      announcements: {
+        Row: {
+          id: string
+          title: string
+          body: string
+          channels: string[]
+          audience: Json
+          status: string
+          scheduled_at: string | null
+          sent_at: string | null
+          recipient_count: number
+          created_by: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          title: string
+          body: string
+          channels?: string[]
+          audience?: Json
+          status?: string
+          scheduled_at?: string | null
+          sent_at?: string | null
+          recipient_count?: number
+          created_by?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          title?: string
+          body?: string
+          channels?: string[]
+          audience?: Json
+          status?: string
+          scheduled_at?: string | null
+          sent_at?: string | null
+          recipient_count?: number
+          created_by?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       leaderboard: {
@@ -1891,6 +1996,51 @@ export type Database = {
       }
     }
     Functions: {
+      announcement_recipients: {
+        Args: { p_audience: Json }
+        Returns: string[]
+      }
+      announcement_audience_count: {
+        Args: { p_audience: Json }
+        Returns: number
+      }
+      admin_moderate_content: {
+        Args: {
+          p_entity_type: string
+          p_entity_id: string
+          p_action: string
+          p_reason?: string | null
+        }
+        Returns: Json
+      }
+      admin_resolve_report: {
+        Args: {
+          p_report_id: string
+          p_status: string
+          p_resolution?: string | null
+          p_note?: string | null
+        }
+        Returns: Database["public"]["Tables"]["content_reports"]["Row"]
+      }
+      admin_upsert_announcement: {
+        Args: {
+          p_id: string | null
+          p_title: string
+          p_body: string
+          p_channels?: string[]
+          p_audience?: Json
+          p_scheduled_at?: string | null
+        }
+        Returns: Database["public"]["Tables"]["announcements"]["Row"]
+      }
+      admin_send_announcement: {
+        Args: { p_id: string }
+        Returns: Database["public"]["Tables"]["announcements"]["Row"]
+      }
+      admin_set_announcement_status: {
+        Args: { p_id: string; p_status: string }
+        Returns: Database["public"]["Tables"]["announcements"]["Row"]
+      }
       marketer_commission_usd: {
         Args: { p_plan: Json; p_activations: number; p_revenue_base: number }
         Returns: number

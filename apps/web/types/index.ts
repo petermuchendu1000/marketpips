@@ -170,6 +170,10 @@ export interface Market {
   is_featured: boolean
   is_trending: boolean
   featured_order: number | null
+  is_hidden: boolean
+  hidden_at: string | null
+  hidden_by: string | null
+  hidden_reason: string | null
   tags: string[]
   cover_image_url: string | null
   allowed_countries: string[]

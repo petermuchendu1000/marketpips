@@ -62,6 +62,112 @@ export function requestContext(headers: Headers): {
   return { ipAddress: ipAddress || null, userAgent: headers.get('user-agent') }
 }
 
+// ============================================================
+// Audit & Security console — read model (pure param parsing + server fetch).
+// The audit_log SELECT is gated by RLS (`audit:read`, migration 009); this
+// layer just parses filters and resolves actor display names.
+// ============================================================
+
+export const AUDIT_DEFAULT_PAGE_SIZE = 50
+export const AUDIT_MAX_PAGE_SIZE = 500
+
+export interface AuditListParams {
+  actor: string | null // profile id (UUID)
+  entityType: string | null
+  entityId: string | null // UUID
+  action: string | null // substring match on the machine action name
+  from: string | null // ISO date (YYYY-MM-DD)
+  to: string | null
+  page: number
+  pageSize: number
+}
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+const DATE_RE = /^\d{4}-\d{2}-\d{2}$/
+
+/** Parse & bound audit-console query params (pure — unit-tested). */
+export function parseAuditParams(
+  sp: Record<string, string | string[] | undefined> | URLSearchParams
+): AuditListParams {
+  const get = (k: string): string | null => {
+    if (sp instanceof URLSearchParams) return sp.get(k)
+    const v = sp[k]
+    return Array.isArray(v) ? (v[0] ?? null) : (v ?? null)
+  }
+  const page = Math.max(1, parseInt(get('page') ?? '1', 10) || 1)
+  const rawSize = parseInt(get('pageSize') ?? String(AUDIT_DEFAULT_PAGE_SIZE), 10) || AUDIT_DEFAULT_PAGE_SIZE
+  const pageSize = Math.min(AUDIT_MAX_PAGE_SIZE, Math.max(1, rawSize))
+  const uuidOrNull = (v: string | null) => (v && UUID_RE.test(v) ? v : null)
+  const dateOrNull = (v: string | null) => (v && DATE_RE.test(v) ? v : null)
+  return {
+    actor: uuidOrNull(get('actor')),
+    entityType: (get('entityType') ?? '').trim() || null,
+    entityId: uuidOrNull(get('entityId')),
+    action: (get('action') ?? '').trim() || null,
+    from: dateOrNull(get('from')),
+    to: dateOrNull(get('to')),
+    page,
+    pageSize,
+  }
+}
+
+type AuditRow = Database['public']['Tables']['audit_log']['Row']
+export interface AuditRowWithActor extends AuditRow {
+  actor?: { username: string | null; display_name: string | null } | null
+}
+
+/** Fetch a filtered, paginated page of the audit log + total (RLS-enforced). */
+export async function fetchAuditLog(
+  supabase: SupabaseClient<Database>,
+  params: AuditListParams
+): Promise<{ rows: AuditRowWithActor[]; total: number }> {
+  const from = (params.page - 1) * params.pageSize
+  let query = supabase
+    .from('audit_log')
+    .select('*', { count: 'exact' })
+    .order('created_at', { ascending: false })
+    .range(from, from + params.pageSize - 1)
+
+  if (params.actor) query = query.eq('actor_id', params.actor)
+  if (params.entityType) query = query.eq('entity_type', params.entityType)
+  if (params.entityId) query = query.eq('entity_id', params.entityId)
+  if (params.action) query = query.ilike('action', `%${params.action}%`)
+  if (params.from) query = query.gte('created_at', `${params.from}T00:00:00Z`)
+  if (params.to) query = query.lte('created_at', `${params.to}T23:59:59Z`)
+
+  const { data, count } = await query
+  const rows = (data ?? []) as AuditRow[]
+  const actorIds = Array.from(new Set(rows.map((r) => r.actor_id).filter(Boolean))) as string[]
+  const actors: Record<string, { username: string | null; display_name: string | null }> = {}
+  if (actorIds.length) {
+    const { data: profs } = await supabase
+      .from('profiles')
+      .select('id, username, display_name')
+      .in('id', actorIds)
+    for (const p of profs ?? []) actors[p.id] = { username: p.username, display_name: p.display_name }
+  }
+  return {
+    rows: rows.map((r) => ({ ...r, actor: r.actor_id ? actors[r.actor_id] ?? null : null })),
+    total: count ?? 0,
+  }
+}
+
+/** Security-relevant actions to surface on the security tab (prefix match). */
+export const SECURITY_ACTION_PREFIXES = [
+  'user.role_grant',
+  'user.set_role',
+  'user.impersonate',
+  'user.set_status',
+  'gateway.rotate_secret',
+  'gateway.clear_secret',
+  'moderation.',
+  'announcement.',
+] as const
+
+export function isSecurityAction(action: string): boolean {
+  return SECURITY_ACTION_PREFIXES.some((p) => action.startsWith(p))
+}
+
 /** Redact known-sensitive keys from an object before it enters the audit log. */
 export function redact<T extends Record<string, unknown>>(
   obj: T,
