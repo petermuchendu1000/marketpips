@@ -1488,6 +1488,366 @@ export type Database = {
           }
         ]
       }
+      creator_tiers: {
+        Row: {
+          key: string
+          label: string
+          reward_pct: number
+          max_open_markets: number
+          auto_publish: boolean
+          sort_order: number
+          is_active: boolean
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          key: string
+          label: string
+          reward_pct?: number
+          max_open_markets?: number
+          auto_publish?: boolean
+          sort_order?: number
+          is_active?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          key?: string
+          label?: string
+          reward_pct?: number
+          max_open_markets?: number
+          auto_publish?: boolean
+          sort_order?: number
+          is_active?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      creator_profiles: {
+        Row: {
+          user_id: string
+          tier: string
+          reward_pct: number | null
+          auto_publish: boolean
+          max_open_markets: number | null
+          status: string
+          suspended_reason: string | null
+          application_id: string | null
+          approved_by: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          user_id: string
+          tier?: string
+          reward_pct?: number | null
+          auto_publish?: boolean
+          max_open_markets?: number | null
+          status?: string
+          suspended_reason?: string | null
+          application_id?: string | null
+          approved_by?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          user_id?: string
+          tier?: string
+          reward_pct?: number | null
+          auto_publish?: boolean
+          max_open_markets?: number | null
+          status?: string
+          suspended_reason?: string | null
+          application_id?: string | null
+          approved_by?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      commission_plans: {
+        Row: {
+          key: string
+          label: string
+          plan: Json
+          is_active: boolean
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          key: string
+          label: string
+          plan?: Json
+          is_active?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          key?: string
+          label?: string
+          plan?: Json
+          is_active?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      marketer_profiles: {
+        Row: {
+          user_id: string
+          tracking_code: string
+          plan_key: string | null
+          commission_plan: Json
+          hold_days: number
+          status: string
+          suspended_reason: string | null
+          application_id: string | null
+          approved_by: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          user_id: string
+          tracking_code: string
+          plan_key?: string | null
+          commission_plan?: Json
+          hold_days?: number
+          status?: string
+          suspended_reason?: string | null
+          application_id?: string | null
+          approved_by?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          user_id?: string
+          tracking_code?: string
+          plan_key?: string | null
+          commission_plan?: Json
+          hold_days?: number
+          status?: string
+          suspended_reason?: string | null
+          application_id?: string | null
+          approved_by?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      role_applications: {
+        Row: {
+          id: string
+          user_id: string
+          kind: string
+          status: string
+          message: string | null
+          review_notes: string | null
+          reviewed_by: string | null
+          reviewed_at: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          kind: string
+          status?: string
+          message?: string | null
+          review_notes?: string | null
+          reviewed_by?: string | null
+          reviewed_at?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          kind?: string
+          status?: string
+          message?: string | null
+          review_notes?: string | null
+          reviewed_by?: string | null
+          reviewed_at?: string | null
+          created_at?: string
+        }
+        Relationships: []
+      }
+      campaigns: {
+        Row: {
+          id: string
+          code: string
+          label: string
+          marketer_id: string | null
+          kind: string
+          value_pct: number
+          max_value_usd: number | null
+          budget_usd: number | null
+          spent_usd: number
+          max_redemptions: number | null
+          redemption_count: number
+          per_user_limit: number
+          starts_at: string | null
+          ends_at: string | null
+          status: string
+          created_by: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          code: string
+          label: string
+          marketer_id?: string | null
+          kind: string
+          value_pct?: number
+          max_value_usd?: number | null
+          budget_usd?: number | null
+          spent_usd?: number
+          max_redemptions?: number | null
+          redemption_count?: number
+          per_user_limit?: number
+          starts_at?: string | null
+          ends_at?: string | null
+          status?: string
+          created_by?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          code?: string
+          label?: string
+          marketer_id?: string | null
+          kind?: string
+          value_pct?: number
+          max_value_usd?: number | null
+          budget_usd?: number | null
+          spent_usd?: number
+          max_redemptions?: number | null
+          redemption_count?: number
+          per_user_limit?: number
+          starts_at?: string | null
+          ends_at?: string | null
+          status?: string
+          created_by?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      campaign_redemptions: {
+        Row: {
+          id: string
+          campaign_id: string
+          user_id: string
+          amount_usd: number
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          campaign_id: string
+          user_id: string
+          amount_usd?: number
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          campaign_id?: string
+          user_id?: string
+          amount_usd?: number
+          created_at?: string
+        }
+        Relationships: []
+      }
+      payout_runs: {
+        Row: {
+          id: string
+          kind: string
+          period_start: string
+          period_end: string
+          status: string
+          total_usd: number
+          notes: string | null
+          created_by: string | null
+          computed_at: string | null
+          approved_by: string | null
+          approved_at: string | null
+          disbursed_at: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          kind: string
+          period_start: string
+          period_end: string
+          status?: string
+          total_usd?: number
+          notes?: string | null
+          created_by?: string | null
+          computed_at?: string | null
+          approved_by?: string | null
+          approved_at?: string | null
+          disbursed_at?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          kind?: string
+          period_start?: string
+          period_end?: string
+          status?: string
+          total_usd?: number
+          notes?: string | null
+          created_by?: string | null
+          computed_at?: string | null
+          approved_by?: string | null
+          approved_at?: string | null
+          disbursed_at?: string | null
+          created_at?: string
+        }
+        Relationships: []
+      }
+      payout_items: {
+        Row: {
+          id: string
+          run_id: string
+          user_id: string
+          amount_usd: number
+          settlement: string
+          status: string
+          eligible_at: string | null
+          tx_count: number
+          transaction_id: string | null
+          detail: Json
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          run_id: string
+          user_id: string
+          amount_usd: number
+          settlement?: string
+          status?: string
+          eligible_at?: string | null
+          tx_count?: number
+          transaction_id?: string | null
+          detail?: Json
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          run_id?: string
+          user_id?: string
+          amount_usd?: number
+          settlement?: string
+          status?: string
+          eligible_at?: string | null
+          tx_count?: number
+          transaction_id?: string | null
+          detail?: Json
+          created_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       leaderboard: {
@@ -1531,6 +1891,120 @@ export type Database = {
       }
     }
     Functions: {
+      marketer_commission_usd: {
+        Args: { p_plan: Json; p_activations: number; p_revenue_base: number }
+        Returns: number
+      }
+      admin_upsert_creator_tier: {
+        Args: {
+          p_key: string
+          p_label: string
+          p_reward_pct: number
+          p_max_open_markets: number
+          p_auto_publish: boolean
+          p_sort_order: number
+          p_is_active: boolean
+        }
+        Returns: Database["public"]["Tables"]["creator_tiers"]["Row"]
+      }
+      admin_approve_creator: {
+        Args: { p_user_id: string; p_tier?: string; p_notes?: string | null }
+        Returns: Database["public"]["Tables"]["creator_profiles"]["Row"]
+      }
+      admin_update_creator: {
+        Args: {
+          p_user_id: string
+          p_tier: string | null
+          p_reward_pct: number | null
+          p_auto_publish: boolean | null
+          p_max_open_markets: number | null
+        }
+        Returns: Database["public"]["Tables"]["creator_profiles"]["Row"]
+      }
+      admin_set_creator_status: {
+        Args: { p_user_id: string; p_status: string; p_reason?: string | null }
+        Returns: Database["public"]["Tables"]["creator_profiles"]["Row"]
+      }
+      admin_reject_application: {
+        Args: { p_application_id: string; p_reason?: string | null }
+        Returns: Database["public"]["Tables"]["role_applications"]["Row"]
+      }
+      admin_upsert_commission_plan: {
+        Args: { p_key: string; p_label: string; p_plan: Json; p_is_active: boolean }
+        Returns: Database["public"]["Tables"]["commission_plans"]["Row"]
+      }
+      admin_approve_marketer: {
+        Args: {
+          p_user_id: string
+          p_plan_key?: string | null
+          p_plan?: Json | null
+          p_hold_days?: number
+          p_notes?: string | null
+        }
+        Returns: Database["public"]["Tables"]["marketer_profiles"]["Row"]
+      }
+      admin_update_marketer_plan: {
+        Args: {
+          p_user_id: string
+          p_plan_key: string | null
+          p_plan: Json | null
+          p_hold_days: number | null
+        }
+        Returns: Database["public"]["Tables"]["marketer_profiles"]["Row"]
+      }
+      admin_set_marketer_status: {
+        Args: { p_user_id: string; p_status: string; p_reason?: string | null }
+        Returns: Database["public"]["Tables"]["marketer_profiles"]["Row"]
+      }
+      admin_regenerate_tracking_code: {
+        Args: { p_user_id: string }
+        Returns: Database["public"]["Tables"]["marketer_profiles"]["Row"]
+      }
+      admin_upsert_campaign: {
+        Args: {
+          p_id: string | null
+          p_code: string
+          p_label: string
+          p_marketer_id: string | null
+          p_kind: string
+          p_value_pct: number
+          p_max_value_usd: number | null
+          p_budget_usd: number | null
+          p_max_redemptions: number | null
+          p_per_user_limit: number
+          p_starts_at: string | null
+          p_ends_at: string | null
+        }
+        Returns: Database["public"]["Tables"]["campaigns"]["Row"]
+      }
+      admin_set_campaign_status: {
+        Args: { p_id: string; p_status: string }
+        Returns: Database["public"]["Tables"]["campaigns"]["Row"]
+      }
+      admin_create_payout_run: {
+        Args: { p_kind: string; p_period_start: string; p_period_end: string; p_notes?: string | null }
+        Returns: Database["public"]["Tables"]["payout_runs"]["Row"]
+      }
+      admin_compute_payout_run: {
+        Args: { p_run_id: string }
+        Returns: Database["public"]["Tables"]["payout_runs"]["Row"]
+      }
+      admin_approve_payout_run: {
+        Args: { p_run_id: string }
+        Returns: Database["public"]["Tables"]["payout_runs"]["Row"]
+      }
+      admin_disburse_payout_run: {
+        Args: { p_run_id: string }
+        Returns: Database["public"]["Tables"]["payout_runs"]["Row"]
+      }
+      admin_cancel_payout_run: {
+        Args: { p_run_id: string; p_reason?: string | null }
+        Returns: Database["public"]["Tables"]["payout_runs"]["Row"]
+      }
+      admin_clawback_payout_item: {
+        Args: { p_item_id: string; p_reason: string }
+        Returns: Database["public"]["Tables"]["payout_items"]["Row"]
+      }
       admin_upsert_gateway: {
         Args: {
           p_id: string | null
