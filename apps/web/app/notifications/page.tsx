@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { useAuth } from '@/hooks/use-auth'
+import { NotificationPreferences } from '@/components/notifications/NotificationPreferences'
 import type { Notification } from '@/types'
 
 const TYPE_EMOJI: Record<string, string> = {
@@ -105,6 +106,8 @@ export default function NotificationsPage() {
           </button>
         )}
       </div>
+
+      <NotificationPreferences />
 
       {fetching ? (
         <div className="space-y-3">
