@@ -740,10 +740,58 @@ Delivered on branch `module-11-admin-markets-finance` (stacked on Phase B):
 - **Gates**: `admin-markets-finance.test.ts` (+16) green; full suite
   **211/211**; `tsc` clean; lint clean; `next build` passes.
 
-### Phases D–F — pending
+### Phase D — Gateways & Settings ⭐ ✅ (shipped)
+
+Delivered on branch `module-11-admin-gateways-settings` (stacked on Phase C).
+Closes the headline gap: payment gateway credentials were env-only (a redeploy
+per paybill/key change). They are now DB-backed, encrypted, and editable from
+the UI with zero redeploys, plus a typed settings store and FX management.
+
+- **Migration `012_admin_gateways_settings.sql`**:
+  - `payment_gateways` (non-secret per-provider/country/env config + `secret_ref`
+    metadata), `gateway_secrets` (pgcrypto-encrypted values; RLS-enabled with
+    **no select policy** — only the service role / superadmin RPC can decrypt),
+    `gateway_health` (connection-test log), `platform_settings` (typed key/value
+    with an `is_public` flag so the app can read flags/limits/maintenance).
+  - `_gateway_enc_key()` reads the `app.gateway_encryption_key` GUC (env-provided
+    master key; dev fallback) — the key stays off the table/dump surface (§7.3).
+  - Capability-checked, audited **SECURITY DEFINER RPCs**: `admin_upsert_gateway`,
+    `admin_set_gateway_enabled`, `admin_delete_gateway` (`gateways:write`);
+    `admin_rotate_gateway_secret`, `admin_clear_gateway_secret`,
+    `admin_get_gateway_secret` (superadmin `gateways:secrets` / service role;
+    secret VALUES never logged — only key + last4); `admin_record_gateway_health`
+    (`gateways:read`); `admin_upsert_setting`, `admin_upsert_exchange_rate`
+    (`settings:write`). RLS: gateways/health readable by `gateways:read`;
+    settings readable when public or `settings:write`. Seeds default settings.
+- **App**:
+  - `lib/admin/gateways.ts` — pure provider field schema (non-secret vs secret),
+    masking / `secret_ref` metadata readers, list-param parsing, fetch helpers,
+    and the **DB-first `getGatewayConfig()` resolver with per-field env fallback**
+    (rollout-safe). `lib/admin/settings.ts` — typed settings schema, coercion,
+    merge-with-defaults, grouping. `lib/admin/gateway-test.ts` — sandbox-safe
+    per-provider live auth/token connection test.
+  - `/admin/settings/gateways` directory (health + enable/test/delete),
+    `/admin/settings/gateways/new`, `/admin/settings/gateways/[id]` (non-secret
+    config form, **write-only encrypted secret rotation**, health history),
+    `/admin/settings` (grouped fees/limits/flags/maintenance/branding),
+    `/admin/settings/currencies` (enable currencies + FX rate editor).
+  - API: `gateways` (upsert), `gateways/[id]/action` (enable/disable/delete),
+    `gateways/[id]/test` (resolves secrets via the service role, records health,
+    never returns secrets), `gateways/[id]/rotate-secret` (superadmin),
+    `settings` (bulk typed upsert), `settings/currencies` — each
+    `requireCapability`-guarded and calling the audited RPCs.
+  - **Payment lib wiring**: `lib/payments/mpesa.ts` refactored from module-level
+    `process.env` constants to the call-time `getGatewayConfig` resolver
+    (DB-first, env fallback preserved) as the reference; mtn/airtel/pesapal
+    follow the identical pattern.
+- **Gates**: `admin-gateways.test.ts` (+11) and `admin-settings.test.ts` (+9)
+  green; full suite **231/231**; `tsc` clean; lint clean; `next build` passes
+  (all new routes compiled).
+
+### Phases E–F — pending
 
 Stub pages exist and are capability-guarded; each will be replaced with full
-functionality per §8. Order: Gateways & Settings ⭐ → Creators & Marketers →
+functionality per §8. Order: Creators & Marketers →
 Moderation/Announcements/Audit.
 
 ---

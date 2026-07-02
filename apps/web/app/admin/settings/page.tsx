@@ -1,22 +1,28 @@
+// app/admin/settings/page.tsx — System settings (fees, limits, flags, branding).
+import Link from 'next/link'
 import { requirePageCapability } from '@/lib/admin/page-guard'
-import { SectionPlaceholder } from '@/components/admin/SectionPlaceholder'
+import { fetchSettings, groupSettings } from '@/lib/admin/settings'
+import { SettingsForm } from '@/components/admin/settings/SettingsForm'
 
 export const dynamic = 'force-dynamic'
 export const metadata = { title: 'Admin — System Settings' }
 
-export default async function Page() {
-  await requirePageCapability('settings:write')
+export default async function SettingsPage() {
+  const ctx = await requirePageCapability('settings:write')
+  const resolved = await fetchSettings(ctx.supabase)
+  const groups = groupSettings(resolved)
+
   return (
-    <SectionPlaceholder
-      title="System Settings"
-      description="Edit fees, limits, feature flags, maintenance mode, and branding without a deploy."
-      phase="Phase D"
-      bullets={[
-        "Fees & economics (platform / creator / marketer)",
-        "Deposit/withdrawal limits and KYC thresholds",
-        "Feature flags and maintenance mode",
-        "Branding, support email, legal links",
-      ]}
-    />
+    <div className="max-w-4xl">
+      <div className="mb-6">
+        <h1 className="text-2xl font-black">System Settings</h1>
+        <p className="text-sm text-muted-foreground">
+          Fees, limits, feature flags, maintenance mode and branding — edited without a deploy. See also{' '}
+          <Link href="/admin/settings/currencies" className="text-primary hover:underline">Currencies &amp; FX</Link> and{' '}
+          <Link href="/admin/settings/gateways" className="text-primary hover:underline">Payment Gateways</Link>.
+        </p>
+      </div>
+      <SettingsForm groups={groups} />
+    </div>
   )
 }

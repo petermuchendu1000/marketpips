@@ -9,6 +9,144 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      payment_gateways: {
+        Row: {
+          id: string
+          provider: Database["public"]["Enums"]["payment_provider"]
+          country_code: string | null
+          currency: Database["public"]["Enums"]["currency_code"] | null
+          label: string
+          environment: string
+          is_enabled: boolean
+          priority: number
+          config: Json
+          secret_ref: Json
+          min_amount: number | null
+          max_amount: number | null
+          created_by: string | null
+          updated_by: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          provider: Database["public"]["Enums"]["payment_provider"]
+          country_code?: string | null
+          currency?: Database["public"]["Enums"]["currency_code"] | null
+          label: string
+          environment?: string
+          is_enabled?: boolean
+          priority?: number
+          config?: Json
+          secret_ref?: Json
+          min_amount?: number | null
+          max_amount?: number | null
+          created_by?: string | null
+          updated_by?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          provider?: Database["public"]["Enums"]["payment_provider"]
+          country_code?: string | null
+          currency?: Database["public"]["Enums"]["currency_code"] | null
+          label?: string
+          environment?: string
+          is_enabled?: boolean
+          priority?: number
+          config?: Json
+          secret_ref?: Json
+          min_amount?: number | null
+          max_amount?: number | null
+          created_by?: string | null
+          updated_by?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      gateway_secrets: {
+        Row: {
+          gateway_id: string
+          key: string
+          ciphertext: string
+          last4: string | null
+          updated_by: string | null
+          updated_at: string
+        }
+        Insert: {
+          gateway_id: string
+          key: string
+          ciphertext: string
+          last4?: string | null
+          updated_by?: string | null
+          updated_at?: string
+        }
+        Update: {
+          gateway_id?: string
+          key?: string
+          ciphertext?: string
+          last4?: string | null
+          updated_by?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      gateway_health: {
+        Row: {
+          id: string
+          gateway_id: string | null
+          ok: boolean
+          latency_ms: number | null
+          detail: string | null
+          checked_by: string | null
+          checked_at: string
+        }
+        Insert: {
+          id?: string
+          gateway_id?: string | null
+          ok: boolean
+          latency_ms?: number | null
+          detail?: string | null
+          checked_by?: string | null
+          checked_at?: string
+        }
+        Update: {
+          id?: string
+          gateway_id?: string | null
+          ok?: boolean
+          latency_ms?: number | null
+          detail?: string | null
+          checked_by?: string | null
+          checked_at?: string
+        }
+        Relationships: []
+      }
+      platform_settings: {
+        Row: {
+          key: string
+          value: Json
+          is_public: boolean
+          updated_by: string | null
+          updated_at: string
+        }
+        Insert: {
+          key: string
+          value: Json
+          is_public?: boolean
+          updated_by?: string | null
+          updated_at?: string
+        }
+        Update: {
+          key?: string
+          value?: Json
+          is_public?: boolean
+          updated_by?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       admin_user_notes: {
         Row: {
           id: string
@@ -1393,6 +1531,63 @@ export type Database = {
       }
     }
     Functions: {
+      admin_upsert_gateway: {
+        Args: {
+          p_id: string | null
+          p_provider: Database["public"]["Enums"]["payment_provider"]
+          p_country_code: string | null
+          p_currency: Database["public"]["Enums"]["currency_code"] | null
+          p_label: string
+          p_environment: string
+          p_priority: number | null
+          p_config: Json
+          p_min_amount: number | null
+          p_max_amount: number | null
+        }
+        Returns: Database["public"]["Tables"]["payment_gateways"]["Row"]
+      }
+      admin_set_gateway_enabled: {
+        Args: { p_id: string; p_enabled: boolean }
+        Returns: Database["public"]["Tables"]["payment_gateways"]["Row"]
+      }
+      admin_delete_gateway: {
+        Args: { p_id: string }
+        Returns: Json
+      }
+      admin_rotate_gateway_secret: {
+        Args: { p_gateway_id: string; p_key: string; p_value: string }
+        Returns: Json
+      }
+      admin_clear_gateway_secret: {
+        Args: { p_gateway_id: string; p_key: string }
+        Returns: Json
+      }
+      admin_get_gateway_secret: {
+        Args: { p_gateway_id: string; p_key: string }
+        Returns: string
+      }
+      admin_record_gateway_health: {
+        Args: {
+          p_gateway_id: string
+          p_ok: boolean
+          p_latency_ms: number | null
+          p_detail: string | null
+        }
+        Returns: Database["public"]["Tables"]["gateway_health"]["Row"]
+      }
+      admin_upsert_setting: {
+        Args: { p_key: string; p_value: Json; p_is_public?: boolean }
+        Returns: Database["public"]["Tables"]["platform_settings"]["Row"]
+      }
+      admin_upsert_exchange_rate: {
+        Args: {
+          p_from: Database["public"]["Enums"]["currency_code"]
+          p_to: Database["public"]["Enums"]["currency_code"]
+          p_rate: number
+          p_source?: string
+        }
+        Returns: Database["public"]["Tables"]["exchange_rates"]["Row"]
+      }
       admin_add_user_note: {
         Args: {
           p_user_id: string
