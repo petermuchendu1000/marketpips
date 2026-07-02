@@ -1,9 +1,28 @@
-// middleware.ts - Auth middleware
+// middleware.ts - Auth + security middleware (rate limiting, security headers)
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 import { ADMIN_PORTAL_ROLES } from '@/lib/admin/rbac'
+import {
+  RATE_RULES,
+  bucketForPath,
+  clientKey,
+  enforce,
+  rateLimitHeaders,
+} from '@/lib/security/rate-limit'
+import { securityHeaders } from '@/lib/security/headers'
 
 const ADMIN_PORTAL_ROLE_SET = new Set<string>(ADMIN_PORTAL_ROLES)
+
+// Security headers (incl. CSP/HSTS) built once per isolate for the current env.
+const SECURITY_HEADERS = securityHeaders({
+  supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL,
+  allowUnsafeEval: process.env.NODE_ENV !== 'production',
+})
+
+function applySecurityHeaders(res: NextResponse): NextResponse {
+  for (const [k, v] of Object.entries(SECURITY_HEADERS)) res.headers.set(k, v)
+  return res
+}
 
 // Protected routes that require authentication
 const PROTECTED_ROUTES = [
@@ -19,6 +38,24 @@ const ADMIN_ROUTES = ['/admin']
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
+
+  // ---- Rate limiting (fail-open) --------------------------------------------
+  // Applied early so abusive traffic is shed before doing session work. The
+  // default store is per-isolate in-memory; back it with Upstash in production.
+  const bucket = bucketForPath(pathname)
+  if (bucket) {
+    const rule = RATE_RULES[bucket]
+    const key = `${bucket}:${clientKey(request.headers)}`
+    const decision = enforce(key, rule)
+    if (!decision.allowed) {
+      return applySecurityHeaders(
+        NextResponse.json(
+          { error: 'Too many requests. Please slow down.' },
+          { status: 429, headers: rateLimitHeaders(decision) }
+        )
+      )
+    }
+  }
 
   let response = NextResponse.next({
     request: {
@@ -77,16 +114,8 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(new URL('/', request.url))
   }
 
-  // Security headers
-  response.headers.set('X-Frame-Options', 'DENY')
-  response.headers.set('X-Content-Type-Options', 'nosniff')
-  response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin')
-  response.headers.set(
-    'Permissions-Policy',
-    'camera=(), microphone=(), geolocation=()'
-  )
-
-  return response
+  // Security headers (CSP, HSTS, X-Frame-Options, etc.) — centralised set.
+  return applySecurityHeaders(response)
 }
 
 export const config = {

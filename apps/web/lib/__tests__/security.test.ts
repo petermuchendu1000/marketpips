@@ -1,0 +1,228 @@
+import { describe, it, expect } from 'vitest'
+import {
+  decide,
+  enforce,
+  MemoryRateStore,
+  bucketForPath,
+  clientKey,
+  rateLimitHeaders,
+  RATE_RULES,
+  type Counter,
+} from '@/lib/security/rate-limit'
+import {
+  stripControlChars,
+  collapseWhitespace,
+  clampLength,
+  escapeHtml,
+  sanitizeText,
+  sanitizeSearchQuery,
+  safeRedirectPath,
+  normalizeCountryCode,
+  isPlausibleEmail,
+} from '@/lib/security/sanitize'
+import { buildCsp, originOf, securityHeaders, STATIC_SECURITY_HEADERS } from '@/lib/security/headers'
+import { hmacHex, safeEqual, verifyHmacSignature, isFreshTimestamp } from '@/lib/security/webhook'
+
+describe('rate-limit: decide (pure)', () => {
+  const rule = { limit: 3, windowMs: 1000 }
+
+  it('opens a fresh window when no counter exists', () => {
+    const { next, decision } = decide(undefined, rule, 1000)
+    expect(decision.allowed).toBe(true)
+    expect(decision.remaining).toBe(2)
+    expect(next.count).toBe(1)
+    expect(decision.resetAt).toBe(2000)
+  })
+
+  it('increments within the window and reports remaining', () => {
+    let c: Counter | undefined
+    const r1 = decide(c, rule, 0); c = r1.next
+    const r2 = decide(c, rule, 100); c = r2.next
+    const r3 = decide(c, rule, 200); c = r3.next
+    expect(r2.decision.remaining).toBe(1)
+    expect(r3.decision.remaining).toBe(0)
+    expect(r3.decision.allowed).toBe(true)
+  })
+
+  it('blocks when the limit is exceeded and sets retryAfter', () => {
+    let c: Counter | undefined
+    for (let i = 0; i < 3; i++) c = decide(c, rule, 0).next
+    const blocked = decide(c, rule, 500)
+    expect(blocked.decision.allowed).toBe(false)
+    expect(blocked.decision.remaining).toBe(0)
+    expect(blocked.decision.retryAfter).toBe(1) // ceil((1000-500)/1000)
+    expect(blocked.next.count).toBe(3) // not incremented past the cap
+  })
+
+  it('resets after the window elapses', () => {
+    let c: Counter | undefined
+    for (let i = 0; i < 3; i++) c = decide(c, rule, 0).next
+    const after = decide(c, rule, 1000)
+    expect(after.decision.allowed).toBe(true)
+    expect(after.next.count).toBe(1)
+  })
+})
+
+describe('rate-limit: enforce + store', () => {
+  it('enforces against a memory store deterministically', () => {
+    const store = new MemoryRateStore()
+    const rule = { limit: 2, windowMs: 1000 }
+    const a = enforce('k', rule, { store, now: 0 })
+    const b = enforce('k', rule, { store, now: 10 })
+    const c = enforce('k', rule, { store, now: 20 })
+    expect(a.allowed).toBe(true)
+    expect(b.allowed).toBe(true)
+    expect(c.allowed).toBe(false)
+  })
+
+  it('keys are isolated', () => {
+    const store = new MemoryRateStore()
+    const rule = { limit: 1, windowMs: 1000 }
+    expect(enforce('a', rule, { store, now: 0 }).allowed).toBe(true)
+    expect(enforce('b', rule, { store, now: 0 }).allowed).toBe(true)
+    expect(enforce('a', rule, { store, now: 0 }).allowed).toBe(false)
+  })
+})
+
+describe('rate-limit: routing & headers', () => {
+  it('maps paths to buckets', () => {
+    expect(bucketForPath('/api/webhooks/mpesa')).toBe('webhooks')
+    expect(bucketForPath('/auth/login')).toBe('auth')
+    expect(bucketForPath('/api/orders')).toBe('orders')
+    expect(bucketForPath('/api/payments/deposit')).toBe('payments')
+    expect(bucketForPath('/api/markets')).toBe('api')
+    expect(bucketForPath('/portfolio')).toBeNull()
+  })
+
+  it('derives a client key from proxy headers', () => {
+    expect(clientKey(new Headers({ 'x-forwarded-for': '1.2.3.4, 5.6.7.8' }))).toBe('1.2.3.4')
+    expect(clientKey(new Headers({ 'x-real-ip': '9.9.9.9' }))).toBe('9.9.9.9')
+    expect(clientKey(new Headers())).toBe('anon')
+  })
+
+  it('emits standard rate-limit headers', () => {
+    const h = rateLimitHeaders({ allowed: false, limit: 5, remaining: 0, resetAt: 10000, retryAfter: 7 })
+    expect(h['X-RateLimit-Limit']).toBe('5')
+    expect(h['X-RateLimit-Remaining']).toBe('0')
+    expect(h['Retry-After']).toBe('7')
+  })
+
+  it('every rule has a positive limit and window', () => {
+    for (const rule of Object.values(RATE_RULES)) {
+      expect(rule.limit).toBeGreaterThan(0)
+      expect(rule.windowMs).toBeGreaterThan(0)
+    }
+  })
+})
+
+describe('sanitize', () => {
+  it('strips control characters but keeps tab/newline', () => {
+    expect(stripControlChars('a\u0000b\u0007c')).toBe('abc')
+    expect(stripControlChars('a\tb\nc')).toBe('a\tb\nc')
+  })
+
+  it('collapses whitespace and clamps length', () => {
+    expect(collapseWhitespace('  a   b\t c ')).toBe('a b c')
+    expect(clampLength('abcdef', 3)).toBe('abc')
+  })
+
+  it('escapes HTML significant characters', () => {
+    expect(escapeHtml(`<script>"x"&'y'`)).toBe('&lt;script&gt;&quot;x&quot;&amp;&#39;y&#39;')
+  })
+
+  it('sanitizeText trims, strips, clamps', () => {
+    expect(sanitizeText('  he\u0000llo  ', { maxLength: 4 })).toBe('hell')
+    expect(sanitizeText(null)).toBe('')
+    expect(sanitizeText('a   b', { collapse: true })).toBe('a b')
+  })
+
+  it('sanitizeSearchQuery removes PostgREST meta-characters', () => {
+    expect(sanitizeSearchQuery('foo,(bar)*"baz"')).toBe('foo bar baz')
+    expect(sanitizeSearchQuery('  a%b\\c  ')).toBe('a b c')
+  })
+
+  it('safeRedirectPath blocks open redirects', () => {
+    expect(safeRedirectPath('/portfolio')).toBe('/portfolio')
+    expect(safeRedirectPath('//evil.com')).toBe('/')
+    expect(safeRedirectPath('/\\evil.com')).toBe('/')
+    expect(safeRedirectPath('https://evil.com')).toBe('/')
+    expect(safeRedirectPath('javascript:alert(1)')).toBe('/')
+    expect(safeRedirectPath('', '/home')).toBe('/home')
+    expect(safeRedirectPath(123 as unknown)).toBe('/')
+  })
+
+  it('normalizeCountryCode + isPlausibleEmail', () => {
+    expect(normalizeCountryCode('ke')).toBe('KE')
+    expect(normalizeCountryCode('KEN')).toBeNull()
+    expect(isPlausibleEmail('a@b.co')).toBe(true)
+    expect(isPlausibleEmail('nope')).toBe(false)
+  })
+})
+
+describe('security headers & CSP', () => {
+  it('extracts origin', () => {
+    expect(originOf('https://x.supabase.co/rest/v1')).toBe('https://x.supabase.co')
+    expect(originOf('not a url')).toBeNull()
+    expect(originOf(null)).toBeNull()
+  })
+
+  it('builds a CSP allowing self and supabase (http+wss)', () => {
+    const csp = buildCsp({ supabaseUrl: 'https://proj.supabase.co' })
+    expect(csp).toContain("default-src 'self'")
+    expect(csp).toContain("frame-ancestors 'none'")
+    expect(csp).toContain("object-src 'none'")
+    expect(csp).toContain('https://proj.supabase.co')
+    expect(csp).toContain('wss://proj.supabase.co')
+    expect(csp).toContain('upgrade-insecure-requests')
+    expect(csp).not.toContain("'unsafe-eval'")
+  })
+
+  it('includes unsafe-eval only when allowed (dev)', () => {
+    expect(buildCsp({ allowUnsafeEval: true })).toContain("'unsafe-eval'")
+  })
+
+  it('full header set includes HSTS, nosniff, and CSP', () => {
+    const h = securityHeaders({ supabaseUrl: 'https://p.supabase.co' })
+    expect(h['Strict-Transport-Security']).toContain('max-age=')
+    expect(h['X-Content-Type-Options']).toBe('nosniff')
+    expect(h['X-Frame-Options']).toBe('DENY')
+    expect(h['Content-Security-Policy']).toContain("default-src 'self'")
+    expect(STATIC_SECURITY_HEADERS['Cross-Origin-Opener-Policy']).toBe('same-origin')
+  })
+})
+
+describe('webhook signature verification', () => {
+  const secret = 'shh-secret'
+  const body = JSON.stringify({ event: 'deposit.succeeded', amount: 100 })
+
+  it('verifies a valid HMAC and rejects tampering', () => {
+    const sig = hmacHex(body, secret)
+    expect(verifyHmacSignature(body, sig, secret)).toBe(true)
+    expect(verifyHmacSignature(body + 'x', sig, secret)).toBe(false)
+    expect(verifyHmacSignature(body, sig, 'wrong-secret')).toBe(false)
+  })
+
+  it('handles provider prefixes and case', () => {
+    const sig = hmacHex(body, secret)
+    expect(verifyHmacSignature(body, 'sha256=' + sig.toUpperCase(), secret, { stripPrefix: 'sha256=' })).toBe(true)
+  })
+
+  it('fails closed on missing inputs', () => {
+    expect(verifyHmacSignature(body, null, secret)).toBe(false)
+    expect(verifyHmacSignature(body, 'abc', null)).toBe(false)
+  })
+
+  it('safeEqual is length-aware', () => {
+    expect(safeEqual('abc', 'abc')).toBe(true)
+    expect(safeEqual('abc', 'abd')).toBe(false)
+    expect(safeEqual('abc', 'abcd')).toBe(false)
+  })
+
+  it('isFreshTimestamp guards replay', () => {
+    const now = 1_000_000_000_000
+    expect(isFreshTimestamp(now / 1000, 300, now)).toBe(true)
+    expect(isFreshTimestamp(now / 1000 - 1000, 300, now)).toBe(false)
+    expect(isFreshTimestamp('bad', 300, now)).toBe(false)
+    expect(isFreshTimestamp(null, 300, now)).toBe(false)
+  })
+})
