@@ -1,6 +1,7 @@
 // app/api/markets/[id]/route.ts — Fetch a single market by UUID or slug (public).
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { presetHeaders } from '@/lib/http/cache-headers'
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
@@ -39,7 +40,10 @@ export async function GET(
     }
     if (!market) return NextResponse.json({ error: 'Market not found' }, { status: 404 })
 
-    return NextResponse.json({ data: market })
+    // Resolved markets are effectively immutable → cache long; active/closed
+    // markets change with trades → short edge TTL + stale-while-revalidate.
+    const preset = market.status === 'resolved' ? 'marketResolved' : 'marketActive'
+    return NextResponse.json({ data: market }, { headers: presetHeaders(preset) })
   } catch (error) {
     console.error('Market GET error:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })

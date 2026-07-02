@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { z } from 'zod'
 import type { Enums } from '@/types/supabase'
+import { presetHeaders } from '@/lib/http/cache-headers'
 
 // GET - list markets with filters
 export async function GET(req: NextRequest) {
@@ -67,7 +68,7 @@ export async function GET(req: NextRequest) {
       total_pages: Math.ceil((count || 0) / perPage),
       has_next: offset + perPage < (count || 0),
       has_prev: page > 1,
-    })
+    }, { headers: presetHeaders('marketsList') })
 
   } catch (error) {
     console.error('Markets route error:', error)

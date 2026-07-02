@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { parseLeaderboardParams, type LeaderboardEntry } from '@/lib/leaderboard'
+import { presetHeaders } from '@/lib/http/cache-headers'
 
 // Leaderboard reflects live standings; render dynamically.
 export const dynamic = 'force-dynamic'
@@ -30,8 +31,9 @@ export async function GET(req: NextRequest) {
   const payload = (data ?? {}) as { data?: LeaderboardEntry[] }
   const rows = Array.isArray(payload.data) ? payload.data : []
 
+  // Public, non-user data → briefly edge-cacheable with stale-while-revalidate.
   return NextResponse.json(
     { data: rows, metric, period, count: rows.length },
-    { headers: { 'Cache-Control': 'no-store' } }
+    { headers: presetHeaders('leaderboard') }
   )
 }
