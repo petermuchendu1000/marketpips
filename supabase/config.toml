@@ -94,26 +94,24 @@ port = 54327
 backend = "postgres"
 
 # ============================================================
-# EDGE FUNCTION CRON SCHEDULES
+# BACKGROUND JOBS (Module 12)
 # ============================================================
-
-[functions.update-exchange-rates]
-verify_jwt = false
-
-[functions.close-markets]
-verify_jwt = false
-
-[functions.resolve-market]
-verify_jwt = false
-
-[functions.send-notifications]
-verify_jwt = false
-
-# Cron jobs (Supabase Pro+ feature)
-# Set via Supabase Dashboard > Database > Cron Jobs
-# update-exchange-rates: "0 */6 * * *"  (every 6 hours)
-# close-markets:         "*/5 * * * *"  (every 5 minutes)
-# send-notifications:    "*/2 * * * *"  (every 2 minutes)
+# The four background workers are now Next.js route handlers under
+# apps/web/app/api/cron/* (CRON_SECRET-gated), backed by atomic service-role
+# RPCs (migration 016). They supersede the old Deno edge functions, which have
+# been removed to keep a single, tested code path.
+#
+# Scheduling is done with pg_cron + pg_net calling those HTTP endpoints. Enable
+# the pg_cron and pg_net extensions (Dashboard > Database > Extensions), then run
+# ONCE per environment from the SQL editor (secret never lives in a migration):
+#
+#   SELECT public.schedule_marketpips_jobs('https://<app-domain>', '<CRON_SECRET>');
+#
+# Cadence (see docs/12-BACKGROUND-JOBS.md):
+#   close-markets:          */5 * * * *   (every 5 minutes)
+#   resolve-market:         */15 * * * *  (every 15 minutes)
+#   update-exchange-rates:  0 */6 * * *   (every 6 hours)
+#   send-notifications:     * * * * *     (every minute)
 
 [storage.buckets.kyc-documents]
 public = false

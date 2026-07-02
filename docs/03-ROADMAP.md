@@ -191,9 +191,25 @@ Legend: ☐ todo · ◐ in progress · ☑ done
   links; resolution flows to payout; gateways editable from UI with secrets
   never exposed; everything audited; tests green + tsc clean + build.
 
-### Module 12 — Background jobs  ☐
-- close-markets, update-exchange-rates, resolve-market, send-notifications.
-- **Gate:** function smoke tests; CRON_SECRET auth.
+### Module 12 — Background jobs  ☑
+- Four Next.js cron route handlers (`app/api/cron/*`), CRON_SECRET-gated
+  (constant-time, fail-closed), backed by atomic service-role RPCs (migration
+  016): `close-markets` (active→closed, audit + holder notices),
+  `resolve-market` (flags closed markets past `resolves_at` + notifies the
+  resolver/admin cohort; **no auto-payout** — settlement stays a human action),
+  `update-exchange-rates` (OpenExchangeRates → invert → upsert; fail-safe, skips
+  upsert rather than clobbering good rows), and `send-notifications` (M9 outbox). ✓
+- Idempotent & concurrency-safe (status guards + `FOR UPDATE SKIP LOCKED` +
+  `resolution_flagged_at` high-water mark + `ON CONFLICT` FX merge). ✓
+- `job_runs` observability table + `withJobRun` wrapper (start/finish, derived
+  status, structured result, request_id; admins read via `audit:read` RLS). ✓
+- Consolidated: removed the redundant Deno edge functions; scheduling via
+  pg_cron + pg_net (`schedule_marketpips_jobs()` operator helper, idempotent,
+  no-ops without the extensions). Docs: `docs/12-BACKGROUND-JOBS.md`. ✓
+- **Gate:** ✓ 13 unit tests (FX inversion/merge/round-trip + job status
+  derivation) · CRON_SECRET auth (incl. fail-closed) · 383/383 total · tsc clean
+  · lint · `next build` (all four routes registered). Function smoke tests
+  documented (curl + 401 on unauthenticated).
 
 ### Module 13 — Observability & ops  ☐
 - Sentry, structured logging, /health, metrics, alerting.
