@@ -16,6 +16,10 @@ const serverSchema = z.object({
   SUPABASE_DB_URL: z.string().optional(),
   CRON_SECRET: z.string().optional(),
   ADMIN_SECRET_KEY: z.string().optional(),
+  // FX provider (update-exchange-rates cron). Free OpenExchangeRates plan is
+  // USD-base, which is exactly what we need. Absent -> job degrades gracefully
+  // to last-known-good fallback rates without failing.
+  OPENEXCHANGERATES_APP_ID: z.string().optional(),
 })
 
 export type PublicEnv = z.infer<typeof publicSchema>
