@@ -3,7 +3,7 @@
 
 **Author:** Product Design Org (Principal PD · Design Systems · Frontend Arch · Visual · A11y · SEO · Perf)
 **Scope:** Landing page only (per brief). Foundational design tokens are shared, so this work also raises the floor for every other page.
-**Status:** In progress — executed as small, independently committed sub-milestones.
+**Status:** ✅ Complete — executed as small, independently committed sub-milestones. `apps/web` now renders the Pip design system; verified by E2E render (see §5).
 
 ---
 
@@ -44,3 +44,25 @@ The legacy token names (`--text-primary`, `--bg-secondary`, `--green`, `--border
 6. **verify** — typecheck + `next build` + Playwright smoke; fix regressions; final commit.
 
 **Definition of done:** tokens-only styling (no magic hex in components), Pip Blue brand, desaturated semantics, custom icons (no emoji as UI), dark+light coherent, keyboard + focus-visible verified, LCP hero server-rendered, JSON-LD present, build green.
+
+## 5. Verification (E2E render)
+
+The production build was booted against a local PostgREST mock returning sample
+markets, and rendered with headless Chromium at 1440px and 390px:
+
+- `tsc --noEmit` clean; `next build` green (45/45 routes).
+- SSR HTML contains the new hero ("The clearest view of what happens next."),
+  live ticker, real market titles, how-it-works, LMSR, trust and CTA sections.
+- Automated pixel audit of the full page: **casino green `#22c55e`/`#16a34a` = 0.00%**;
+  Pip Blue present in CTAs/accents; desaturated YES green used only for
+  semantics (probability bars, live dots); surface is graphite ink-950 (dark).
+- Hero is server-rendered (no client-only flash) → LCP-friendly.
+
+**Result:** landing page reads as institutional fintech (Bloomberg × Stripe ×
+Linear), not casino. Foundations (tokens, primitives, icons, fonts) now
+uplift every other page too.
+
+### Next (future milestones, per dossier roadmap)
+Markets discovery page → Market detail (order book / trade panel) → onboarding
+& wallet → trust/compliance surfaces → perf & launch hardening. Each follows
+the same Research → … → Review loop and per-page a11y/SEO/perf gates.
