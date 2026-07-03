@@ -53,8 +53,16 @@ export function PriceChart({ data }: PriceChartProps) {
     no: d.no_price,
   }))
 
+  // Accessible text alternative for the SVG chart (WCAG 1.1.1 / 1.4.1): don't
+  // rely on the visual line alone. Screen readers announce this summary.
+  const firstYes = Math.round((chartData[0]?.yes ?? 0) * 100)
+  const latestYes = Math.round((chartData[chartData.length - 1]?.yes ?? 0) * 100)
+  const direction = latestYes === firstYes ? 'unchanged from' : latestYes > firstYes ? 'up from' : 'down from'
+  const summary = `YES probability is currently ${latestYes}% (NO ${100 - latestYes}%), ${direction} ${firstYes}% at the start of the shown period, across ${chartData.length} data points.`
+
   return (
-    <div className="h-48">
+    <div className="h-48" role="img" aria-label={`Market price history. ${summary}`}>
+      <p className="sr-only">{summary}</p>
       <ResponsiveContainer width="100%" height="100%">
         <AreaChart data={chartData} margin={{ top: 5, right: 5, left: -25, bottom: 0 }}>
           <defs>
