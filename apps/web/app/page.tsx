@@ -34,7 +34,7 @@ export default async function HomePage() {
 
   return (
     <div style={{ background: 'var(--bg)' }}>
-      <HeroSection />
+      <HeroSection featured={featured[0] ?? trending[0] ?? recent[0] ?? null} />
 
       <div className="max-w-7xl mx-auto px-4 pb-20 space-y-12">
 

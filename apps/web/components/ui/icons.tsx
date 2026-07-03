@@ -110,3 +110,25 @@ export const LogoMark = ({ size = 28, className = '' }: { size?: number; classNa
     <rect x="21.4" y="9.4" width="3.2" height="3.2" rx="0.7" fill="#fff"/>
   </svg>
 )
+
+// Category → custom icon mapping (replaces emoji as the category language)
+const CATEGORY_ICON: Record<string, (p: IconProps) => React.JSX.Element> = {
+  politics: IconPolitics,
+  elections: IconElections,
+  governance: IconShield,
+  sports: IconSports,
+  economics: IconEconomics,
+  business: IconBusiness,
+  crypto: IconCrypto,
+  technology: IconTech,
+  entertainment: IconStar,
+  weather: IconWeather,
+  health: IconHealth,
+  social: IconUser,
+  other: IconMarkets,
+}
+
+export function CategoryIcon({ category, size = 16, className = '', style }: IconProps & { category: string }) {
+  const C = CATEGORY_ICON[category] ?? IconMarkets
+  return <C size={size} className={className} style={style} />
+}
