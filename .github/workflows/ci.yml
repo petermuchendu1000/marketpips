@@ -1,5 +1,7 @@
-# MarketPips CI/CD Pipeline
-name: MarketPips CI/CD
+# MarketPips CI — quality gates (Module 16.1)
+# lint / type-check / unit run in parallel, then build (+ bundle budget),
+# migration-lint, and security scans. Docs-only PRs skip the heavy jobs.
+name: MarketPips CI
 
 on:
   push:
@@ -7,133 +9,203 @@ on:
   pull_request:
     branches: [main]
 
+# Cancel superseded runs for the same ref (saves CI minutes on rapid pushes).
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
 env:
   NODE_VERSION: '20'
 
 jobs:
-  # ============================================================
-  # Type Check + Lint
-  # ============================================================
-  quality:
-    name: Type Check & Lint
+  # ------------------------------------------------------------------
+  # Change detection — lets docs-only changes skip the heavy pipeline.
+  # ------------------------------------------------------------------
+  changes:
+    name: Detect changes
     runs-on: ubuntu-latest
-
+    outputs:
+      code: ${{ steps.filter.outputs.code }}
+      migrations: ${{ steps.filter.outputs.migrations }}
     steps:
       - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            code:
+              - 'apps/**'
+              - 'scripts/**'
+              - 'package.json'
+              - 'package-lock.json'
+              - '.github/workflows/**'
+              - 'Dockerfile'
+              - 'fly.toml'
+            migrations:
+              - 'supabase/migrations/**'
+              - 'scripts/lint_migrations.py'
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+  # ------------------------------------------------------------------
+  # Parallel quality gates.
+  # ------------------------------------------------------------------
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
-          # This is an npm-workspaces repo: the lockfile lives at the root.
           cache-dependency-path: package-lock.json
+      - run: npm ci
+      - run: npm run lint
 
-      - name: Install dependencies (workspaces)
-        run: npm ci
+  type-check:
+    name: Type check
+    runs-on: ubuntu-latest
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: package-lock.json
+      - run: npm ci
+      - run: npm run type-check
 
-      - name: Type check
-        run: npm run type-check
+  unit:
+    name: Unit tests
+    runs-on: ubuntu-latest
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: package-lock.json
+      - run: npm ci
+      - run: npm run --workspace apps/web test
 
-      - name: Lint
-        run: npm run lint
-
-      - name: Unit tests
-        run: npm run --workspace apps/web test
-
-  # ============================================================
-  # Build
-  # ============================================================
+  # ------------------------------------------------------------------
+  # Build + performance budget (needs the quality gates green).
+  # ------------------------------------------------------------------
   build:
     name: Build
     runs-on: ubuntu-latest
-    needs: quality
-
+    needs: [lint, type-check, unit]
     steps:
       - uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      - uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
           cache-dependency-path: package-lock.json
-
-      - name: Install dependencies (workspaces)
-        run: npm ci
-
+      - run: npm ci
+      - name: Restore Next build cache
+        uses: actions/cache@v4
+        with:
+          path: apps/web/.next/cache
+          key: next-${{ runner.os }}-${{ hashFiles('package-lock.json') }}-${{ hashFiles('apps/web/**/*.[jt]s', 'apps/web/**/*.[jt]sx') }}
+          restore-keys: |
+            next-${{ runner.os }}-${{ hashFiles('package-lock.json') }}-
+            next-${{ runner.os }}-
       - name: Build
         env:
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
           NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
           NEXT_PUBLIC_APP_URL: ${{ secrets.NEXT_PUBLIC_APP_URL }}
         run: npm run build 2>&1 | tee build.log
-
       - name: Bundle-size budget (first-load JS)
-        # Deterministic performance regression gate (Module 15 §2).
         env:
           BUNDLE_BUDGET_KB: '130'
         run: node scripts/check-bundle-budget.mjs build.log
 
-  # ============================================================
-  # Database Migration (production)
-  # ============================================================
-  migrate-db:
-    name: Run DB Migrations
+  # ------------------------------------------------------------------
+  # DB migration lint (naming/numbering/parse/destructive opt-in).
+  # ------------------------------------------------------------------
+  migration-lint:
+    name: Migration lint
     runs-on: ubuntu-latest
-    needs: build
-    if: github.ref == 'refs/heads/main'
-
+    needs: changes
+    if: needs.changes.outputs.migrations == 'true'
     steps:
       - uses: actions/checkout@v4
-
-      - name: Setup Supabase CLI
-        uses: supabase/setup-cli@v1
+      - uses: actions/setup-python@v5
         with:
-          version: latest
+          python-version: '3.12'
+      - run: pip install "pglast>=6,<8"
+      - run: python scripts/lint_migrations.py supabase/migrations
 
-      - name: Push migrations
+  # ------------------------------------------------------------------
+  # Security scans. npm audit + dependency review are non-blocking for
+  # now (baseline collection); gitleaks (secret scanning) is blocking.
+  # NOTE: never run `npm audit fix --force` — see docs/DEPLOYMENT.md.
+  # ------------------------------------------------------------------
+  security:
+    name: Security scan
+    runs-on: ubuntu-latest
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: package-lock.json
+      - run: npm ci
+      - name: npm audit (high+) — non-blocking baseline
+        continue-on-error: true
+        run: npm audit --audit-level=high
+      - name: Secret scan (gitleaks)
+        uses: gitleaks/gitleaks-action@v2
         env:
-          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
-          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
-          SUPABASE_PROJECT_ID: ${{ secrets.SUPABASE_PROJECT_ID }}
-        run: |
-          supabase link --project-ref $SUPABASE_PROJECT_ID
-          supabase db push
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-  # ============================================================
-  # Lighthouse CI (performance/a11y budgets) — non-blocking baseline
-  # ============================================================
-  # Runs against a locally-started production build. Budgets in lighthouserc.json
-  # are asserted as warnings; promote to blocking once staging URLs are wired
-  # (Module 15.6 / Module 16 preview deploys). continue-on-error keeps main green
-  # while we collect field/lab baselines.
+  dependency-review:
+    name: Dependency review
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/dependency-review-action@v4
+        with:
+          fail-on-severity: high
+
+  # ------------------------------------------------------------------
+  # Lighthouse CI (performance/a11y budgets) — non-blocking baseline.
+  # ------------------------------------------------------------------
   lighthouse:
     name: Lighthouse CI
     runs-on: ubuntu-latest
     needs: build
     continue-on-error: true
-
     steps:
       - uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      - uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
           cache-dependency-path: package-lock.json
-
-      - name: Install dependencies (workspaces)
-        run: npm ci
-
+      - run: npm ci
       - name: Build
         env:
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
           NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
           NEXT_PUBLIC_APP_URL: ${{ secrets.NEXT_PUBLIC_APP_URL }}
         run: npm run build
-
       - name: Run Lighthouse CI
         run: |
           npm install -g @lhci/cli@0.14.x
