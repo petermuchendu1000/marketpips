@@ -185,6 +185,36 @@ jobs:
           fail-on-severity: high
 
   # ------------------------------------------------------------------
+  # Accessibility: axe-core (WCAG 2.1 AA) across key public pages (Module 17.1).
+  # Non-blocking baseline while we collect the first live report against a
+  # content-bearing DB; promote to blocking (remove continue-on-error) once the
+  # first run confirms zero critical/serious. jsx-a11y already gates in `lint`.
+  # ------------------------------------------------------------------
+  a11y:
+    name: Accessibility (axe)
+    runs-on: ubuntu-latest
+    needs: build
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: package-lock.json
+      - run: npm ci
+      - name: Install Playwright browser
+        run: npx --workspace apps/web playwright install --with-deps chromium
+      - name: Build
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+          NEXT_PUBLIC_APP_URL: ${{ secrets.NEXT_PUBLIC_APP_URL }}
+        run: npm run build
+      - name: Run axe accessibility checks
+        run: npm --workspace apps/web run test:a11y
+
+  # ------------------------------------------------------------------
   # Lighthouse CI (performance/a11y budgets) — non-blocking baseline.
   # ------------------------------------------------------------------
   lighthouse:

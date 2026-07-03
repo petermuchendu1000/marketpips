@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from 'next'
 import { Inter } from 'next/font/google'
 import './globals.css'
 import { Navbar } from '@/components/layout/navbar'
+import { SiteFooter } from '@/components/layout/site-footer'
 import { Providers } from '@/components/layout/providers'
 import { WebVitals } from '@/components/perf/web-vitals'
 import { ServiceWorkerRegister } from '@/components/perf/service-worker-register'
@@ -57,9 +58,16 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en" className="dark" suppressHydrationWarning>
       <body className={`${inter.variable} antialiased`}>
+        {/* Skip-to-content: first focusable element, visible on keyboard focus (WCAG 2.4.1). */}
+        <a href="#main-content" className="skip-link">
+          Skip to main content
+        </a>
         <Providers>
           <Navbar />
-          <main>{children}</main>
+          <main id="main-content" tabIndex={-1}>
+            {children}
+          </main>
+          <SiteFooter />
           <WebVitals />
           <ServiceWorkerRegister />
         </Providers>

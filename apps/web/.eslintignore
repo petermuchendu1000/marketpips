@@ -1,0 +1,4 @@
+# E2E/Playwright specs run in their own CI job (browsers + @playwright/test,
+# @axe-core/playwright installed there); keep them out of the app lint pass.
+e2e/
+playwright.config.ts
