@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import type { Market } from '@/types'
 import { CATEGORY_LABELS } from '@/types'
-import { IconClock, IconUser, IconTrendUp, IconTrendDown } from '@/components/ui/icons'
+import { IconClock, IconUser, IconTrendUp, CategoryIcon } from '@/components/ui/icons'
 
 interface MarketCardProps {
   market: Market
@@ -22,7 +22,7 @@ function timeLeft(closes: string) {
 }
 
 export function MarketCard({ market, compact = false }: MarketCardProps) {
-  const cat = CATEGORY_LABELS[market.category] ?? { emoji: '🔮', label: 'Other', color: '' }
+  const cat = CATEGORY_LABELS[market.category] ?? { emoji: '', label: 'Other', color: '' }
   const yesPct = Math.round(market.yes_price * 100)
   const noPct = 100 - yesPct
   const isClosingSoon = new Date(market.closes_at).getTime() - Date.now() < 86400000 * 2
@@ -31,8 +31,8 @@ export function MarketCard({ market, compact = false }: MarketCardProps) {
     <Link href={`/markets/${market.slug}`} className="market-card group block" aria-label={market.title}>
       {/* Top row: category + time */}
       <div className="flex items-center justify-between mb-3">
-        <span className="badge badge-muted gap-1">
-          <span>{cat.emoji}</span>
+        <span className="badge badge-muted gap-1.5">
+          <CategoryIcon category={market.category} size={12} />
           <span>{cat.label}</span>
         </span>
         <span
@@ -48,7 +48,7 @@ export function MarketCard({ market, compact = false }: MarketCardProps) {
 
       {/* Title */}
       <h3
-        className={`font-semibold leading-snug mb-3 group-hover:text-green-light transition-colors ${
+        className={`font-semibold leading-snug mb-3 transition-colors group-hover:text-[var(--pip-500)] ${
           compact ? 'text-sm line-clamp-2' : 'text-[15px] line-clamp-3'
         }`}
         style={{ color: 'var(--text-primary)' }}
@@ -92,7 +92,7 @@ export function MarketCard({ market, compact = false }: MarketCardProps) {
         ) : market.status === 'closed' ? (
           <span className="badge badge-amber">Pending</span>
         ) : market.is_featured ? (
-          <span className="badge badge-green">Featured</span>
+          <span className="badge" style={{ background: 'var(--pip-100)', color: 'var(--pip-500)' }}>Featured</span>
         ) : null}
       </div>
     </Link>
