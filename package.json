@@ -17,7 +17,10 @@
     "supabase:start": "supabase start",
     "supabase:stop": "supabase stop",
     "lint": "cd apps/web && npm run lint",
-    "type-check": "cd apps/web && npm run type-check"
+    "type-check": "cd apps/web && npm run type-check",
+    "i18n:pseudo": "node scripts/gen-pseudo-locale.mjs",
+    "i18n:pseudo:check": "node scripts/gen-pseudo-locale.mjs --check",
+    "i18n:check": "node scripts/check-i18n-keys.mjs"
   },
   "engines": {
     "node": ">=18.0.0",

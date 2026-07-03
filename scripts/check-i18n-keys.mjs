@@ -30,10 +30,15 @@ let errors = 0
 const enKeys = new Set(flatten(load(SOURCE)))
 console.log(`i18n: source '${SOURCE}' has ${enKeys.size} keys`)
 
+// `en-XA` is the generated pseudo-locale (dev/CI layout aid, never shipped) —
+// it is validated separately by `gen-pseudo-locale.mjs --check`, not counted as
+// a real translation target here.
+const PSEUDO = new Set(['en-XA'])
+
 const locales = readdirSync(MESSAGES_DIR)
   .filter((f) => f.endsWith('.json'))
   .map((f) => f.replace('.json', ''))
-  .filter((l) => l !== SOURCE)
+  .filter((l) => l !== SOURCE && !PSEUDO.has(l))
 
 for (const locale of locales) {
   let keys

@@ -1,6 +1,7 @@
 // components/layout/site-footer.tsx — accessible <footer> landmark (WCAG 1.3.1).
 // Also surfaces the legal/compliance links required for launch (Module 17.5/17.7).
 import Link from 'next/link'
+import { LocaleSwitcher } from './locale-switcher'
 
 const YEAR = new Date().getFullYear()
 
@@ -19,17 +20,20 @@ export function SiteFooter() {
     >
       <div className="max-w-7xl mx-auto px-4 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <p>© {YEAR} MarketPips · East Africa prediction markets</p>
-        <nav aria-label="Legal and help">
-          <ul className="flex flex-wrap gap-x-5 gap-y-2">
-            {LINKS.map((l) => (
-              <li key={l.href}>
-                <Link href={l.href} className="hover:text-white transition-colors">
-                  {l.label}
-                </Link>
-              </li>
-            ))}
-          </ul>
-        </nav>
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:gap-6">
+          <nav aria-label="Legal and help">
+            <ul className="flex flex-wrap gap-x-5 gap-y-2">
+              {LINKS.map((l) => (
+                <li key={l.href}>
+                  <Link href={l.href} className="hover:text-white transition-colors">
+                    {l.label}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </nav>
+          <LocaleSwitcher />
+        </div>
       </div>
     </footer>
   )

@@ -23,6 +23,20 @@ export const metadata: Metadata = {
   },
   description: 'Trade on real-world outcomes. Pay with M-Pesa, MTN MoMo, and Airtel Money. Built for East Africa.',
   keywords: ['prediction market', 'M-Pesa', 'Kenya', 'East Africa', 'sports betting', 'elections', 'crypto'],
+  // Locale-aware SEO (Module 17.4). We use cookie/profile-based locale selection
+  // (no per-locale URL segment), so every language is served from the same
+  // canonical URL; the hreflang map advertises the supported languages and an
+  // x-default for crawlers. See docs/i18n/TRANSLATION.md §SEO for rationale.
+  alternates: {
+    canonical: '/',
+    languages: {
+      en: '/',
+      sw: '/',
+      fr: '/',
+      am: '/',
+      'x-default': '/',
+    },
+  },
   authors: [{ name: 'MarketPips' }],
   creator: 'MarketPips',
   openGraph: {

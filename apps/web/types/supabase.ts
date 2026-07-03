@@ -1063,6 +1063,7 @@ export type Database = {
           phone_number: string | null
           country_code: string | null
           preferred_currency: Database["public"]["Enums"]["currency_code"] | null
+          preferred_locale: string | null
           role: Database["public"]["Enums"]["user_role"] | null
           kyc_status: Database["public"]["Enums"]["kyc_status"] | null
           kyc_completed_at: string | null
@@ -1091,6 +1092,7 @@ export type Database = {
           phone_number?: string | null
           country_code?: string | null
           preferred_currency?: Database["public"]["Enums"]["currency_code"] | null
+          preferred_locale?: string | null
           role?: Database["public"]["Enums"]["user_role"] | null
           kyc_status?: Database["public"]["Enums"]["kyc_status"] | null
           kyc_completed_at?: string | null
@@ -1119,6 +1121,7 @@ export type Database = {
           phone_number?: string | null
           country_code?: string | null
           preferred_currency?: Database["public"]["Enums"]["currency_code"] | null
+          preferred_locale?: string | null
           role?: Database["public"]["Enums"]["user_role"] | null
           kyc_status?: Database["public"]["Enums"]["kyc_status"] | null
           kyc_completed_at?: string | null
