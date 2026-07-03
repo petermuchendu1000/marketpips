@@ -1,5 +1,11 @@
 import type { Config } from 'tailwindcss'
 
+/**
+ * MarketPips — "Pip" design system Tailwind theme.
+ * Colors/radii mirror app/globals.css tokens. Fonts come from next/font
+ * (--font-hanken UI, --font-plex numerics). Green/red are DESATURATED
+ * market semantics (YES/NO), never neon; brand is Pip Blue.
+ */
 const config: Config = {
   darkMode: 'class',
   content: [
@@ -10,53 +16,76 @@ const config: Config = {
   theme: {
     extend: {
       fontFamily: {
-        sans:    ['Inter', 'system-ui', '-apple-system', 'sans-serif'],
-        display: ['Sora', 'Inter', 'sans-serif'],
-        mono:    ['JetBrains Mono', 'Fira Code', 'monospace'],
+        sans:    ['var(--font-hanken)', 'system-ui', '-apple-system', 'sans-serif'],
+        display: ['var(--font-hanken)', 'system-ui', 'sans-serif'],
+        mono:    ['var(--font-plex)', 'ui-monospace', 'SFMono-Regular', 'monospace'],
       },
       colors: {
-        green:  { DEFAULT: '#16a34a', light: '#22c55e', dim: 'rgba(34,197,94,0.12)', faint: 'rgba(34,197,94,0.06)' },
-        red:    { DEFAULT: '#dc2626', light: '#ef4444', dim: 'rgba(239,68,68,0.12)', faint: 'rgba(239,68,68,0.06)' },
-        amber:  { DEFAULT: '#d97706', light: '#f59e0b', dim: 'rgba(245,158,11,0.12)' },
+        // Brand — Pip Blue
+        pip: {
+          100: '#E7EEFE', 300: '#A9C0FB', 400: '#5C82F2',
+          500: '#2B50E4', 600: '#1E44C9',
+        },
+        brass: { 100: '#F7ECD4', 500: '#D9A036', 600: '#B57E22' },
+        // Market semantics (desaturated). `green`/`red` kept as aliases so
+        // existing text-green-*/bg-red-* utilities render on-system.
+        green: { DEFAULT: '#1F9D6B', light: '#1F9D6B', dark: '#177C54', dim: 'var(--yes-tint)', faint: 'var(--yes-tint)' },
+        red:   { DEFAULT: '#D1495B', light: '#D1495B', dark: '#B23446', dim: 'var(--no-tint)', faint: 'var(--no-tint)' },
+        amber: { DEFAULT: '#C98A1E', light: '#D9A036', dim: 'var(--brass-100)' },
+        yes:   { DEFAULT: '#1F9D6B', 700: '#177C54' },
+        no:    { DEFAULT: '#D1495B', 700: '#B23446' },
+        // Semantic surfaces (from CSS vars)
         surface: 'var(--surface)',
         'surface-2': 'var(--surface-2)',
-        border:  'var(--border)',
+        hairline: 'var(--hairline)',
+        border:  'var(--hairline)',
+        ink: {
+          50: '#F5F7FA', 100: '#E8EBEF', 200: '#D2D7DE', 300: '#AAB2BF', 400: '#808A99',
+          500: '#5A6473', 600: '#3C4453', 700: '#2A303B', 800: '#1A1F27', 900: '#111419', 950: '#0A0C10',
+        },
         text: {
-          primary:   'var(--text-primary)',
-          secondary: 'var(--text-secondary)',
-          muted:     'var(--text-muted)',
+          primary:   'var(--text)',
+          secondary: 'var(--text-2)',
+          muted:     'var(--text-3)',
         },
       },
       borderRadius: {
-        sm:  '6px',
-        DEFAULT: '10px',
-        lg:  '14px',
-        xl:  '18px',
-        '2xl': '24px',
-        '3xl': '32px',
+        sm:  '8px',
+        DEFAULT: '8px',
+        md:  '12px',
+        lg:  '12px',
+        xl:  '16px',
+        '2xl': '16px',
+        pill: '999px',
       },
       boxShadow: {
-        sm: '0 1px 2px 0 rgb(0 0 0 / 0.05)',
-        DEFAULT: '0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1)',
-        md: '0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1)',
-        lg: '0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1)',
-        glow: '0 0 20px rgba(34,197,94,0.25)',
+        e1: '0 1px 2px rgba(10,12,16,.05)',
+        e2: '0 4px 16px rgba(10,12,16,.08)',
+        e3: '0 16px 48px rgba(10,12,16,.16)',
+        sm: '0 1px 2px rgba(10,12,16,.05)',
+        DEFAULT: '0 1px 2px rgba(10,12,16,.05)',
+        md: '0 4px 16px rgba(10,12,16,.08)',
+        lg: '0 16px 48px rgba(10,12,16,.16)',
+      },
+      transitionTimingFunction: {
+        out: 'cubic-bezier(.2,0,0,1)',
+        move: 'cubic-bezier(.4,0,.2,1)',
       },
       animation: {
         'fade-in':   'fadeIn 0.2s ease',
-        'slide-up':  'slideUp 0.25s cubic-bezier(0.34,1.56,0.64,1)',
-        'scale-in':  'scaleIn 0.15s ease',
-        'ticker':    'ticker 30s linear infinite',
+        'slide-up':  'slideUp 0.28s cubic-bezier(.2,0,0,1)',
+        'scale-in':  'scaleIn 0.12s ease',
+        'ticker':    'ticker 40s linear infinite',
         'shimmer':   'shimmer 1.4s ease-in-out infinite',
         'pulse-dot': 'pulseDot 2s ease-in-out infinite',
       },
       keyframes: {
         fadeIn:   { from: { opacity: '0' }, to: { opacity: '1' } },
         slideUp:  { from: { transform: 'translateY(16px)', opacity: '0' }, to: { transform: 'translateY(0)', opacity: '1' } },
-        scaleIn:  { from: { transform: 'scale(0.95)', opacity: '0' }, to: { transform: 'scale(1)', opacity: '1' } },
+        scaleIn:  { from: { transform: 'scale(0.97)', opacity: '0' }, to: { transform: 'scale(1)', opacity: '1' } },
         ticker:   { '0%': { transform: 'translateX(0)' }, '100%': { transform: 'translateX(-50%)' } },
         shimmer:  { '0%': { backgroundPosition: '-400px 0' }, '100%': { backgroundPosition: '400px 0' } },
-        pulseDot: { '0%,100%': { opacity: '1', transform: 'scale(1)' }, '50%': { opacity: '0.4', transform: 'scale(0.8)' } },
+        pulseDot: { '0%,100%': { opacity: '1' }, '50%': { opacity: '0.35' } },
       },
       screens: {
         xs: '390px',
