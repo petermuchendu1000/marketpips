@@ -1,0 +1,19 @@
+# Keep the build context small & reproducible — never ship local artifacts.
+**/node_modules
+**/.next
+**/.turbo
+**/coverage
+**/.env
+**/.env.*
+!**/.env.local.template
+.git
+.github
+docs
+infra
+*.md
+!apps/web/README.md
+npm-debug.log*
+.DS_Store
+build.log
+.vscode
+.idea

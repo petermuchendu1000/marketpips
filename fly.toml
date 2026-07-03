@@ -1,0 +1,58 @@
+# fly.toml — MarketPips app host (Module 16.2)
+# Declarative Fly.io config. This file describes the STAGING app; production
+# uses the same schema with app = "marketpips-prod" (see deploy-production.yml,
+# which promotes the same image by digest — no rebuild). Validate with
+# `fly config validate`. Secrets are set out-of-band via `fly secrets set`
+# (never in this file) — see docs/DEPLOYMENT.md §4.
+
+app = "marketpips-staging"
+primary_region = "jnb"           # Johannesburg — nearest Fly region to East Africa
+
+[build]
+  dockerfile = "Dockerfile"
+
+# Non-secret runtime config. Secrets (service-role key, payment creds,
+# CRON_SECRET, ADMIN_SECRET_KEY, UPSTASH_*, SENTRY_DSN) come from `fly secrets`.
+[env]
+  NODE_ENV = "production"
+  PORT = "3000"
+  NEXT_TELEMETRY_DISABLED = "1"
+
+# DB migrations run as an ORDERED CI step (supabase db push) BEFORE the app
+# cutover in deploy-staging.yml / deploy-production.yml — the expand/contract
+# rule (docs/DEPLOYMENT.md §2) keeps the old image compatible with the new
+# schema during rollout, so a health-gated deploy can abort safely.
+# release_command = "..."   # intentionally CI-driven; supabase CLI is not in the runtime image
+
+[http_service]
+  internal_port = 3000
+  force_https = true
+  auto_stop_machines = "suspend"
+  auto_start_machines = true
+  # Money paths must not cold-start: keep >=1 machine warm (raise for prod).
+  min_machines_running = 1
+  processes = ["app"]
+
+  [http_service.concurrency]
+    type = "requests"
+    soft_limit = 200
+    hard_limit = 250
+
+  # Health-gated cutover: Fly only shifts traffic when this passes; on failure
+  # it aborts and keeps the previous release serving.
+  [[http_service.checks]]
+    interval = "15s"
+    timeout = "5s"
+    grace_period = "20s"
+    method = "GET"
+    path = "/api/health"
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "512mb"
+  cpus = 1
+
+# Rolling deploy with a canary sanity gate; combined with health checks above
+# this gives an auto-abort on a bad release.
+[deploy]
+  strategy = "canary"
