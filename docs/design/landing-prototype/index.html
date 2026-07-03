@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MarketPips — The clearest view of what happens next</title>
+<meta name="description" content="MarketPips is a regulated, transparent prediction market for East Africa. Trade real-world event contracts in KES with M-Pesa, transparent LMSR pricing, and fair resolution.">
+<meta name="theme-color" content="#0A0C10">
+<link rel="canonical" href="https://marketpips.co.ke/">
+<meta property="og:type" content="website">
+<meta property="og:title" content="MarketPips — The clearest view of what happens next">
+<meta property="og:description" content="Trade real-world events with transparent, regulated markets. KES-native, M-Pesa-ready, fair resolution.">
+<meta property="og:site_name" content="MarketPips">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="alternate" hreflang="en" href="https://marketpips.co.ke/">
+<link rel="alternate" hreflang="sw" href="https://marketpips.co.ke/sw">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+<script type="application/ld+json">
+{"@context":"https://schema.org","@graph":[
+ {"@type":"Organization","name":"MarketPips","url":"https://marketpips.co.ke","description":"Regulated, transparent prediction market for East Africa.","areaServed":"KE"},
+ {"@type":"WebSite","name":"MarketPips","url":"https://marketpips.co.ke","potentialAction":{"@type":"SearchAction","target":"https://marketpips.co.ke/markets?q={query}","query-input":"required name=query"}},
+ {"@type":"FAQPage","mainEntity":[
+   {"@type":"Question","name":"How do markets resolve?","acceptedAnswer":{"@type":"Answer","text":"Every market lists its resolution source and criteria before you trade. Outcomes settle against a named, verifiable source, with a dispute window."}},
+   {"@type":"Question","name":"Is MarketPips regulated?","acceptedAnswer":{"@type":"Answer","text":"MarketPips operates under regulatory oversight with tiered identity verification, segregated funds, and first-class responsible-play controls."}}
+ ]}
+]}
+</script>
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+
+<!-- ===== Header ===== -->
+<header class="header">
+  <div class="wrap-wide nav">
+    <a class="brand" href="#" aria-label="MarketPips home">
+      <svg class="logo" viewBox="0 0 32 32" fill="none" aria-hidden="true">
+        <rect x="1" y="1" width="30" height="30" rx="8" fill="var(--pip-500)"/>
+        <path d="M8 21.5 L13 16.5 L17.5 19.5 L24 10.5" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+        <rect x="22" y="8.5" width="4" height="4" rx="1" fill="#fff"/>
+      </svg>
+      MarketPips
+    </a>
+    <nav class="nav-links" aria-label="Primary">
+      <a href="#markets">Markets</a>
+      <a href="#how">How it works</a>
+      <a href="#trust">Trust</a>
+      <a href="#pricing">Pricing</a>
+    </nav>
+    <div class="nav-actions">
+      <button class="theme-toggle" id="theme" aria-label="Toggle color theme">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path class="ic-sun" d="M12 4v2M12 18v2M4 12H2M22 12h-2M6 6 4.5 4.5M19.5 19.5 18 18M18 6l1.5-1.5M4.5 19.5 6 18"/><circle class="ic-sun" cx="12" cy="12" r="4"/><path class="ic-moon" style="display:none" d="M20 14.5A8 8 0 0 1 9.5 4 8 8 0 1 0 20 14.5Z"/></svg>
+      </button>
+      <a href="#" class="btn btn-ghost btn-sm hide-sm">Sign in</a>
+      <a href="#markets" class="btn btn-primary btn-sm hide-sm">Get started</a>
+      <button class="menu-btn" id="menu" aria-label="Open menu" aria-expanded="false">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 6h18M3 12h18M3 18h18"/></svg>
+      </button>
+    </div>
+  </div>
+</header>
+
+<!-- mobile drawer -->
+<div class="drawer" id="drawer" aria-hidden="true">
+  <div class="drawer-scrim" data-close></div>
+  <div class="drawer-panel" role="dialog" aria-label="Menu">
+    <div class="drawer-head">
+      <span class="brand"><svg class="logo" viewBox="0 0 32 32" aria-hidden="true"><rect x="1" y="1" width="30" height="30" rx="8" fill="var(--pip-500)"/><path d="M8 21.5 L13 16.5 L17.5 19.5 L24 10.5" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/><rect x="22" y="8.5" width="4" height="4" rx="1" fill="#fff"/></svg>MarketPips</span>
+      <button class="theme-toggle" data-close aria-label="Close menu"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
+    </div>
+    <a href="#markets" data-close>Markets</a>
+    <a href="#how" data-close>How it works</a>
+    <a href="#trust" data-close>Trust</a>
+    <a href="#pricing" data-close>Pricing</a>
+    <div style="height:12px"></div>
+    <a href="#" class="btn btn-secondary btn-block">Sign in</a>
+    <a href="#markets" class="btn btn-primary btn-block" data-close>Get started</a>
+  </div>
+</div>
+
+<main id="main">
+
+<!-- ===== Hero ===== -->
+<section class="hero">
+  <div class="wrap-wide hero-grid">
+    <div>
+      <span class="eyebrow">Regulated prediction market · East Africa</span>
+      <h1>The clearest view of<br><span class="accent">what happens next.</span></h1>
+      <p class="lede">Trade real-world events — politics, economy, sport, climate — on transparent, fairly-resolved markets. KES-native. M-Pesa-ready.</p>
+      <div class="hero-cta">
+        <a href="#markets" class="btn btn-primary">Explore markets</a>
+        <a href="#how" class="btn btn-secondary">How it works</a>
+      </div>
+      <div class="trust-strip">
+        <span class="trust-item"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3 4 6v6c0 4.5 3.2 7.5 8 9 4.8-1.5 8-4.5 8-9V6l-8-3Z"/><path d="M9 12l2 2 4-4"/></svg>Regulated &amp; segregated funds</span>
+        <span class="trust-item"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="6" width="18" height="12" rx="2"/><path d="M3 10h18M7 14h4"/></svg>KES · M-Pesa deposits</span>
+        <span class="trust-item"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 18 10 12l4 3 6-8"/><rect x="18" y="6" width="3" height="3" rx="1"/></svg>Transparent resolution</span>
+      </div>
+    </div>
+
+    <!-- Live featured market card -->
+    <div class="card mkt-hero" data-market>
+      <div class="row">
+        <span class="chip"><svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="6"/></svg>Economy</span>
+        <span class="time-left"><span class="live-dot" aria-hidden="true" style="display:inline-block;margin-right:6px"></span>Closes in 3d 14h</span>
+      </div>
+      <h2 class="mkt-q">Will the Central Bank of Kenya cut its policy rate by September?</h2>
+      <div class="prob-lead">
+        <span class="pct mono" data-prob="68">68%</span>
+        <span class="cents mono">68¢ YES</span>
+        <span class="delta up" data-delta>▲ 2.4%</span>
+      </div>
+      <div class="pbar"><span class="fill" style="width:68%"></span></div>
+      <div class="pbar-legend"><span class="yeslab">YES 68%</span><span class="nolab">NO 32%</span></div>
+      <svg class="spark" viewBox="0 0 300 44" preserveAspectRatio="none" aria-hidden="true">
+        <path class="area" d="M0,30 L30,28 L60,31 L90,24 L120,26 L150,20 L180,22 L210,15 L240,17 L270,12 L300,14 L300,44 L0,44 Z"/>
+        <path class="line" d="M0,30 L30,28 L60,31 L90,24 L120,26 L150,20 L180,22 L210,15 L240,17 L270,12 L300,14"/>
+      </svg>
+      <div class="yn">
+        <button class="yes">Buy YES <span class="sub">68¢ · to win KES 100</span></button>
+        <button class="no">Buy NO <span class="sub">32¢ · to win KES 100</span></button>
+      </div>
+      <div class="mkt-foot"><span>Volume <b class="mono">KES 4.2M</b></span><span><b class="mono">1,904</b> traders</span></div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== Live ticker ===== -->
+<section class="ticker" aria-label="Live markets">
+  <div class="ticker-track" id="ticker"></div>
+</section>
+
+<!-- ===== Categories ===== -->
+<section class="section wrap" id="markets">
+  <div class="section-head">
+    <span class="eyebrow">Browse</span>
+    <h2>Markets for the questions that matter here</h2>
+    <p>From monetary policy to the league table — pick a category and see the crowd's real-time consensus.</p>
+  </div>
+  <div class="cats">
+    <a class="cat" href="#"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M4 20V9l8-5 8 5v11"/><path d="M9 20v-6h6v6"/></svg>Politics</a>
+    <a class="cat" href="#"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M4 18 10 12l3 3 7-8"/><rect x="18" y="5" width="3" height="3" rx="1"/></svg>Economy</a>
+    <a class="cat" href="#"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="12" r="8"/><path d="M12 4v16M4 12h16"/></svg>Sports</a>
+    <a class="cat" href="#"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M12 3v3M12 18v3M5 12H2M22 12h-3"/><circle cx="12" cy="12" r="4"/></svg>Climate</a>
+    <a class="cat" href="#"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="3" y="5" width="18" height="12" rx="2"/><path d="M8 21h8"/></svg>Tech</a>
+    <a class="cat" href="#"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18Z"/><path d="M3 12h18"/><path d="M12 3c2.5 2.5 2.5 15 0 18M12 3c-2.5 2.5-2.5 15 0 18"/></svg>Culture</a>
+  </div>
+
+  <div class="section-head" style="margin-top:var(--s64);margin-bottom:var(--s24)">
+    <h2 style="font-size:1.4rem">Featured markets</h2>
+  </div>
+  <div class="mkt-grid" id="grid"></div>
+</section>
+
+<!-- ===== How it works ===== -->
+<section class="section wrap" id="how" style="background:var(--surface);border-block:1px solid var(--hairline)">
+  <div class="section-head">
+    <span class="eyebrow">How it works</span>
+    <h2>Three steps. No jargon.</h2>
+    <p>Browse freely before you sign up. You only verify your identity when you're ready to take a position.</p>
+  </div>
+  <div class="steps">
+    <div class="step card reveal">
+      <div class="num">01</div>
+      <h3>Explore the market</h3>
+      <p>See the crowd's live probability, the resolution source, and the history — all before creating an account.</p>
+    </div>
+    <div class="step card reveal">
+      <div class="num">02</div>
+      <h3>Take a position</h3>
+      <p>Buy YES or NO. The price <em>is</em> the probability: 68¢ means the market thinks it's 68% likely.</p>
+    </div>
+    <div class="step card reveal">
+      <div class="num">03</div>
+      <h3>Get paid on resolution</h3>
+      <p>When the event settles against its named source, correct positions pay KES 100 each — straight to M-Pesa.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===== Pricing / LMSR ===== -->
+<section class="section wrap" id="pricing">
+  <div class="split">
+    <div>
+      <span class="eyebrow">Transparent pricing</span>
+      <h2 style="font-size:clamp(1.6rem,3.5vw,2.1rem);font-weight:700;letter-spacing:-.02em;line-height:1.14;margin-top:var(--s12)">Why the price <em>is</em> the probability</h2>
+      <p style="color:var(--text-2);margin-top:var(--s16);font-size:1.05rem">MarketPips uses an automated market maker (LMSR) so there's always a fair price and instant liquidity — no waiting for someone to take the other side. Prices move as opinion moves, and always sum to 100%.</p>
+      <div class="hero-cta"><a href="#" class="btn btn-secondary">Read the pricing guide</a></div>
+    </div>
+    <div class="card lmsr-card">
+      <div class="lmsr-row">
+        <div class="k"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M4 18 10 12l3 3 7-8"/></svg></div>
+        <div class="t"><strong>Price = crowd probability</strong><span>A YES at 68¢ means the market believes there's a 68% chance.</span></div>
+      </div>
+      <div class="lmsr-row">
+        <div class="k"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></div>
+        <div class="t"><strong>Always liquid</strong><span>The market maker quotes both sides instantly — trade any time.</span></div>
+      </div>
+      <div class="lmsr-row">
+        <div class="k"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M4 12h16M12 4v16"/></svg></div>
+        <div class="t"><strong>YES + NO = 100%</strong><span>Every market is fully balanced. No hidden spread games.</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== Trust ===== -->
+<section class="section wrap" id="trust" style="background:var(--surface);border-block:1px solid var(--hairline)">
+  <div class="section-head">
+    <span class="eyebrow">Trust &amp; transparency</span>
+    <h2>Built to be trusted before a single shilling moves</h2>
+    <p>Prediction markets only work if resolution is fair and funds are safe. We make both visible — not buried in a footer.</p>
+  </div>
+  <div class="trust-grid">
+    <div class="trust-card card">
+      <div class="ic"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M4 18 10 12l4 3 6-8"/><rect x="18" y="6" width="3" height="3" rx="1"/></svg></div>
+      <h3>Named resolution sources</h3>
+      <p>Every market states exactly which verifiable source decides the outcome, with a public dispute window.</p>
+    </div>
+    <div class="trust-card card">
+      <div class="ic"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M12 3 4 6v6c0 4.5 3.2 7.5 8 9 4.8-1.5 8-4.5 8-9V6l-8-3Z"/><path d="M9 12l2 2 4-4"/></svg></div>
+      <h3>Regulated &amp; segregated</h3>
+      <p>We operate under regulatory oversight. Player funds are held separately from company money.</p>
+    </div>
+    <div class="trust-card card">
+      <div class="ic"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="4" y="4" width="16" height="16" rx="3"/><path d="M8 12l3 3 5-6"/></svg></div>
+      <h3>Verify at your pace</h3>
+      <p>Browse with no account. Add email to watch markets. Verify identity only to trade and withdraw.</p>
+    </div>
+    <div class="trust-card card">
+      <div class="ic"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="12" r="9"/><path d="M12 8v4M12 15.5h.01"/></svg></div>
+      <h3>Responsible play, first-class</h3>
+      <p>Set deposit limits, cool-off periods, or self-exclude — always one tap away, never hidden.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===== Stats ===== -->
+<section class="section wrap">
+  <div class="stats">
+    <div class="stat reveal"><div class="n" data-count="240" data-suffix="M" data-prefix="KES ">KES 0M</div><div class="l">Volume traded to date</div></div>
+    <div class="stat reveal"><div class="n" data-count="1280" data-suffix="">0</div><div class="l">Active &amp; resolved markets</div></div>
+    <div class="stat reveal"><div class="n" data-count="84" data-suffix="k">0k</div><div class="l">Verified traders</div></div>
+    <div class="stat reveal"><div class="n" data-count="12" data-suffix="s">0s</div><div class="l">Median payout to M-Pesa</div></div>
+  </div>
+</section>
+
+<!-- ===== CTA band ===== -->
+<section class="section wrap">
+  <div class="cta-band">
+    <h2>Start with what you already know.</h2>
+    <p>The rate decision. The final. The election. If you have a view, there's a market for it.</p>
+    <div class="hero-cta">
+      <a href="#markets" class="btn btn-primary">Explore markets</a>
+      <a href="#" class="btn btn-secondary" style="--hairline-strong:rgba(255,255,255,.28);color:#fff">Create free account</a>
+    </div>
+  </div>
+</section>
+
+</main>
+
+<!-- ===== Footer ===== -->
+<footer class="footer">
+  <div class="wrap-wide">
+    <div class="foot-grid">
+      <div class="foot-brand foot-col">
+        <span class="brand"><svg class="logo" viewBox="0 0 32 32" aria-hidden="true"><rect x="1" y="1" width="30" height="30" rx="8" fill="var(--pip-500)"/><path d="M8 21.5 L13 16.5 L17.5 19.5 L24 10.5" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/><rect x="22" y="8.5" width="4" height="4" rx="1" fill="#fff"/></svg>MarketPips</span>
+        <p>The clearest view of what happens next. Regulated, transparent event markets for East Africa.</p>
+      </div>
+      <div class="foot-col">
+        <h4>Product</h4>
+        <a href="#markets">Markets</a><a href="#how">How it works</a><a href="#pricing">Pricing</a><a href="#">Mobile app</a>
+      </div>
+      <div class="foot-col">
+        <h4>Company</h4>
+        <a href="#">About</a><a href="#">Careers</a><a href="#">Press</a><a href="#">Contact</a>
+      </div>
+      <div class="foot-col">
+        <h4>Legal &amp; safety</h4>
+        <a href="#">Terms of service</a><a href="#">Privacy policy</a><a href="#">Responsible play</a><a href="#">How markets resolve</a>
+      </div>
+    </div>
+    <div class="foot-bottom">
+      <span>© 2026 MarketPips. Licensed &amp; regulated. Trade responsibly.</span>
+      <span class="badge18"><span class="b">18+</span> Play responsibly — set your limits.</span>
+      <span class="lang" role="group" aria-label="Language">
+        <button aria-pressed="true">EN</button><button aria-pressed="false">SW</button>
+      </span>
+    </div>
+  </div>
+</footer>
+
+<script src="app.js"></script>
+</body>
+</html>

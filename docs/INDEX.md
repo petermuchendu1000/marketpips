@@ -62,6 +62,9 @@ In-app: `/help`, `/legal/terms`, `/legal/privacy`, `/legal/responsible-play`.
 - [16 — CI/CD & IaC](./16-CICD-IAC.md)
 - [17 — Accessibility, i18n, docs, launch & DR](./17-ACCESSIBILITY-I18N-DOCS-LAUNCH.md)
 
+## 🎨 Product design (Phase 0)
+- [Design foundations & landing-page dossier](./design/README.md) — "Pip" design system, competitive research, tokens, landing-page spec, roadmap, and a static reference prototype.
+
 ---
 
 _Docs are owned per area and updated in the same change as the code (see the
