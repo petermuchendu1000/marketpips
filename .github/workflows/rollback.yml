@@ -1,0 +1,72 @@
+# One-click app rollback (Module 16.5)
+# Manual dispatch, environment-protected. Restores a previous Fly release/image
+# in minutes. DB is NOT rolled back here (migrations are expand/contract +
+# forward-only) — for data incidents use PITR / a compensating migration per
+# docs/RUNBOOK.md. Because the schema is backward compatible, the prior image
+# runs safely against the current DB.
+name: Rollback Production
+
+on:
+  workflow_dispatch:
+    inputs:
+      target:
+        description: 'Rollback target: "previous" (last release) or a specific image ref / version'
+        required: true
+        default: 'previous'
+        type: string
+      reason:
+        description: 'Why are we rolling back? (recorded in the run log / audit)'
+        required: true
+        type: string
+
+concurrency:
+  group: deploy-production      # serialize with prod deploys — never overlap
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+env:
+  FLY_APP: marketpips-prod
+
+jobs:
+  rollback:
+    name: Rollback ${{ env.FLY_APP }}
+    runs-on: ubuntu-latest
+    environment:
+      name: production          # required reviewers gate the rollback too
+    steps:
+      - uses: actions/checkout@v4
+      - uses: superfly/flyctl-actions/setup-flyctl@master
+
+      - name: Show current & recent releases
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+        run: flyctl releases --app "$FLY_APP" | head -20
+
+      - name: Perform rollback
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+        run: |
+          echo "Rollback reason: ${{ github.event.inputs.reason }}"
+          if [[ "${{ github.event.inputs.target }}" == "previous" ]]; then
+            # Roll back to the immediately previous release.
+            flyctl releases rollback --app "$FLY_APP" --yes
+          else
+            # Redeploy an explicit prior image ref / version.
+            flyctl deploy --app "$FLY_APP" \
+              --image "${{ github.event.inputs.target }}" \
+              --strategy immediate
+          fi
+
+      - name: Verify health after rollback
+        run: |
+          chmod +x scripts/smoke.sh
+          scripts/smoke.sh "https://${FLY_APP}.fly.dev"
+
+      - name: Record rollback provenance
+        run: |
+          echo "Rolled back ${FLY_APP} at $(date -u +%FT%TZ)"
+          echo "Target: ${{ github.event.inputs.target }}"
+          echo "Reason: ${{ github.event.inputs.reason }}"
+          echo "Actor:  ${{ github.actor }}"
