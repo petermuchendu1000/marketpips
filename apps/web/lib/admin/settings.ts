@@ -40,6 +40,10 @@ export const SETTINGS_SCHEMA: SettingDef[] = [
   { key: 'flags.deposits_enabled', label: 'Deposits', group: 'Feature flags', type: 'boolean', default: true, isPublic: true },
   { key: 'flags.withdrawals_enabled', label: 'Withdrawals', group: 'Feature flags', type: 'boolean', default: true, isPublic: true },
   { key: 'flags.leaderboard_enabled', label: 'Leaderboard', group: 'Feature flags', type: 'boolean', default: true, isPublic: true },
+  // Dark-launch flags — default OFF so they ship dark and enable via config
+  // (decouples deploy from release; see lib/flags.ts + docs/16-CICD-IAC.md §6).
+  { key: 'flags.new_market_ui', label: 'New market UI (dark launch)', group: 'Feature flags', type: 'boolean', default: false, isPublic: true, help: 'Gradual rollout of the redesigned market page. Ships off; enable per environment.' },
+  { key: 'flags.social_sharing', label: 'Social sharing (dark launch)', group: 'Feature flags', type: 'boolean', default: false, isPublic: true, help: 'Share buttons on markets. Ships off; enable when ready.' },
   // Maintenance
   { key: 'maintenance.enabled', label: 'Maintenance mode', group: 'Maintenance', type: 'boolean', default: false, isPublic: true, help: 'Puts the platform into read-only / freeze mode.' },
   { key: 'maintenance.message', label: 'Maintenance banner message', group: 'Maintenance', type: 'text', default: '', isPublic: true },

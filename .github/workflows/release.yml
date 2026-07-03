@@ -1,0 +1,40 @@
+# Release management (Module 16.6)
+# On a semver tag (vX.Y.Z): generate release notes from Conventional-Commit
+# messages, publish a GitHub Release, and record provenance. The tag then also
+# triggers deploy-production.yml (approval-gated) to promote the tested image.
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write   # create releases + push CHANGELOG
+
+jobs:
+  release:
+    name: Publish release
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # full history for changelog generation
+
+      - name: Generate release notes & create GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # Auto-generate notes from commits since the previous tag.
+          gh release create "${GITHUB_REF_NAME}" \
+            --title "MarketPips ${GITHUB_REF_NAME}" \
+            --generate-notes \
+            --verify-tag
+
+      - name: Provenance summary
+        run: |
+          {
+            echo "## Release ${GITHUB_REF_NAME}"
+            echo "- Commit: \`${GITHUB_SHA}\`"
+            echo "- Migration head: \`$(ls supabase/migrations | tail -1)\`"
+            echo "- Production deploy: gated via deploy-production.yml (promotes staging image by digest)"
+          } >> "$GITHUB_STEP_SUMMARY"
