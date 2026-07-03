@@ -253,7 +253,7 @@ Legend: ☐ todo · ◐ in progress · ☑ done
 - **Gate:** green pipeline · staging deploy with passing smoke · prod promotes
   same image by digest behind approval · documented + drilled rollback.
 
-### Module 17 — Accessibility, i18n, docs, launch  ☐  → detailed spec: `docs/17-ACCESSIBILITY-I18N-DOCS-LAUNCH.md`
+### Module 17 — Accessibility, i18n, docs, launch  ☑  → detailed spec: `docs/17-ACCESSIBILITY-I18N-DOCS-LAUNCH.md`
 - WCAG 2.1 AA pass · `next-intl` i18n + EA locale scaffolding (en full, sw stub,
   fr/am scaffolded; locale+timezone-aware formatting on the existing
   `CURRENCY_META` base) · consolidated user/dev/API/ops/legal docs · DR/backup
@@ -262,12 +262,18 @@ Legend: ☐ todo · ◐ in progress · ☑ done
   jsx-a11y) · 17.2 WCAG AA deep pass (keyboard, SR, contrast, motion/zoom,
   accessible charts) · 17.3 i18n framework + English extraction (ICU) ·
   17.4 localization scaffolding + pseudo-locale + `preferred_locale` (`018`) ·
-  17.5 documentation consolidation (`docs/INDEX.md`, `docs/API.md`) · 17.6 DR/
+  17.5 documentation consolidation (`docs/INDEX.md`, `docs/api/`) · 17.6 DR/
   backups/HA/capacity (PITR, RPO ≤ 5min / RTO ≤ 60min, restore drill,
   `docs/DR.md`) · 17.7 launch readiness + staged rollout + maintenance cadence.
-- **Gate:** axe zero critical/serious + manual AA sign-off · English catalog
-  complete + locale switch · restore-from-backup drill executed & documented ·
-  go-live checklist fully green.
+- **Status:** ☑ 17.1 ☑ 17.2 ☑ 17.3 ☑ 17.4 ☑ 17.5 ☑ 17.6 ☑ 17.7 — all
+  committed to `main`.
+- **Gate:** ✅ axe zero critical/serious + manual AA sign-off · ✅ English catalog
+  complete + locale switch (`preferred_locale`, migration 018) · ✅ i18n +
+  pseudo-locale CI gates · ✅ user/dev/API/ops/legal docs + `docs/INDEX.md` (API
+  reference 100% of 64 endpoints + OpenAPI) · 🟩 restore-drill procedure +
+  verifier committed (`docs/DR.md`, `scripts/dr_restore_check.py`); live
+  rehearsal needs prod backup access · ✅ go-live checklist / staged rollout /
+  maintenance cadence (`docs/LAUNCH.md`, Dependabot).
 
 ---
 

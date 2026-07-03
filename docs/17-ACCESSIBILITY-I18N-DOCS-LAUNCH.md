@@ -1,6 +1,8 @@
 # Module 17 — Accessibility, i18n, Documentation, Launch & DR
 
-> Status: ☐ planned. Authoritative build-ready specification for the launch-
+> Status: ☑ complete (17.1–17.7 committed to `main`; live restore rehearsal is
+> the one operational item pending prod access — see `docs/DR.md` §3 and
+> `docs/LAUNCH.md` §1). Authoritative build-ready specification for the launch-
 > readiness module: a WCAG 2.1 AA accessibility pass, East-Africa localization &
 > internationalization scaffolding, complete product/ops documentation, a
 > disaster-recovery + backup program with a rehearsed restore drill, and the
