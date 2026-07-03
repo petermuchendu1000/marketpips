@@ -97,12 +97,29 @@ jobs:
       - run: npm run --workspace apps/web test
 
   # ------------------------------------------------------------------
+  # i18n integrity: catalog keys (no orphans) + pseudo-locale in sync.
+  # (Modules 17.3/17.4 — cheap, no npm ci needed; pure node scripts.)
+  # ------------------------------------------------------------------
+  i18n:
+    name: i18n check
+    runs-on: ubuntu-latest
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+      - run: node scripts/check-i18n-keys.mjs
+      - run: node scripts/gen-pseudo-locale.mjs --check
+
+  # ------------------------------------------------------------------
   # Build + performance budget (needs the quality gates green).
   # ------------------------------------------------------------------
   build:
     name: Build
     runs-on: ubuntu-latest
-    needs: [lint, type-check, unit]
+    needs: [lint, type-check, unit, i18n]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
