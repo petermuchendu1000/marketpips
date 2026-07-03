@@ -1,0 +1,281 @@
+openapi: 3.1.0
+info:
+  title: MarketPips API (public + user)
+  version: 1.0.0
+  description: >
+    Machine-readable contract for the public and authenticated-user endpoints of
+    MarketPips. Admin (RBAC), cron (CRON_SECRET) and provider webhook endpoints
+    are internal/provider-facing and documented in docs/api/README.md rather than
+    here. See that file for auth models, rate limiting and cache policy.
+servers:
+  - url: https://marketpips.app
+    description: Production
+  - url: http://localhost:3000
+    description: Local
+tags:
+  - name: markets
+  - name: trading
+  - name: payments
+  - name: account
+  - name: system
+components:
+  securitySchemes:
+    sessionCookie:
+      type: apiKey
+      in: cookie
+      name: sb-access-token
+      description: Supabase session cookie (set by the auth flow).
+  schemas:
+    Error:
+      type: object
+      required: [error]
+      properties:
+        error: { type: string }
+        details: { type: object, additionalProperties: true }
+    Market:
+      type: object
+      properties:
+        id: { type: string }
+        slug: { type: string }
+        title: { type: string }
+        status: { type: string, enum: [draft, open, closed, resolved, cancelled] }
+        yes_price: { type: number }
+        no_price: { type: number }
+        closes_at: { type: string, format: date-time }
+  responses:
+    Unauthorized:
+      description: Missing or invalid session.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+paths:
+  /api/health:
+    get:
+      tags: [system]
+      summary: Liveness/readiness probe
+      responses:
+        '200':
+          description: Service healthy
+  /api/markets:
+    get:
+      tags: [markets]
+      summary: List markets
+      parameters:
+        - { name: status, in: query, schema: { type: string } }
+        - { name: category, in: query, schema: { type: string } }
+        - { name: sort, in: query, schema: { type: string, enum: [volume, newest] } }
+        - { name: q, in: query, schema: { type: string } }
+        - { name: limit, in: query, schema: { type: integer } }
+        - { name: cursor, in: query, schema: { type: string } }
+      responses:
+        '200':
+          description: Market list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  markets: { type: array, items: { $ref: '#/components/schemas/Market' } }
+                  nextCursor: { type: string, nullable: true }
+    post:
+      tags: [markets]
+      summary: Create a market (creator-gated)
+      security: [{ sessionCookie: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [title, category, closes_at]
+              properties:
+                title: { type: string }
+                description: { type: string }
+                category: { type: string }
+                closes_at: { type: string, format: date-time }
+                initial_liquidity: { type: number }
+      responses:
+        '201': { description: Created }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+  /api/markets/{id}:
+    get:
+      tags: [markets]
+      summary: Get a market by id or slug
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      responses:
+        '200':
+          description: Market
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  market: { $ref: '#/components/schemas/Market' }
+  /api/markets/{id}/price-history:
+    get:
+      tags: [markets]
+      summary: LMSR price history
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+        - { name: interval, in: query, schema: { type: string } }
+      responses:
+        '200': { description: Price series }
+  /api/leaderboard:
+    get:
+      tags: [system]
+      summary: Top traders
+      parameters:
+        - { name: period, in: query, schema: { type: string } }
+        - { name: metric, in: query, schema: { type: string } }
+      responses:
+        '200': { description: Leaders }
+  /api/search:
+    get:
+      tags: [markets]
+      summary: Full-text market search
+      parameters:
+        - { name: q, in: query, required: true, schema: { type: string } }
+      responses:
+        '200': { description: Results }
+  /api/portfolio:
+    get:
+      tags: [account]
+      summary: Live mark-to-market portfolio
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - { name: tx_limit, in: query, schema: { type: integer, minimum: 1, maximum: 100 } }
+      responses:
+        '200': { description: Portfolio }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+  /api/orders:
+    get:
+      tags: [trading]
+      summary: Order/position history
+      security: [{ sessionCookie: [] }]
+      responses:
+        '200': { description: Orders }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+    post:
+      tags: [trading]
+      summary: Place a bet (LMSR, atomic)
+      security: [{ sessionCookie: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [market_id, side, stake, currency]
+              properties:
+                market_id: { type: string }
+                side: { type: string, enum: [yes, no] }
+                stake: { type: number }
+                currency: { type: string }
+                idempotency_key: { type: string }
+      responses:
+        '200': { description: Order placed }
+        '400': { description: Validation / insufficient balance }
+        '409': { description: Market closed / duplicate key }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+  /api/payments/deposit:
+    get:
+      tags: [payments]
+      summary: Deposit history / available providers
+      security: [{ sessionCookie: [] }]
+      responses:
+        '200': { description: Deposits }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+    post:
+      tags: [payments]
+      summary: Initiate a mobile-money deposit
+      security: [{ sessionCookie: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [amount, currency, provider, phone]
+              properties:
+                amount: { type: number }
+                currency: { type: string }
+                provider: { type: string, enum: [mpesa, mtn, airtel, pesapal] }
+                phone: { type: string }
+      responses:
+        '200': { description: Deposit initiated (async confirm via webhook) }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+  /api/payments/withdraw:
+    get:
+      tags: [payments]
+      summary: Withdrawal history / limits
+      security: [{ sessionCookie: [] }]
+      responses:
+        '200': { description: Withdrawals }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+    post:
+      tags: [payments]
+      summary: Request a withdrawal (B2C disbursement)
+      security: [{ sessionCookie: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [amount, currency, provider, phone]
+              properties:
+                amount: { type: number }
+                currency: { type: string }
+                provider: { type: string }
+                phone: { type: string }
+      responses:
+        '200': { description: Withdrawal requested }
+        '400': { description: KYC / limit / balance error }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+  /api/notifications/preferences:
+    get:
+      tags: [account]
+      summary: Read channel preferences
+      security: [{ sessionCookie: [] }]
+      responses:
+        '200': { description: Preferences }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+    patch:
+      tags: [account]
+      summary: Toggle channel preferences
+      security: [{ sessionCookie: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                email_notifications: { type: boolean }
+                sms_notifications: { type: boolean }
+                push_notifications: { type: boolean }
+      responses:
+        '200': { description: Updated }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+  /api/locale:
+    post:
+      tags: [account]
+      summary: Switch UI language
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [locale]
+              properties:
+                locale: { type: string, enum: [en, sw, fr, am] }
+      responses:
+        '200': { description: Locale set (cookie + profile if signed in) }
+        '400': { description: Invalid locale }
+  /api/telemetry/vitals:
+    post:
+      tags: [system]
+      summary: Web-vitals RUM ingest
+      responses:
+        '204': { description: Accepted }
