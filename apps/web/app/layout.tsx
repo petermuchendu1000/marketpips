@@ -1,6 +1,8 @@
 import type { Metadata, Viewport } from 'next'
 import { Inter } from 'next/font/google'
 import './globals.css'
+import { NextIntlClientProvider } from 'next-intl'
+import { getLocale, getMessages } from 'next-intl/server'
 import { Navbar } from '@/components/layout/navbar'
 import { SiteFooter } from '@/components/layout/site-footer'
 import { Providers } from '@/components/layout/providers'
@@ -54,23 +56,30 @@ export const viewport: Viewport = {
   themeColor: '#16a34a',
 }
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  // Active locale + messages (next-intl, cookie/profile-based). `lang` reflects
+  // the real locale for assistive tech & SEO (WCAG 3.1.1).
+  const locale = await getLocale()
+  const messages = await getMessages()
+
   return (
-    <html lang="en" className="dark" suppressHydrationWarning>
+    <html lang={locale} className="dark" suppressHydrationWarning>
       <body className={`${inter.variable} antialiased`}>
         {/* Skip-to-content: first focusable element, visible on keyboard focus (WCAG 2.4.1). */}
         <a href="#main-content" className="skip-link">
           Skip to main content
         </a>
-        <Providers>
-          <Navbar />
-          <main id="main-content" tabIndex={-1}>
-            {children}
-          </main>
-          <SiteFooter />
-          <WebVitals />
-          <ServiceWorkerRegister />
-        </Providers>
+        <NextIntlClientProvider locale={locale} messages={messages}>
+          <Providers>
+            <Navbar />
+            <main id="main-content" tabIndex={-1}>
+              {children}
+            </main>
+            <SiteFooter />
+            <WebVitals />
+            <ServiceWorkerRegister />
+          </Providers>
+        </NextIntlClientProvider>
       </body>
     </html>
   )

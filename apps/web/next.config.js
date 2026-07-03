@@ -68,4 +68,9 @@ const nextConfig = {
   },
 }
 
-module.exports = nextConfig
+// Wire next-intl (Module 17.3). Cookie/profile-based locale (no URL segment);
+// message catalogs live in ./messages, resolved by ./i18n/request.ts.
+const createNextIntlPlugin = require('next-intl/plugin')
+const withNextIntl = createNextIntlPlugin('./i18n/request.ts')
+
+module.exports = withNextIntl(nextConfig)

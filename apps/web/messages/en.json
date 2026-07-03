@@ -1,0 +1,65 @@
+{
+  "common": {
+    "appName": "MarketPips",
+    "browseMarkets": "Browse Markets",
+    "startPredicting": "Start Predicting",
+    "viewAll": "View all",
+    "createMarket": "Create Market",
+    "loading": "Loading…",
+    "cancel": "Cancel",
+    "confirm": "Confirm",
+    "save": "Save",
+    "signIn": "Sign in",
+    "signUp": "Sign up",
+    "signOut": "Sign out"
+  },
+  "nav": {
+    "markets": "Markets",
+    "leaderboard": "Leaderboard",
+    "portfolio": "Portfolio",
+    "search": "Search",
+    "notifications": "Notifications",
+    "menu": "Menu"
+  },
+  "home": {
+    "heroTitle": "Predict the future.",
+    "heroHighlight": "Get paid.",
+    "heroSubtitle": "Trade on real-world outcomes — elections, sports, economics, crypto. Pay with M-Pesa, MTN MoMo, or Airtel Money. Built for East Africa.",
+    "nonCustodial": "Non-custodial · KYC protected",
+    "fairPricing": "LMSR-powered fair pricing",
+    "countries": "{count} East African countries",
+    "activeMarkets": "Active Markets",
+    "totalVolume": "Total Volume",
+    "tradersSupported": "Traders Supported",
+    "payWith": "Pay with",
+    "trendingNow": "Trending Now",
+    "mostVolume24h": "Most volume in 24h",
+    "noMarketsYet": "No markets yet",
+    "beTheFirst": "Be the first to create a prediction market",
+    "browseAllMarkets": "Browse all markets"
+  },
+  "wallet": {
+    "deposit": "Deposit",
+    "withdraw": "Withdraw",
+    "balance": "Balance",
+    "amount": "Amount",
+    "depositsDisabled": "Deposits are temporarily unavailable.",
+    "withdrawalsDisabled": "Withdrawals are temporarily unavailable."
+  },
+  "betting": {
+    "yes": "Yes",
+    "no": "No",
+    "placeBet": "Place bet",
+    "youPay": "You pay",
+    "potentialReturn": "Potential return",
+    "confirmBet": "Confirm bet",
+    "betPlaced": "Bet placed"
+  },
+  "errors": {
+    "generic": "Something went wrong. Please try again.",
+    "network": "Network error. Check your connection and retry.",
+    "unauthorized": "Please sign in to continue.",
+    "notFound": "Not found.",
+    "rateLimited": "Too many requests. Please slow down."
+  }
+}

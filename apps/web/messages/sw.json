@@ -1,0 +1,48 @@
+{
+  "common": {
+    "appName": "MarketPips",
+    "browseMarkets": "Vinjari Masoko",
+    "startPredicting": "Anza Kutabiri",
+    "viewAll": "Ona zote",
+    "createMarket": "Tengeneza Soko",
+    "loading": "Inapakia…",
+    "cancel": "Ghairi",
+    "confirm": "Thibitisha",
+    "save": "Hifadhi",
+    "signIn": "Ingia",
+    "signUp": "Jisajili",
+    "signOut": "Toka"
+  },
+  "nav": {
+    "markets": "Masoko",
+    "leaderboard": "Ubao wa Viongozi",
+    "portfolio": "Portfolio",
+    "search": "Tafuta",
+    "notifications": "Arifa",
+    "menu": "Menyu"
+  },
+  "wallet": {
+    "deposit": "Weka Pesa",
+    "withdraw": "Toa Pesa",
+    "balance": "Salio",
+    "amount": "Kiasi",
+    "depositsDisabled": "Kuweka pesa hakupatikani kwa sasa.",
+    "withdrawalsDisabled": "Kutoa pesa hakupatikani kwa sasa."
+  },
+  "betting": {
+    "yes": "Ndiyo",
+    "no": "Hapana",
+    "placeBet": "Weka dau",
+    "youPay": "Unalipa",
+    "potentialReturn": "Marejesho yanayowezekana",
+    "confirmBet": "Thibitisha dau",
+    "betPlaced": "Dau limewekwa"
+  },
+  "errors": {
+    "generic": "Kuna hitilafu. Tafadhali jaribu tena.",
+    "network": "Hitilafu ya mtandao. Angalia muunganisho wako.",
+    "unauthorized": "Tafadhali ingia ili kuendelea.",
+    "notFound": "Haikupatikana.",
+    "rateLimited": "Maombi mengi mno. Tafadhali punguza kasi."
+  }
+}
