@@ -1,5 +1,12 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  // Emit a self-contained server bundle (.next/standalone) so the Docker
+  // runtime stage (and Fly.io deploy in Module 16) can ship a minimal image
+  // that runs `node server.js` without the full node_modules tree.
+  output: 'standalone',
+  // The app lives in apps/web inside an npm-workspaces monorepo; tell Next to
+  // trace/copy files from the repo root so standalone output is complete.
+  outputFileTracingRoot: require('path').join(__dirname, '../../'),
   serverExternalPackages: ['sharp'],
   images: {
     domains: [
