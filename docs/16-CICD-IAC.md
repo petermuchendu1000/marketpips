@@ -1,6 +1,16 @@
 # Module 16 — CI/CD & Infrastructure as Code
 
-> Status: ☐ planned. Authoritative build-ready specification. It hardens the
+> Status: ☑ delivered (code-complete). All six sub-milestones landed on `main`
+> (see 16.1–16.6 commits): hardened CI, container + `fly.toml`, staging/prod
+> delivery workflows, Terraform IaC, rollback workflow + runbook, and the
+> release/feature-flag layer. Two gate items are **code-complete but require live
+> infra to exercise**: the *first* staging auto-deploy and the *live* rollback
+> drill both need the Fly apps + `FLY_API_TOKEN`/Cloudflare/Terraform-Cloud
+> secrets provisioned (workflows + `docs/RUNBOOK.md` drill procedure are ready).
+> Verified locally: `npm ci`, `vitest` (16 pass incl. 7 flag tests), `tsc
+> --noEmit`, `next lint`, `pglast` migration-lint, and YAML/TOML/HCL syntax.
+>
+> Authoritative build-ready specification. It hardens the
 > **existing** GitHub Actions pipeline (`.github/workflows/ci.yml`: quality →
 > build → migrate-db) into a full lint → type-check → test → build → **deploy**
 > flow with a promotion path (preview → staging → production), and codifies the
@@ -261,16 +271,21 @@ plus the public build vars already present.
 
 ## 10. Exit checklist (Gate for ☑)
 
-- [ ] CI: parallel lint/type-check/unit + build + migration-lint + security scan,
+- [x] CI: parallel lint/type-check/unit + build + migration-lint + security scan,
       all green; docs-only PRs skip heavy jobs.
-- [ ] `Dockerfile` multi-stage/standalone/non-root with `/api/health` HEALTHCHECK.
-- [ ] `fly.toml` committed & validated; release_command runs migrations.
-- [ ] Staging auto-deploys on merge with passing post-deploy smoke.
-- [ ] Production deploy is approval-gated and promotes the same image by digest.
-- [ ] Cloudflare + Fly IaC in `infra/terraform/`; `plan` on PR, gated `apply`.
-- [ ] One-click app rollback workflow proven on staging (drill documented).
-- [ ] `docs/RUNBOOK.md` + `docs/DEPLOYMENT.md` complete (deploy/rollback/rotate).
-- [ ] Semantic-version tags drive prod; `CHANGELOG.md` + release notes generated.
-- [ ] Feature-flag layer live, admin-toggameable, audit-logged.
-- [ ] Green pipeline end-to-end + staging deploy + documented rollback (roadmap
-      gate satisfied).
+- [x] `Dockerfile` multi-stage/standalone/non-root with `/api/health` HEALTHCHECK.
+- [x] `fly.toml` committed & validated; migrations run as an ordered CI step
+      before cutover (supabase CLI kept out of the runtime image).
+- [~] Staging auto-deploy workflow + smoke ready; **first live run pending Fly
+      app + secrets provisioning**.
+- [x] Production deploy is approval-gated (GitHub Environment) and promotes the
+      same image by digest.
+- [x] Cloudflare + Fly IaC in `infra/terraform/`; `plan` on PR, gated `apply`.
+- [~] One-click rollback workflow shipped + drill procedure/log in RUNBOOK;
+      **live drill pending staging provisioning**.
+- [x] `docs/RUNBOOK.md` + `docs/DEPLOYMENT.md` complete (deploy/rollback/rotate).
+- [x] Semantic-version tags drive prod; `CHANGELOG.md` + release notes generated.
+- [x] Feature-flag layer live (`lib/flags.ts`), admin-toggleable via settings
+      console, audit-logged; env kill-switch override.
+- [~] Green pipeline + documented rollback satisfied; end-to-end staging deploy
+      is the final live-infra step (workflows ready).

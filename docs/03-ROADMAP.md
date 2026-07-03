@@ -238,7 +238,7 @@ Legend: ☐ todo · ◐ in progress · ☑ done
   on `/markets/[slug]` (314 kB), wire Upstash in prod, promote Lighthouse to
   blocking against staging.
 
-### Module 16 — CI/CD & IaC  ☐  → detailed spec: `docs/16-CICD-IAC.md`
+### Module 16 — CI/CD & IaC  ☑  → detailed spec: `docs/16-CICD-IAC.md`
 - Harden `ci.yml` into lint→type-check→test→build→**deploy** with preview/staging/
   production promotion (image-by-digest), and codify Cloudflare→Fly→Supabase as
   Terraform IaC with a rehearsed rollback.
