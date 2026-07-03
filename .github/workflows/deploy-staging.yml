@@ -1,0 +1,84 @@
+# Deploy to STAGING (Module 16.3)
+# Auto-runs on merge to main: migrate (ordered, expand/contract) -> deploy Fly
+# (health-gated rolling/canary) -> post-deploy smoke. The built image is
+# published to Fly's registry so deploy-production can promote it BY DIGEST.
+name: Deploy Staging
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-staging
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+env:
+  FLY_APP: marketpips-staging
+  FLY_REGION: jnb
+
+jobs:
+  deploy-staging:
+    name: Migrate + Deploy (staging)
+    runs-on: ubuntu-latest
+    environment:
+      name: staging
+      url: https://staging.marketpips.example
+    outputs:
+      image: ${{ steps.publish.outputs.image }}
+    steps:
+      - uses: actions/checkout@v4
+
+      # --- Ordered DB migration BEFORE app cutover (expand/contract) ---
+      - name: Setup Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: latest
+      - name: Push migrations (staging)
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+          SUPABASE_PROJECT_ID: ${{ secrets.SUPABASE_PROJECT_ID }}
+        run: |
+          supabase link --project-ref "$SUPABASE_PROJECT_ID"
+          supabase db push
+
+      # --- Build + publish an immutable image, capture its digest ---
+      - name: Setup Fly CLI
+        uses: superfly/flyctl-actions/setup-flyctl@master
+      - name: Build & push image (record digest)
+        id: publish
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+        run: |
+          IMAGE="registry.fly.io/${FLY_APP}:${GITHUB_SHA}"
+          flyctl deploy \
+            --app "$FLY_APP" \
+            --build-only --push \
+            --image-label "$GITHUB_SHA" \
+            --build-arg NEXT_PUBLIC_SUPABASE_URL="${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}" \
+            --build-arg NEXT_PUBLIC_SUPABASE_ANON_KEY="${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}" \
+            --build-arg NEXT_PUBLIC_APP_URL="${{ secrets.NEXT_PUBLIC_APP_URL }}"
+          # Resolve the immutable digest so prod can promote the SAME artifact.
+          DIGEST="$(flyctl image show --app "$FLY_APP" 2>/dev/null | awk '/registry.fly.io/ {print $NF}' | head -1 || true)"
+          echo "image=${IMAGE}" >> "$GITHUB_OUTPUT"
+          echo "Published $IMAGE (digest: ${DIGEST:-unknown})"
+
+      # --- Health-gated deploy (Fly aborts cutover if checks fail) ---
+      - name: Deploy to staging (health-gated)
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+        run: |
+          flyctl deploy \
+            --app "$FLY_APP" \
+            --image "registry.fly.io/${FLY_APP}:${GITHUB_SHA}" \
+            --strategy canary
+
+      # --- Post-deploy smoke gates the run (and thus any promotion) ---
+      - name: Post-deploy smoke
+        run: |
+          chmod +x scripts/smoke.sh
+          scripts/smoke.sh "https://${FLY_APP}.fly.dev"

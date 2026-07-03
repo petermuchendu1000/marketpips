@@ -1,0 +1,95 @@
+# Deploy to PRODUCTION (Module 16.3 / 16.6)
+# Approval-gated (GitHub Environment "production" with required reviewers).
+# Triggered by a semver tag (v*) or manual dispatch. Promotes the EXACT image
+# validated on staging BY DIGEST — no rebuild — then migrates prod (ordered)
+# and does a health-gated cutover with a post-deploy smoke. On failure the
+# prior release keeps serving (auto-abort); use rollback.yml for a fast revert.
+name: Deploy Production
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      image_ref:
+        description: 'Fully-qualified image (registry.fly.io/marketpips-staging@sha256:... or :tag) to promote'
+        required: true
+        type: string
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+env:
+  FLY_APP: marketpips-prod
+  STAGING_APP: marketpips-staging
+
+jobs:
+  deploy-production:
+    name: Promote image -> Production (approval-gated)
+    runs-on: ubuntu-latest
+    environment:
+      name: production          # <-- required reviewers configured in repo settings
+      url: https://app.marketpips.example
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Fly CLI
+        uses: superfly/flyctl-actions/setup-flyctl@master
+
+      # Resolve the image to promote. Tag builds promote the current staging
+      # image by digest; manual dispatch promotes the provided image_ref.
+      - name: Resolve promotion image (by digest)
+        id: img
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+        run: |
+          if [[ -n "${{ github.event.inputs.image_ref }}" ]]; then
+            IMAGE="${{ github.event.inputs.image_ref }}"
+          else
+            # Pin the digest currently running on staging for guaranteed parity.
+            DIGEST="$(flyctl image show --app "$STAGING_APP" --json | jq -r '.[0].Digest // .Digest')"
+            REPO="$(flyctl image show --app "$STAGING_APP" --json | jq -r '.[0].Repository // .Repository')"
+            IMAGE="${REPO}@${DIGEST}"
+          fi
+          echo "image=${IMAGE}" >> "$GITHUB_OUTPUT"
+          echo "Promoting: ${IMAGE}"
+
+      # --- Ordered prod DB migration BEFORE cutover ---
+      - name: Setup Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: latest
+      - name: Push migrations (production)
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_DB_PASSWORD: ${{ secrets.PROD_SUPABASE_DB_PASSWORD }}
+          SUPABASE_PROJECT_ID: ${{ secrets.PROD_SUPABASE_PROJECT_ID }}
+        run: |
+          supabase link --project-ref "$SUPABASE_PROJECT_ID"
+          supabase db push
+
+      # --- Health-gated cutover of the promoted image ---
+      - name: Deploy to production (health-gated)
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+        run: |
+          flyctl deploy \
+            --app "$FLY_APP" \
+            --image "${{ steps.img.outputs.image }}" \
+            --strategy bluegreen
+
+      - name: Post-deploy smoke
+        run: |
+          chmod +x scripts/smoke.sh
+          scripts/smoke.sh "https://${FLY_APP}.fly.dev"
+
+      # --- Traceability record: image digest <-> tag <-> commit ---
+      - name: Record release provenance
+        run: |
+          echo "Release: ${GITHUB_REF_NAME}"
+          echo "Image:   ${{ steps.img.outputs.image }}"
+          echo "Commit:  ${GITHUB_SHA}"
