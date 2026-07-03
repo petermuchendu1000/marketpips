@@ -78,7 +78,7 @@ export function Navbar() {
           {/* Logo */}
           <Link href="/" className="flex items-center gap-2 mr-2 flex-shrink-0">
             <LogoMark size={28} />
-            <span className="font-display text-[15px] font-bold tracking-tight text-white hidden xs:block">
+            <span className="font-display text-[15px] font-bold tracking-tight hidden xs:block" style={{ color: 'var(--text)' }}>
               MarketPips
             </span>
           </Link>
@@ -91,8 +91,8 @@ export function Navbar() {
                 href={link.href}
                 className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[13px] font-medium transition-all ${
                   isActive(link.href)
-                    ? 'bg-[rgba(34,197,94,0.15)] text-green-light'
-                    : 'text-[var(--text-secondary)] hover:text-white hover:bg-[var(--bg-tertiary)]'
+                    ? 'bg-[var(--pip-100)] text-[var(--pip-500)]'
+                    : 'text-[var(--text-secondary)] hover:text-[var(--text)] hover:bg-[var(--surface-2)]'
                 }`}
               >
                 {link.icon}{link.label}
@@ -148,7 +148,7 @@ export function Navbar() {
                       aria-label="Notifications"
                     >
                       <IconBell size={17} className="text-[var(--text-secondary)]" />
-                      <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 bg-green-light rounded-full animate-pulse-dot" />
+                      <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full animate-pulse-dot" style={{ background: 'var(--pip-500)' }} />
                     </Link>
 
                     {/* User menu */}
@@ -157,7 +157,7 @@ export function Navbar() {
                         onClick={() => setUserMenuOpen(v => !v)}
                         className="flex items-center gap-1.5 p-1 rounded-lg hover:bg-[var(--bg-tertiary)] transition-colors"
                       >
-                        <div className="avatar text-white">
+                        <div className="avatar">
                           {(user.email?.[0] ?? 'U').toUpperCase()}
                         </div>
                         <IconChevronDown size={13} className="text-[var(--text-muted)] hidden sm:block" />
@@ -174,7 +174,7 @@ export function Navbar() {
                           {/* Wallet (mobile) */}
                           <div className="sm:hidden px-4 py-2 border-b border-[var(--border)]">
                             <p className="text-xs text-[var(--text-muted)] mb-1">Balance</p>
-                            <p className="font-mono font-bold text-green-light">
+                            <p className="font-mono font-bold" style={{ color: 'var(--text)' }}>
                               {currencyInfo?.symbol}{balance.toLocaleString()} {preferredCurrency}
                             </p>
                           </div>
@@ -208,7 +208,7 @@ export function Navbar() {
                   </>
                 ) : (
                   <div className="flex items-center gap-2">
-                    <Link href="/auth/login" className="btn btn-ghost btn-sm text-white">Sign in</Link>
+                    <Link href="/auth/login" className="btn btn-ghost btn-sm">Sign in</Link>
                     <Link href="/auth/register" className="btn btn-primary btn-sm">Get started</Link>
                   </div>
                 )}
@@ -222,7 +222,7 @@ export function Navbar() {
               aria-label="Menu"
             >
               {menuOpen
-                ? <IconX size={18} className="text-white" />
+                ? <IconX size={18} className="text-[var(--text)]" />
                 : <IconMenu size={18} className="text-[var(--text-secondary)]" />
               }
             </button>
@@ -239,7 +239,7 @@ export function Navbar() {
                   href={link.href}
                   className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all ${
                     isActive(link.href)
-                      ? 'bg-[rgba(34,197,94,0.12)] text-green-light'
+                      ? 'bg-[var(--pip-100)] text-[var(--pip-500)]'
                       : 'text-[var(--text-secondary)]'
                   }`}
                 >
@@ -340,8 +340,8 @@ function DepositSheet({ onClose }: { onClose: () => void }) {
                     onClick={() => setAmount(v)}
                     className={`py-2 rounded-lg text-sm font-semibold border transition-all ${
                       amount === v
-                        ? 'bg-[var(--green)] text-white border-[var(--green)]'
-                        : 'border-[var(--border)] text-[var(--text-secondary)] hover:border-[var(--green)]'
+                        ? 'bg-[var(--pip-500)] text-white border-[var(--pip-500)]'
+                        : 'border-[var(--border)] text-[var(--text-secondary)] hover:border-[var(--pip-400)]'
                     }`}
                     style={{ background: amount === v ? undefined : 'var(--bg-tertiary)' }}
                   >

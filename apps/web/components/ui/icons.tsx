@@ -99,11 +99,14 @@ export const IconComments = icon(<><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 0
 export const IconSell = icon(<><circle cx="12" cy="12" r="9"/><path d="M9 15l6-6M15 9h-4M15 9v4" stroke="currentColor"/></>)
 
 // Logo mark
+// Pip brand mark — a rising probability line on a baseline reference with
+// square "pip" terminals. Pip Blue by default; pass a solid className/fill to recolor.
 export const LogoMark = ({ size = 28, className = '' }: { size?: number; className?: string }) => (
-  <svg width={size} height={size} viewBox="0 0 32 32" fill="none" className={className}>
-    <rect width="32" height="32" rx="8" fill="#16a34a"/>
-    <path d="M6 24L12 14l4 6 4-8 6 12" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
-    <circle cx="6" cy="24" r="2" fill="white"/>
-    <circle cx="26" cy="24" r="2" fill="white"/>
+  <svg width={size} height={size} viewBox="0 0 32 32" fill="none" className={className} aria-hidden="true">
+    <rect width="32" height="32" rx="7" fill="#2B50E4"/>
+    <path d="M6 24h20" stroke="#fff" strokeOpacity="0.32" strokeWidth="1.5" strokeLinecap="round"/>
+    <path d="M8 21l5-4 4 2 6-8" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
+    <rect x="6.4" y="19.4" width="3.2" height="3.2" rx="0.7" fill="#fff"/>
+    <rect x="21.4" y="9.4" width="3.2" height="3.2" rx="0.7" fill="#fff"/>
   </svg>
 )
