@@ -1,5 +1,6 @@
-// app/markets/[slug]/page.tsx - Market detail page
-import { Suspense, cache } from 'react'
+// app/markets/[slug]/page.tsx — Market detail + trading
+import { Suspense, cache, type ReactNode } from 'react'
+import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import type { Metadata } from 'next'
 import { createClient } from '@/lib/supabase/server'
@@ -9,19 +10,27 @@ import { BettingPanel } from '@/components/trading/betting-panel'
 import { MarketActivity } from '@/components/markets/market-activity'
 import { MarketComments } from '@/components/markets/market-comments'
 import { RelatedMarkets } from '@/components/markets/related-markets'
+import { formatUSD } from '@/lib/utils'
+import {
+  IconTrendUp,
+  IconInfo,
+  IconShield,
+  IconClock,
+  IconChevronLeft,
+  IconExternalLink,
+} from '@/components/ui/icons'
 import type { Market } from '@/types'
 
-// Live market data — render dynamically per request (no static prerender)
+// Live market data — render dynamically per request (no static prerender).
 export const dynamic = 'force-dynamic'
 
 const getMarket = cache(async (slug: string) => {
   const supabase = await createClient()
   const { data } = await supabase
     .from('markets')
-    .select(`
-      *,
-      creator:profiles!markets_creator_id_fkey(id, display_name, avatar_url, username)
-    `)
+    .select(
+      `*, creator:profiles!markets_creator_id_fkey(id, display_name, avatar_url, username)`,
+    )
     .eq('slug', slug)
     .single()
   return data as Market | null
@@ -34,16 +43,19 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { slug } = await params
   const market = await getMarket(slug)
-  if (!market) return { title: 'Market Not Found' }
+  if (!market) return { title: 'Market not found' }
 
+  const description = market.description.slice(0, 160)
   return {
     title: market.title,
-    description: market.description.slice(0, 160),
+    description,
     openGraph: {
       title: market.title,
-      description: market.description.slice(0, 160),
+      description,
+      type: 'article',
       images: market.cover_image_url ? [market.cover_image_url] : [],
     },
+    twitter: { card: 'summary_large_image', title: market.title, description },
   }
 }
 
@@ -55,7 +67,6 @@ async function MarketPriceHistory({ marketId }: { marketId: string }) {
     .eq('market_id', marketId)
     .order('recorded_at', { ascending: true })
     .limit(200)
-
   return <PriceChart data={history || []} />
 }
 
@@ -63,123 +74,143 @@ async function MarketActivityFeed({ marketId }: { marketId: string }) {
   const supabase = await createClient()
   const { data: activity } = await supabase
     .from('market_activity')
-    .select(`
-      *,
-      user:profiles!market_activity_user_id_fkey(id, display_name, avatar_url, username)
-    `)
+    .select(
+      `*, user:profiles!market_activity_user_id_fkey(id, display_name, avatar_url, username)`,
+    )
     .eq('market_id', marketId)
     .order('created_at', { ascending: false })
     .limit(20)
-
   return <MarketActivity activity={activity || []} />
 }
 
-export default async function MarketPage({
-  params,
-}: {
-  params: Promise<{ slug: string }>
-}) {
+/** Consistent section heading with a token-styled icon chip. */
+function SectionTitle({ icon, children }: { icon: ReactNode; children: ReactNode }) {
+  return (
+    <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold text-text-secondary">
+      <span className="flex h-6 w-6 items-center justify-center rounded-sm bg-pip-100 text-pip-500">{icon}</span>
+      {children}
+    </h2>
+  )
+}
+
+function SpecRow({ label, value }: { label: string; value: ReactNode }) {
+  return (
+    <div className="flex items-center justify-between gap-4 py-2 text-sm">
+      <dt className="text-text-muted">{label}</dt>
+      <dd className="text-right font-medium text-text-primary">{value}</dd>
+    </div>
+  )
+}
+
+export default async function MarketPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params
   const market = await getMarket(slug)
+  if (!market) notFound()
 
-  if (!market) {
-    notFound()
-  }
-
-  // Increment view count (fire and forget)
+  // Increment view count (fire-and-forget).
   const supabase = await createClient()
-  supabase
+  void supabase
     .from('markets')
     .update({ view_count: (market.view_count || 0) + 1 })
     .eq('id', market.id)
     .then(() => {})
 
+  const closesAt = new Date(market.closes_at)
+  const resolvesAt = market.resolves_at ? new Date(market.resolves_at) : null
+  const dateFmt: Intl.DateTimeFormatOptions = { day: 'numeric', month: 'short', year: 'numeric' }
+
+  // SEO: structured data for the market as a Q&A / claim.
+  const jsonLd = {
+    '@context': 'https://schema.org',
+    '@type': 'Question',
+    name: market.title,
+    text: market.description,
+    dateCreated: market.created_at,
+    answerCount: 2,
+  }
+
   return (
-    <div className="container mx-auto px-4 py-6 max-w-7xl">
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Left / Main column */}
-        <div className="lg:col-span-2 space-y-6">
+    <div className="mx-auto max-w-7xl px-4 py-6">
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
+
+      {/* Breadcrumb */}
+      <Link
+        href="/markets"
+        className="mb-4 inline-flex items-center gap-1 text-sm text-text-muted transition-colors hover:text-pip-500"
+      >
+        <IconChevronLeft size={15} /> All markets
+      </Link>
+
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+        {/* Main column */}
+        <div className="space-y-6 lg:col-span-2">
           <MarketHeader market={market} />
 
-          {/* Price chart */}
-          <div className="rounded-2xl border bg-card p-4">
-            <h3 className="text-sm font-semibold text-muted-foreground mb-3">
-              📈 Probability History
-            </h3>
-            <Suspense fallback={<div className="h-48 skeleton rounded-xl" />}>
+          <div className="card p-4">
+            <SectionTitle icon={<IconTrendUp size={14} />}>Probability history</SectionTitle>
+            <Suspense fallback={<div className="skeleton h-48 rounded-md" />}>
               <MarketPriceHistory marketId={market.id} />
             </Suspense>
           </div>
 
-          {/* Activity feed */}
-          <div className="rounded-2xl border bg-card p-4">
-            <h3 className="text-sm font-semibold text-muted-foreground mb-3">
-              ⚡ Recent Activity
-            </h3>
-            <Suspense fallback={<div className="space-y-3">{Array.from({length: 5}).map((_,i) => <div key={i} className="h-10 skeleton rounded" />)}</div>}>
+          <div className="card p-4">
+            <SectionTitle icon={<IconClock size={14} />}>Recent activity</SectionTitle>
+            <Suspense
+              fallback={
+                <div className="space-y-3">
+                  {Array.from({ length: 5 }).map((_, i) => (
+                    <div key={i} className="skeleton h-10 rounded-sm" />
+                  ))}
+                </div>
+              }
+            >
               <MarketActivityFeed marketId={market.id} />
             </Suspense>
           </div>
 
-          {/* Comments */}
           <MarketComments marketId={market.id} />
         </div>
 
-        {/* Right / Sidebar */}
+        {/* Sidebar */}
         <div className="space-y-4">
-          {/* Betting panel - sticky on desktop */}
-          <div className="lg:sticky lg:top-20">
+          <div className="lg:sticky lg:top-20 lg:space-y-4">
             <BettingPanel market={market} />
 
-            {/* Market info */}
-            <div className="mt-4 rounded-2xl border bg-card p-4 space-y-3">
-              <h3 className="text-sm font-semibold">📋 Resolution Criteria</h3>
-              <p className="text-sm text-muted-foreground leading-relaxed">
-                {market.resolution_criteria}
-              </p>
+            {/* Settlement / resolution rules */}
+            <div className="card p-4">
+              <SectionTitle icon={<IconShield size={14} />}>Resolution rules</SectionTitle>
+              <p className="text-sm leading-relaxed text-text-secondary">{market.resolution_criteria}</p>
               {market.resolution_source && (
                 <a
                   href={market.resolution_source}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-xs text-primary hover:underline block"
+                  className="mt-3 inline-flex items-center gap-1.5 text-xs font-medium text-pip-500 hover:underline"
                 >
-                  🔗 Resolution Source →
+                  <IconExternalLink size={13} /> Resolution source
                 </a>
               )}
             </div>
 
-            {/* Market Stats */}
-            <div className="mt-4 rounded-2xl border bg-card p-4">
-              <h3 className="text-sm font-semibold mb-3">📊 Market Stats</h3>
-              <dl className="space-y-2">
-                <div className="flex justify-between text-sm">
-                  <dt className="text-muted-foreground">Total Volume</dt>
-                  <dd className="font-medium">${market.total_volume_usd.toLocaleString('en-US', { maximumFractionDigits: 0 })}</dd>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <dt className="text-muted-foreground">Total Bets</dt>
-                  <dd className="font-medium">{market.total_bets.toLocaleString()}</dd>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <dt className="text-muted-foreground">Unique Traders</dt>
-                  <dd className="font-medium">{market.unique_bettors.toLocaleString()}</dd>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <dt className="text-muted-foreground">Closes</dt>
-                  <dd className="font-medium">{new Date(market.closes_at).toLocaleDateString('en-KE', { day: 'numeric', month: 'short', year: 'numeric' })}</dd>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <dt className="text-muted-foreground">Platform Fee</dt>
-                  <dd className="font-medium">{(market.platform_fee_rate * 100).toFixed(1)}%</dd>
-                </div>
+            {/* Contract specs */}
+            <div className="card p-4">
+              <SectionTitle icon={<IconInfo size={14} />}>Contract specs</SectionTitle>
+              <dl className="divide-y divide-hairline">
+                <SpecRow label="Type" value={market.resolution_type === 'binary' ? 'Binary (YES / NO)' : 'Multiple choice'} />
+                <SpecRow label="Total volume" value={formatUSD(market.total_volume_usd)} />
+                <SpecRow label="Liquidity" value={formatUSD(market.liquidity_pool_usd)} />
+                <SpecRow label="Total bets" value={market.total_bets.toLocaleString()} />
+                <SpecRow label="Unique traders" value={market.unique_bettors.toLocaleString()} />
+                <SpecRow label="Closes" value={closesAt.toLocaleDateString('en-GB', dateFmt)} />
+                {resolvesAt && <SpecRow label="Resolves by" value={resolvesAt.toLocaleDateString('en-GB', dateFmt)} />}
+                <SpecRow label="Platform fee" value={`${(market.platform_fee_rate * 100).toFixed(1)}%`} />
+                <SpecRow label="Creator reward" value={`${(market.creator_reward_rate * 100).toFixed(2)}%`} />
               </dl>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Related markets */}
       <div className="mt-10">
         <RelatedMarkets marketId={market.id} category={market.category} />
       </div>
