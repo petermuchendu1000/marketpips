@@ -22,6 +22,19 @@ for (const page of KEY_PAGES) {
   test(`a11y: ${page.name} has no critical/serious violations`, async ({ page: p }) => {
     await p.goto(page.path, { waitUntil: 'networkidle' })
 
+    // Guard: under CI load the auth provider (Supabase) can return a transient
+    // rate-limit interstitial ("Too many requests" JSON) in place of the real
+    // page. That error document is not our UI, so scanning it for color-contrast
+    // is meaningless and would flake the gate. Skip when we didn't land on the
+    // actual page.
+    const bodyText = (await p.locator('body').innerText().catch(() => '')) || ''
+    if (/rate_limited|too many requests/i.test(bodyText)) {
+      test.skip(
+        true,
+        `Skipped ${page.name}: auth provider returned a transient rate-limit interstitial`
+      )
+    }
+
     const results = await new AxeBuilder({ page: p }).withTags(WCAG_TAGS).analyze()
 
     const blocking = results.violations.filter(
