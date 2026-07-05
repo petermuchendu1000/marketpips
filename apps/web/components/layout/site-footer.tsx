@@ -1,37 +1,174 @@
-// components/layout/site-footer.tsx — accessible <footer> landmark (WCAG 1.3.1).
-// Also surfaces the legal/compliance links required for launch (Module 17.5/17.7).
+// components/layout/site-footer.tsx — institutional site footer (WCAG 1.3.1 landmark).
+//
+// Closes every page with brand confidence + the compliance surface a real-money
+// prediction market must carry: settlement currencies, payment rails, structured
+// link columns, and an always-visible risk / responsible-play disclosure.
+//
+// Design notes (Pip system):
+// - Token-only styling; correct light AND dark hover states (no `hover:text-white`).
+// - Grid-aligned to the landing body: `max-w-6xl px-5 sm:px-8` so the footer's
+//   left edge lines up pixel-for-pixel with the hero, sections, and CTA band.
+// - Only links to routes that exist in the app (no dead links).
 import Link from 'next/link'
 import { LocaleSwitcher } from './locale-switcher'
+import { LogoMark, IconArrowRight } from '@/components/ui/icons'
 
 const YEAR = new Date().getFullYear()
 
-const LINKS: { href: string; label: string }[] = [
-  { href: '/legal/terms', label: 'Terms' },
-  { href: '/legal/privacy', label: 'Privacy' },
-  { href: '/legal/responsible-play', label: 'Responsible play' },
-  { href: '/help', label: 'Help' },
+// Settlement currencies + payment rails — mirrors the hero's clean, no-emoji treatment.
+const CURRENCIES = ['KES', 'UGX', 'TZS', 'RWF', 'ZMW', 'ETB', 'BIF']
+const PAYMENTS = ['M-Pesa', 'MTN MoMo', 'Airtel Money', 'PesaPal']
+
+type FooterLink = { href: string; label: string }
+type FooterColumn = { heading: string; links: FooterLink[] }
+
+// Every href below resolves to a real route in `app/`.
+const COLUMNS: FooterColumn[] = [
+  {
+    heading: 'Markets',
+    links: [
+      { href: '/markets', label: 'All markets' },
+      { href: '/leaderboard', label: 'Leaderboard' },
+      { href: '/markets/create', label: 'Create a market' },
+      { href: '/search', label: 'Search' },
+    ],
+  },
+  {
+    heading: 'Account',
+    links: [
+      { href: '/auth/register', label: 'Get started' },
+      { href: '/auth/login', label: 'Sign in' },
+      { href: '/portfolio', label: 'Portfolio' },
+      { href: '/kyc', label: 'Verify identity' },
+    ],
+  },
+  {
+    heading: 'Legal & compliance',
+    links: [
+      { href: '/legal/terms', label: 'Terms of service' },
+      { href: '/legal/privacy', label: 'Privacy policy' },
+      { href: '/legal/responsible-play', label: 'Responsible play' },
+      { href: '/help', label: 'Help & support' },
+    ],
+  },
 ]
 
 export function SiteFooter() {
   return (
     <footer
-      className="mt-16 border-t border-[var(--border)] py-8 text-[13px] text-[var(--text-secondary)]"
+      className="mt-20 border-t"
+      style={{ borderColor: 'var(--hairline)', background: 'var(--surface)' }}
       aria-label="Site footer"
     >
-      <div className="max-w-7xl mx-auto px-4 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <p>© {YEAR} MarketPips · East Africa prediction markets</p>
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:gap-6">
-          <nav aria-label="Legal and help">
-            <ul className="flex flex-wrap gap-x-5 gap-y-2">
-              {LINKS.map((l) => (
-                <li key={l.href}>
-                  <Link href={l.href} className="hover:text-white transition-colors">
-                    {l.label}
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          </nav>
+      <div className="max-w-6xl mx-auto px-5 sm:px-8">
+
+        {/* Upper: brand + link columns */}
+        <div className="grid grid-cols-1 lg:grid-cols-[1.3fr_2fr] gap-10 lg:gap-16 py-14">
+
+          {/* Brand column */}
+          <div>
+            <Link href="/" className="inline-flex items-center gap-2.5" aria-label="MarketPips home">
+              <LogoMark size={30} />
+              <span className="font-display text-[17px] font-bold tracking-tight" style={{ color: 'var(--text)' }}>
+                MarketPips
+              </span>
+            </Link>
+
+            <p className="mt-4 text-[0.95rem] leading-relaxed max-w-[38ch]" style={{ color: 'var(--text-2)' }}>
+              The clearest view of what happens next — a transparent, regulated prediction
+              market built for East Africa. Live probabilities, fair pricing, instant mobile-money settlement.
+            </p>
+
+            {/* Settlement currencies */}
+            <div className="mt-7">
+              <span className="text-[11px] font-semibold uppercase tracking-[0.12em]" style={{ color: 'var(--text-3)' }}>
+                Settles in
+              </span>
+              <div className="mt-2.5 flex flex-wrap gap-1.5">
+                {CURRENCIES.map((c) => (
+                  <span
+                    key={c}
+                    className="font-mono text-[12px] px-2 py-1 rounded"
+                    style={{ background: 'var(--surface-2)', border: '1px solid var(--hairline)', color: 'var(--text-2)' }}
+                  >
+                    {c}
+                  </span>
+                ))}
+              </div>
+            </div>
+
+            {/* Payment rails */}
+            <div className="mt-5">
+              <span className="text-[11px] font-semibold uppercase tracking-[0.12em]" style={{ color: 'var(--text-3)' }}>
+                Fund with
+              </span>
+              <div className="mt-2.5 flex flex-wrap gap-1.5">
+                {PAYMENTS.map((p) => (
+                  <span
+                    key={p}
+                    className="text-[12px] font-medium px-2.5 py-1 rounded"
+                    style={{ background: 'var(--surface-2)', border: '1px solid var(--hairline)', color: 'var(--text-2)' }}
+                  >
+                    {p}
+                  </span>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* Link columns */}
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-8">
+            {COLUMNS.map((col) => (
+              <nav key={col.heading} aria-label={col.heading}>
+                <h2 className="text-[12px] font-semibold uppercase tracking-[0.12em]" style={{ color: 'var(--text)' }}>
+                  {col.heading}
+                </h2>
+                <ul className="mt-4 space-y-2.5">
+                  {col.links.map((l) => (
+                    <li key={l.href}>
+                      <Link
+                        href={l.href}
+                        className="footer-link text-[0.92rem] transition-colors"
+                        style={{ color: 'var(--text-2)' }}
+                      >
+                        {l.label}
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              </nav>
+            ))}
+          </div>
+        </div>
+
+        {/* Risk / responsible-play disclosure */}
+        <div
+          className="rounded-xl px-5 py-4 mb-10 flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-5"
+          style={{ background: 'var(--surface-2)', border: '1px solid var(--hairline)' }}
+        >
+          <p className="text-[12.5px] leading-relaxed flex-1" style={{ color: 'var(--text-3)' }}>
+            <strong style={{ color: 'var(--text-2)' }}>Trade responsibly.</strong>{' '}
+            Prediction markets involve financial risk and you may lose the amount you commit.
+            MarketPips is intended for users aged 18+. Set deposit and loss limits, take cooldowns,
+            or self-exclude at any time.
+          </p>
+          <Link
+            href="/legal/responsible-play"
+            className="footer-link flex-none inline-flex items-center gap-1.5 text-[12.5px] font-semibold"
+            style={{ color: 'var(--pip-500)' }}
+          >
+            Responsible-play tools <IconArrowRight size={13} />
+          </Link>
+        </div>
+
+        {/* Bottom bar */}
+        <div
+          className="py-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between border-t"
+          style={{ borderColor: 'var(--hairline)' }}
+        >
+          <p className="text-[13px]" style={{ color: 'var(--text-3)' }}>
+            © {YEAR} MarketPips · Prediction markets for East Africa
+          </p>
           <LocaleSwitcher />
         </div>
       </div>

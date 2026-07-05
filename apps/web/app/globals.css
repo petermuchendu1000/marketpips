@@ -312,6 +312,10 @@
   /* ---- Divider ---- */
   .divider { height:1px; background:var(--hairline); width:100%; }
 
+  /* ---- Footer link (correct hover in BOTH themes \u2014 never hover:text-white) ---- */
+  .footer-link { text-decoration:none; }
+  .footer-link:hover { color:var(--pip-500) !important; }
+
   /* ---- Wallet chip (neutral money, brand-blue) ---- */
   .wallet-chip {
     display:inline-flex; align-items:center; gap:6px; padding:7px 12px;

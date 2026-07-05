@@ -9,6 +9,7 @@ import { useLocale } from 'next-intl'
 import { useRouter } from 'next/navigation'
 import { useState, useTransition, useId } from 'react'
 import { LOCALES, LOCALE_LABELS, isAppLocale } from '@/i18n/config'
+import { IconGlobe } from '@/components/ui/icons'
 
 export function LocaleSwitcher() {
   const active = useLocale()
@@ -38,19 +39,20 @@ export function LocaleSwitcher() {
       <label htmlFor={selectId} className="sr-only">
         Choose language
       </label>
-      <span aria-hidden="true" className="text-[var(--text-secondary)]">
-        {/* Globe glyph; label is provided by the associated <label>. */}
-        🌐
+      <span aria-hidden="true" className="text-[var(--text-3)]">
+        {/* Custom globe glyph (no emoji); label is provided by the associated <label>. */}
+        <IconGlobe size={15} />
       </span>
       <select
         id={selectId}
         value={active}
         disabled={saving || pending}
         onChange={(e) => onChange(e.target.value)}
-        className="rounded-md border border-[var(--border)] bg-transparent px-2 py-1 text-[13px] text-[var(--text-secondary)] hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 disabled:opacity-60"
+        className="rounded-md border bg-transparent px-2 py-1 text-[13px] transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 disabled:opacity-60"
+        style={{ borderColor: 'var(--hairline)', color: 'var(--text-2)' }}
       >
         {LOCALES.map((loc) => (
-          <option key={loc} value={loc} className="bg-[var(--bg)] text-white">
+          <option key={loc} value={loc} style={{ background: 'var(--surface)', color: 'var(--text)' }}>
             {LOCALE_LABELS[loc]}
           </option>
         ))}
