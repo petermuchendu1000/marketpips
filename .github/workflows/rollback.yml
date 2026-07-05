@@ -31,7 +31,7 @@ env:
 
 jobs:
   rollback:
-    name: Rollback ${{ env.FLY_APP }}
+    name: Rollback marketpips-prod
     runs-on: ubuntu-latest
     environment:
       name: production          # required reviewers gate the rollback too
