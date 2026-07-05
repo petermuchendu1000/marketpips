@@ -46,11 +46,29 @@ jobs:
           supabase link --project-ref "$SUPABASE_PROJECT_ID"
           supabase db push
 
+      # --- Preflight: only attempt the Fly deploy when credentials exist. ---
+      # A missing FLY_API_TOKEN means the staging Fly app isn't provisioned for
+      # this environment; skip the Fly build/deploy/smoke steps cleanly instead
+      # of hard-failing the whole run (the DB migration above still applies).
+      - name: Check Fly credentials
+        id: flycheck
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+        run: |
+          if [ -n "$FLY_API_TOKEN" ]; then
+            echo "configured=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+            echo "::warning title=Staging deploy skipped::FLY_API_TOKEN is not configured — skipping Fly build/deploy/smoke. Migrations were still applied."
+          fi
+
       # --- Build + publish an immutable image, capture its digest ---
       - name: Setup Fly CLI
+        if: steps.flycheck.outputs.configured == 'true'
         uses: superfly/flyctl-actions/setup-flyctl@master
       - name: Build & push image (record digest)
         id: publish
+        if: steps.flycheck.outputs.configured == 'true'
         env:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
         run: |
@@ -69,6 +87,7 @@ jobs:
 
       # --- Health-gated deploy (Fly aborts cutover if checks fail) ---
       - name: Deploy to staging (health-gated)
+        if: steps.flycheck.outputs.configured == 'true'
         env:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
         run: |
@@ -79,6 +98,7 @@ jobs:
 
       # --- Post-deploy smoke gates the run (and thus any promotion) ---
       - name: Post-deploy smoke
+        if: steps.flycheck.outputs.configured == 'true'
         run: |
           chmod +x scripts/smoke.sh
           scripts/smoke.sh "https://${FLY_APP}.fly.dev"
