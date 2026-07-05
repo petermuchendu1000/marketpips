@@ -150,13 +150,16 @@ export default function SearchPage() {
         </select>
       </div>
 
-      {/* Results count */}
-      {!loading && (
-        <p className="text-sm text-base-content/50 mb-4" aria-live="polite">
-          {total} market{total !== 1 ? 's' : ''} found
-          {debouncedQuery ? ` for "${debouncedQuery}"` : ''}
-        </p>
-      )}
+      {/* Results count — always rendered (reserved height) so the
+          loading -> loaded transition doesn't shift layout (CLS). */}
+      <p className="text-sm text-base-content/50 mb-4 min-h-[1.25rem]" aria-live="polite">
+        {!loading && (
+          <>
+            {total} market{total !== 1 ? 's' : ''} found
+            {debouncedQuery ? ` for "${debouncedQuery}"` : ''}
+          </>
+        )}
+      </p>
 
       {/* Results */}
       {loading ? (

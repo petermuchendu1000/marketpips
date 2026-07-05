@@ -20,7 +20,11 @@ const WCAG_TAGS = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa']
 
 for (const page of KEY_PAGES) {
   test(`a11y: ${page.name} has no critical/serious violations`, async ({ page: p }) => {
-    await p.goto(page.path, { waitUntil: 'networkidle' })
+    // Auth pages keep persistent connections open (Supabase client), so
+    // 'networkidle' never settles and goto would hard-time-out at 30s before we
+    // can inspect the page. Wait for the DOM, then try to settle best-effort.
+    await p.goto(page.path, { waitUntil: 'domcontentloaded' })
+    await p.waitForLoadState('networkidle', { timeout: 5000 }).catch(() => {})
 
     // Guard: under CI load the auth provider (Supabase) can return a transient
     // rate-limit interstitial ("Too many requests" JSON) in place of the real
