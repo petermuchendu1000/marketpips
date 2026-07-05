@@ -284,6 +284,13 @@ function DepositSheet({ onClose }: { onClose: () => void }) {
   const [phone, setPhone] = useState('')
   const [step, setStep] = useState<'form' | 'loading' | 'success'>('form')
 
+  // Close on Escape for keyboard users (backdrop click handles pointer dismissal).
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
+    document.addEventListener('keydown', onKey)
+    return () => document.removeEventListener('keydown', onKey)
+  }, [onClose])
+
   const submit = async () => {
     if (!amount || !phone) return
     setStep('loading')
@@ -300,8 +307,12 @@ function DepositSheet({ onClose }: { onClose: () => void }) {
   }
 
   return (
-    <div className="modal-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
-      <div className="modal-sheet animate-slide-up">
+    <div
+      className="modal-overlay"
+      role="presentation"
+      onClick={e => e.target === e.currentTarget && onClose()}
+    >
+      <div className="modal-sheet animate-slide-up" role="dialog" aria-modal="true">
         {/* Handle */}
         <div className="w-10 h-1 bg-[var(--border)] rounded-full mx-auto mb-5" />
 

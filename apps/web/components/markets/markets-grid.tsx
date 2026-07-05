@@ -22,22 +22,20 @@ export function MarketsGrid({ initialMarkets = [] }: { initialMarkets?: Market[]
   const [page, setPage] = useState(1)
   const [hasMore, setHasMore] = useState(true)
 
-  const fetch = useCallback(async (reset = false) => {
+  const fetchMarkets = useCallback(async (pageToLoad: number, reset: boolean) => {
     setLoading(true)
-    const p = reset ? 1 : page
-    const params = new URLSearchParams({ q: query, category, sort, page: String(p), per_page: '12' })
+    const params = new URLSearchParams({ q: query, category, sort, page: String(pageToLoad), per_page: '12' })
     const res = await window.fetch(`/api/search?${params}`)
     const data = await res.json()
     setMarkets(prev => reset ? data.data : [...prev, ...data.data])
     setHasMore(data.has_next)
-    if (!reset) setPage(p + 1)
+    setPage(pageToLoad)
     setLoading(false)
-  }, [query, category, sort, page])
+  }, [query, category, sort])
 
   useEffect(() => {
-    setPage(1)
-    fetch(true)
-  }, [category, sort, query])
+    fetchMarkets(1, true)
+  }, [fetchMarkets])
 
   return (
     <div>
@@ -102,7 +100,7 @@ export function MarketsGrid({ initialMarkets = [] }: { initialMarkets?: Market[]
             <div className="text-center mt-8">
               <button
                 className="btn btn-secondary"
-                onClick={() => fetch()}
+                onClick={() => fetchMarkets(page + 1, false)}
               >
                 Load more
               </button>

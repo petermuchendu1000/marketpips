@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/hooks/use-auth'
 import { createClient } from '@/lib/supabase/client'
@@ -10,7 +10,7 @@ type DocType = 'national_id' | 'passport' | 'drivers_license'
 export default function KYCPage() {
   const { user, loading } = useAuth()
   const router = useRouter()
-  const supabase = createClient()
+  const supabase = useMemo(() => createClient(), [])
 
   const [docType, setDocType] = useState<DocType>('national_id')
   const [docNumber, setDocNumber] = useState('')
@@ -40,7 +40,7 @@ export default function KYCPage() {
       .then(({ data }) => {
         if (data) setExistingStatus(data.status)
       })
-  }, [user])
+  }, [user, supabase])
 
   const uploadFile = async (file: File, path: string): Promise<string | null> => {
     const { data, error } = await supabase.storage
@@ -218,30 +218,32 @@ function FileUpload({ label, hint, onFile }: { label: string; hint?: string; onF
         <span className="label-text font-medium">{label}</span>
         {hint && <span className="label-text-alt text-base-content/50">{hint}</span>}
       </span>
-      <div
-        className="border-2 border-dashed border-base-300 rounded-xl p-4 flex flex-col items-center gap-2 cursor-pointer hover:border-primary transition-colors"
+      <button
+        type="button"
+        aria-label={name ? `${label}: ${name}. Change file` : `Upload ${label}`}
+        className="w-full border-2 border-dashed border-base-300 rounded-xl p-4 flex flex-col items-center gap-2 cursor-pointer hover:border-primary focus-visible:border-primary transition-colors"
         onClick={() => ref.current?.click()}
       >
         {name ? (
-          <p className="text-sm text-success">✓ {name}</p>
+          <span className="text-sm text-success">✓ {name}</span>
         ) : (
           <>
-            <p className="text-2xl">📁</p>
-            <p className="text-sm text-base-content/60">Click to upload or drag & drop</p>
-            <p className="text-xs text-base-content/40">JPG, PNG, PDF (max 5MB)</p>
+            <span className="text-2xl" aria-hidden="true">📁</span>
+            <span className="text-sm text-base-content/60">Click to upload or drag & drop</span>
+            <span className="text-xs text-base-content/40">JPG, PNG, PDF (max 5MB)</span>
           </>
         )}
-        <input
-          ref={ref}
-          type="file"
-          className="hidden"
-          accept="image/jpeg,image/png,application/pdf"
-          onChange={(e) => {
-            const f = e.target.files?.[0]
-            if (f) { onFile(f); setName(f.name) }
-          }}
-        />
-      </div>
+      </button>
+      <input
+        ref={ref}
+        type="file"
+        className="hidden"
+        accept="image/jpeg,image/png,application/pdf"
+        onChange={(e) => {
+          const f = e.target.files?.[0]
+          if (f) { onFile(f); setName(f.name) }
+        }}
+      />
     </div>
   )
 }

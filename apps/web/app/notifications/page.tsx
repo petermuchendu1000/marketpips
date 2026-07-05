@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { useAuth } from '@/hooks/use-auth'
@@ -27,7 +27,7 @@ const TYPE_EMOJI: Record<string, string> = {
 export default function NotificationsPage() {
   const { user, loading } = useAuth()
   const router = useRouter()
-  const supabase = createClient()
+  const supabase = useMemo(() => createClient(), [])
 
   const [notifications, setNotifications] = useState<Notification[]>([])
   const [fetching, setFetching] = useState(true)
@@ -63,7 +63,7 @@ export default function NotificationsPage() {
       .subscribe()
 
     return () => { supabase.removeChannel(channel) }
-  }, [user])
+  }, [user, supabase])
 
   const markAllRead = async () => {
     if (!user) return
@@ -125,10 +125,19 @@ export default function NotificationsPage() {
           {notifications.map((n) => (
             <div
               key={n.id}
-              className={`card cursor-pointer transition-all ${
-                n.is_read ? 'bg-base-200 opacity-70' : 'bg-base-200 border border-primary/20 shadow-sm'
+              role="button"
+              tabIndex={n.is_read ? -1 : 0}
+              aria-label={n.is_read ? `${n.title} (read)` : `${n.title} (unread) — mark as read`}
+              className={`card transition-all ${
+                n.is_read ? 'bg-base-200 opacity-70' : 'bg-base-200 border border-primary/20 shadow-sm cursor-pointer'
               }`}
               onClick={() => !n.is_read && markRead(n.id)}
+              onKeyDown={(e) => {
+                if (!n.is_read && (e.key === 'Enter' || e.key === ' ')) {
+                  e.preventDefault()
+                  markRead(n.id)
+                }
+              }}
             >
               <div className="card-body py-3 px-4 flex flex-row gap-3 items-start">
                 <span className="text-xl mt-0.5">{TYPE_EMOJI[n.type] || '📌'}</span>

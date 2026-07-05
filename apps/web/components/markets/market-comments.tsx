@@ -1,7 +1,7 @@
 'use client'
 
 // components/markets/market-comments.tsx
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import { Send, Loader2 } from 'lucide-react'
 import { formatDistanceToNow } from 'date-fns'
 import { createClient } from '@/lib/supabase/client'
@@ -20,9 +20,9 @@ export function MarketComments({ marketId }: MarketCommentsProps) {
   const [newComment, setNewComment] = useState('')
   const [isLoading, setIsLoading] = useState(true)
   const [isSubmitting, setIsSubmitting] = useState(false)
-  const supabase = createClient()
+  const supabase = useMemo(() => createClient(), [])
 
-  const fetchComments = async () => {
+  const fetchComments = useCallback(async () => {
     const { data } = await supabase
       .from('comments')
       .select('*, user:profiles!comments_user_id_fkey(id, display_name, avatar_url, username)')
@@ -34,7 +34,7 @@ export function MarketComments({ marketId }: MarketCommentsProps) {
 
     setComments((data as Comment[]) || [])
     setIsLoading(false)
-  }
+  }, [supabase, marketId])
 
   useEffect(() => {
     fetchComments()
@@ -53,7 +53,7 @@ export function MarketComments({ marketId }: MarketCommentsProps) {
       .subscribe()
 
     return () => { supabase.removeChannel(channel) }
-  }, [marketId])
+  }, [marketId, supabase, fetchComments])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()

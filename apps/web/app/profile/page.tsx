@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { useAuth } from '@/hooks/use-auth'
@@ -10,7 +10,7 @@ import { CURRENCIES } from '@/types'
 export default function ProfilePage() {
   const { user, loading } = useAuth()
   const router = useRouter()
-  const supabase = createClient()
+  const supabase = useMemo(() => createClient(), [])
 
   const [profile, setProfile] = useState<Profile | null>(null)
   const [wallets, setWallets] = useState<Wallet[]>([])
@@ -53,7 +53,7 @@ export default function ProfilePage() {
       if (wals) setWallets(wals as Wallet[])
     }
     load()
-  }, [user])
+  }, [user, supabase])
 
   const handleSave = async () => {
     if (!user) return

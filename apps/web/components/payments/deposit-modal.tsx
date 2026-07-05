@@ -1,7 +1,7 @@
 'use client'
 
 // components/payments/deposit-modal.tsx
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { Loader2, CheckCircle2, XCircle, Smartphone, ChevronRight } from 'lucide-react'
 import toast from 'react-hot-toast'
 import type { CurrencyCode, PaymentProvider } from '@/types'
@@ -31,14 +31,17 @@ export function DepositModal({ isOpen, onClose, defaultCurrency = 'KES' }: Depos
   const [statusMessage, setStatusMessage] = useState('')
 
   const currencyInfo = CURRENCIES[currency]
-  const availableProviders = currencyInfo?.providers || ['pesapal']
+  const availableProviders = useMemo<PaymentProvider[]>(
+    () => currencyInfo?.providers || ['pesapal'],
+    [currencyInfo]
+  )
 
   // Auto-select first provider when currency changes
   useEffect(() => {
     if (!availableProviders.includes(provider)) {
       setProvider(availableProviders[0])
     }
-  }, [currency, availableProviders, provider])
+  }, [availableProviders, provider])
 
   // Poll for payment status
   useEffect(() => {
