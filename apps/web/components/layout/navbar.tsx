@@ -332,7 +332,7 @@ function DepositSheet({ onClose }: { onClose: () => void }) {
 
             {/* Quick amounts */}
             <div className="mb-4">
-              <label className="text-xs font-semibold uppercase tracking-wide mb-2 block" style={{ color: 'var(--text-muted)' }}>Amount (KES)</label>
+              <label htmlFor="amount-kes" className="text-xs font-semibold uppercase tracking-wide mb-2 block" style={{ color: 'var(--text-muted)' }}>Amount (KES)</label>
               <div className="grid grid-cols-4 gap-2 mb-3">
                 {['500', '1000', '2000', '5000'].map(v => (
                   <button
@@ -349,7 +349,7 @@ function DepositSheet({ onClose }: { onClose: () => void }) {
                   </button>
                 ))}
               </div>
-              <input
+              <input id="amount-kes"
                 className="input input-lg"
                 type="number"
                 placeholder="Or enter amount…"
@@ -359,8 +359,8 @@ function DepositSheet({ onClose }: { onClose: () => void }) {
             </div>
 
             <div className="mb-5">
-              <label className="text-xs font-semibold uppercase tracking-wide mb-2 block" style={{ color: 'var(--text-muted)' }}>Phone Number</label>
-              <input
+              <label htmlFor="phone-number" className="text-xs font-semibold uppercase tracking-wide mb-2 block" style={{ color: 'var(--text-muted)' }}>Phone Number</label>
+              <input id="phone-number"
                 className="input"
                 type="tel"
                 placeholder="+254 700 000 000"

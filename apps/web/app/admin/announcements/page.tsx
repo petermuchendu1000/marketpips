@@ -68,8 +68,8 @@ export default async function AnnouncementsPage({
       {/* Filters */}
       <form className="flex flex-wrap items-end gap-2" action="/admin/announcements" method="get">
         <div>
-          <label className="text-xs text-muted-foreground">Status</label>
-          <select name="status" defaultValue={params.status ?? ''} className="block rounded-lg border bg-background px-2 py-1.5 text-sm">
+          <label htmlFor="status" className="text-xs text-muted-foreground">Status</label>
+          <select id="status" name="status" defaultValue={params.status ?? ''} className="block rounded-lg border bg-background px-2 py-1.5 text-sm">
             <option value="">All</option>
             {ANNOUNCEMENT_STATUSES.map((s) => (
               <option key={s} value={s}>{s}</option>
@@ -77,8 +77,8 @@ export default async function AnnouncementsPage({
           </select>
         </div>
         <div>
-          <label className="text-xs text-muted-foreground">Search title</label>
-          <input name="q" defaultValue={params.q ?? ''} placeholder="title contains…" className="block rounded-lg border bg-background px-2 py-1.5 text-sm" />
+          <label htmlFor="search-title" className="text-xs text-muted-foreground">Search title</label>
+          <input id="search-title" name="q" defaultValue={params.q ?? ''} placeholder="title contains…" className="block rounded-lg border bg-background px-2 py-1.5 text-sm" />
         </div>
         <button className="rounded-lg bg-primary px-3 py-1.5 text-sm font-semibold text-primary-foreground">Apply</button>
         <Link href="/admin/announcements" className="rounded-lg border px-3 py-1.5 text-sm hover:bg-muted">Reset</Link>

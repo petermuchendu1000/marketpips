@@ -85,10 +85,10 @@ export default function CreateMarketPage() {
       <form onSubmit={handleSubmit} className="space-y-5">
         {/* Title */}
         <div>
-          <label className="text-sm font-medium mb-1.5 block">
+          <label htmlFor="question" className="text-sm font-medium mb-1.5 block">
             Question <span className="text-destructive">*</span>
           </label>
-          <input
+          <input id="question"
             type="text"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
@@ -103,10 +103,10 @@ export default function CreateMarketPage() {
 
         {/* Description */}
         <div>
-          <label className="text-sm font-medium mb-1.5 block">
+          <label htmlFor="description" className="text-sm font-medium mb-1.5 block">
             Description <span className="text-destructive">*</span>
           </label>
-          <textarea
+          <textarea id="description"
             value={description}
             onChange={(e) => setDescription(e.target.value)}
             required
@@ -120,7 +120,7 @@ export default function CreateMarketPage() {
 
         {/* Category */}
         <div>
-          <label className="text-sm font-medium mb-1.5 block">Category</label>
+          <span className="text-sm font-medium mb-1.5 block">Category</span>
           <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
             {(Object.keys(CATEGORY_LABELS) as MarketCategory[]).map((cat) => {
               const info = CATEGORY_LABELS[cat]
@@ -145,7 +145,7 @@ export default function CreateMarketPage() {
 
         {/* Resolution criteria */}
         <div>
-          <label className="text-sm font-medium mb-1.5 block">
+          <label htmlFor="resolution-criteria" className="text-sm font-medium mb-1.5 block">
             Resolution Criteria <span className="text-destructive">*</span>
           </label>
           <div className="flex gap-1 items-start mb-1.5">
@@ -154,7 +154,7 @@ export default function CreateMarketPage() {
               Describe EXACTLY how this market resolves YES or NO. Include the authoritative source.
             </p>
           </div>
-          <textarea
+          <textarea id="resolution-criteria"
             value={criteria}
             onChange={(e) => setCriteria(e.target.value)}
             required
@@ -168,10 +168,10 @@ export default function CreateMarketPage() {
 
         {/* Close date */}
         <div>
-          <label className="text-sm font-medium mb-1.5 block">
+          <label htmlFor="betting-closes-at" className="text-sm font-medium mb-1.5 block">
             Betting Closes At <span className="text-destructive">*</span>
           </label>
-          <input
+          <input id="betting-closes-at"
             type="datetime-local"
             value={closesAt}
             onChange={(e) => setClosesAt(e.target.value)}
@@ -183,10 +183,10 @@ export default function CreateMarketPage() {
 
         {/* Tags */}
         <div>
-          <label className="text-sm font-medium mb-1.5 block">
+          <label htmlFor="tags" className="text-sm font-medium mb-1.5 block">
             Tags <span className="text-muted-foreground">(optional)</span>
           </label>
-          <input
+          <input id="tags"
             type="text"
             value={tags}
             onChange={(e) => setTags(e.target.value)}

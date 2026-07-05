@@ -62,10 +62,10 @@ export function SettingsForm({ groups }: { groups: Record<string, ResolvedSettin
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             {list.map((s) => (
               <div key={s.key} className="space-y-1">
-                <label className="flex items-center justify-between gap-3 text-xs font-medium text-muted-foreground">
+                <span className="flex items-center justify-between gap-3 text-xs font-medium text-muted-foreground">
                   <span>{s.label}</span>
                   {s.isPublic && <span className="rounded bg-muted px-1.5 py-0.5 text-[10px] uppercase">public</span>}
-                </label>
+                </span>
                 {s.type === 'boolean' ? (
                   <button
                     type="button"

@@ -84,8 +84,8 @@ export default function WithdrawModal({ onClose }: { onClose: () => void }) {
 
       <div className="space-y-4">
         <div className="form-control">
-          <label className="label"><span className="label-text">Currency</span></label>
-          <select
+          <label htmlFor="currency" className="label"><span className="label-text">Currency</span></label>
+          <select id="currency"
             className="select select-bordered"
             value={currency}
             onChange={(e) => setCurrency(e.target.value as CurrencyCode)}
@@ -108,7 +108,7 @@ export default function WithdrawModal({ onClose }: { onClose: () => void }) {
         )}
 
         <div className="form-control">
-          <label className="label">
+          <label htmlFor="amount-max" className="label">
             <span className="label-text">Amount ({currency})</span>
             {wallet && (
               <button
@@ -119,7 +119,7 @@ export default function WithdrawModal({ onClose }: { onClose: () => void }) {
               </button>
             )}
           </label>
-          <input
+          <input id="amount-max"
             type="number"
             className="input input-bordered"
             placeholder="0"
@@ -129,11 +129,11 @@ export default function WithdrawModal({ onClose }: { onClose: () => void }) {
         </div>
 
         <div className="form-control">
-          <label className="label">
+          <label htmlFor="phone-number" className="label">
             <span className="label-text">Phone Number</span>
             <span className="label-text-alt text-base-content/50">{currencyInfo?.providers[0]?.toUpperCase()}</span>
           </label>
-          <input
+          <input id="phone-number"
             type="tel"
             className="input input-bordered"
             placeholder={currency === 'KES' ? '+254700000000' : currency === 'UGX' ? '+256700000000' : '+255700000000'}

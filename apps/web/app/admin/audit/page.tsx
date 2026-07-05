@@ -83,24 +83,24 @@ export default async function AuditPage({
       <form className="flex flex-wrap items-end gap-2" action="/admin/audit" method="get">
         {securityOnly && <input type="hidden" name="view" value="security" />}
         <div>
-          <label className="text-xs text-muted-foreground">Action</label>
-          <input name="action" defaultValue={params.action ?? ''} placeholder="e.g. user.set_role" className="block rounded-lg border bg-background px-2 py-1.5 text-sm" />
+          <label htmlFor="action" className="text-xs text-muted-foreground">Action</label>
+          <input id="action" name="action" defaultValue={params.action ?? ''} placeholder="e.g. user.set_role" className="block rounded-lg border bg-background px-2 py-1.5 text-sm" />
         </div>
         <div>
-          <label className="text-xs text-muted-foreground">Entity type</label>
-          <input name="entityType" defaultValue={params.entityType ?? ''} placeholder="e.g. profile" className="block rounded-lg border bg-background px-2 py-1.5 text-sm" />
+          <label htmlFor="entity-type" className="text-xs text-muted-foreground">Entity type</label>
+          <input id="entity-type" name="entityType" defaultValue={params.entityType ?? ''} placeholder="e.g. profile" className="block rounded-lg border bg-background px-2 py-1.5 text-sm" />
         </div>
         <div>
-          <label className="text-xs text-muted-foreground">Actor (UUID)</label>
-          <input name="actor" defaultValue={params.actor ?? ''} placeholder="profile id" className="block w-44 rounded-lg border bg-background px-2 py-1.5 text-sm" />
+          <label htmlFor="actor-uuid" className="text-xs text-muted-foreground">Actor (UUID)</label>
+          <input id="actor-uuid" name="actor" defaultValue={params.actor ?? ''} placeholder="profile id" className="block w-44 rounded-lg border bg-background px-2 py-1.5 text-sm" />
         </div>
         <div>
-          <label className="text-xs text-muted-foreground">From</label>
-          <input type="date" name="from" defaultValue={params.from ?? ''} className="block rounded-lg border bg-background px-2 py-1.5 text-sm" />
+          <label htmlFor="from" className="text-xs text-muted-foreground">From</label>
+          <input id="from" type="date" name="from" defaultValue={params.from ?? ''} className="block rounded-lg border bg-background px-2 py-1.5 text-sm" />
         </div>
         <div>
-          <label className="text-xs text-muted-foreground">To</label>
-          <input type="date" name="to" defaultValue={params.to ?? ''} className="block rounded-lg border bg-background px-2 py-1.5 text-sm" />
+          <label htmlFor="to" className="text-xs text-muted-foreground">To</label>
+          <input id="to" type="date" name="to" defaultValue={params.to ?? ''} className="block rounded-lg border bg-background px-2 py-1.5 text-sm" />
         </div>
         <button className="rounded-lg bg-primary px-3 py-1.5 text-sm font-semibold text-primary-foreground">Apply</button>
         <Link href="/admin/audit" className="rounded-lg border px-3 py-1.5 text-sm hover:bg-muted">Reset</Link>

@@ -112,9 +112,9 @@ export default function RegisterPage() {
 
         <form onSubmit={handleRegister} className="space-y-4">
           <div>
-            <label className="text-xs font-semibold uppercase tracking-wide block mb-1.5"
+            <label htmlFor="full-name" className="text-xs font-semibold uppercase tracking-wide block mb-1.5"
               style={{ color: 'var(--text-muted)' }}>Full Name</label>
-            <input
+            <input id="full-name"
               className="input"
               type="text"
               placeholder="John Kamau"
@@ -125,9 +125,9 @@ export default function RegisterPage() {
           </div>
 
           <div>
-            <label className="text-xs font-semibold uppercase tracking-wide block mb-1.5"
+            <label htmlFor="email" className="text-xs font-semibold uppercase tracking-wide block mb-1.5"
               style={{ color: 'var(--text-muted)' }}>Email</label>
-            <input
+            <input id="email"
               className="input"
               type="email"
               placeholder="you@example.com"
@@ -139,9 +139,9 @@ export default function RegisterPage() {
           </div>
 
           <div>
-            <label className="text-xs font-semibold uppercase tracking-wide block mb-1.5"
+            <label htmlFor="password" className="text-xs font-semibold uppercase tracking-wide block mb-1.5"
               style={{ color: 'var(--text-muted)' }}>Password</label>
-            <input
+            <input id="password"
               className="input"
               type="password"
               placeholder="Min. 8 characters"
@@ -154,9 +154,9 @@ export default function RegisterPage() {
           </div>
 
           <div>
-            <label className="text-xs font-semibold uppercase tracking-wide block mb-1.5"
+            <label htmlFor="country" className="text-xs font-semibold uppercase tracking-wide block mb-1.5"
               style={{ color: 'var(--text-muted)' }}>Country</label>
-            <select
+            <select id="country"
               className="input"
               value={country}
               onChange={e => setCountry(e.target.value)}
@@ -171,9 +171,9 @@ export default function RegisterPage() {
 
           {refCode !== '' && (
             <div>
-              <label className="text-xs font-semibold uppercase tracking-wide block mb-1.5"
+              <label htmlFor="referral-code" className="text-xs font-semibold uppercase tracking-wide block mb-1.5"
                 style={{ color: 'var(--text-muted)' }}>Referral Code</label>
-              <input
+              <input id="referral-code"
                 className="input font-mono"
                 type="text"
                 value={refCode}

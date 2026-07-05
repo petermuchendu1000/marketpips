@@ -132,7 +132,7 @@ export default function KYCPage() {
 
       <div className="space-y-5">
         <div className="form-control">
-          <label className="label"><span className="label-text font-medium">Document Type</span></label>
+          <span className="label"><span className="label-text font-medium">Document Type</span></span>
           <div className="flex gap-2 flex-wrap">
             {(['national_id', 'passport', 'drivers_license'] as DocType[]).map((dt) => (
               <button
@@ -148,8 +148,8 @@ export default function KYCPage() {
 
         <div className="grid grid-cols-2 gap-4">
           <div className="form-control">
-            <label className="label"><span className="label-text">Document Number</span></label>
-            <input
+            <label htmlFor="document-number" className="label"><span className="label-text">Document Number</span></label>
+            <input id="document-number"
               type="text"
               className="input input-bordered input-sm"
               placeholder="e.g. 12345678"
@@ -158,8 +158,8 @@ export default function KYCPage() {
             />
           </div>
           <div className="form-control">
-            <label className="label"><span className="label-text">Country of Issue</span></label>
-            <select
+            <label htmlFor="country-of-issue" className="label"><span className="label-text">Country of Issue</span></label>
+            <select id="country-of-issue"
               className="select select-bordered select-sm"
               value={countryOfIssue}
               onChange={(e) => setCountryOfIssue(e.target.value)}
@@ -176,8 +176,8 @@ export default function KYCPage() {
         </div>
 
         <div className="form-control">
-          <label className="label"><span className="label-text">Expiry Date (optional)</span></label>
-          <input
+          <label htmlFor="expiry-date" className="label"><span className="label-text">Expiry Date (optional)</span></label>
+          <input id="expiry-date"
             type="date"
             className="input input-bordered input-sm"
             value={expiryDate}
@@ -214,10 +214,10 @@ function FileUpload({ label, hint, onFile }: { label: string; hint?: string; onF
   const [name, setName] = useState('')
   return (
     <div className="form-control">
-      <label className="label">
+      <span className="label">
         <span className="label-text font-medium">{label}</span>
         {hint && <span className="label-text-alt text-base-content/50">{hint}</span>}
-      </label>
+      </span>
       <div
         className="border-2 border-dashed border-base-300 rounded-xl p-4 flex flex-col items-center gap-2 cursor-pointer hover:border-primary transition-colors"
         onClick={() => ref.current?.click()}

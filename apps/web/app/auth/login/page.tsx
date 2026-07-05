@@ -40,9 +40,9 @@ export default function LoginPage() {
 
         <form onSubmit={handleLogin} className="space-y-4">
           <div>
-            <label className="text-xs font-semibold uppercase tracking-wide block mb-1.5"
+            <label htmlFor="email" className="text-xs font-semibold uppercase tracking-wide block mb-1.5"
               style={{ color: 'var(--text-muted)' }}>Email</label>
-            <input
+            <input id="email"
               className="input"
               type="email"
               placeholder="you@example.com"
@@ -55,14 +55,14 @@ export default function LoginPage() {
 
           <div>
             <div className="flex items-center justify-between mb-1.5">
-              <label className="text-xs font-semibold uppercase tracking-wide"
+              <label htmlFor="password" className="text-xs font-semibold uppercase tracking-wide"
                 style={{ color: 'var(--text-muted)' }}>Password</label>
               <Link href="/auth/reset-password" className="text-xs"
                 style={{ color: 'var(--green)' }}>
                 Forgot?
               </Link>
             </div>
-            <input
+            <input id="password"
               className="input"
               type="password"
               placeholder="••••••••"

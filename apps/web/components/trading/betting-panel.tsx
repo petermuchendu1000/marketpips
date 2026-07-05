@@ -188,7 +188,7 @@ export function BettingPanel({ market }: BettingPanelProps) {
         <>
           {/* Amount input */}
           <div>
-            <label className="text-xs font-semibold uppercase tracking-wide block mb-2"
+            <label htmlFor="amount" className="text-xs font-semibold uppercase tracking-wide block mb-2"
               style={{ color: 'var(--text-muted)' }}>
               Amount ({preferredCurrency})
             </label>
@@ -211,7 +211,7 @@ export function BettingPanel({ market }: BettingPanelProps) {
               ))}
             </div>
 
-            <input
+            <input id="amount"
               className="input input-lg text-right"
               type="number"
               placeholder="0"

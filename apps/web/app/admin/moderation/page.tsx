@@ -72,8 +72,8 @@ export default async function ModerationPage({
       {/* Filters */}
       <form className="flex flex-wrap items-end gap-2" action="/admin/moderation" method="get">
         <div>
-          <label className="text-xs text-muted-foreground">Status</label>
-          <select name="status" defaultValue={params.status ?? ''} className="block rounded-lg border bg-background px-2 py-1.5 text-sm">
+          <label htmlFor="status" className="text-xs text-muted-foreground">Status</label>
+          <select id="status" name="status" defaultValue={params.status ?? ''} className="block rounded-lg border bg-background px-2 py-1.5 text-sm">
             <option value="">All</option>
             {REPORT_STATUSES.map((s) => (
               <option key={s} value={s}>{s}</option>
@@ -81,8 +81,8 @@ export default async function ModerationPage({
           </select>
         </div>
         <div>
-          <label className="text-xs text-muted-foreground">Type</label>
-          <select name="entity_type" defaultValue={params.entity_type ?? ''} className="block rounded-lg border bg-background px-2 py-1.5 text-sm">
+          <label htmlFor="type" className="text-xs text-muted-foreground">Type</label>
+          <select id="type" name="entity_type" defaultValue={params.entity_type ?? ''} className="block rounded-lg border bg-background px-2 py-1.5 text-sm">
             <option value="">All</option>
             {REPORT_ENTITY_TYPES.map((s) => (
               <option key={s} value={s}>{s}</option>
@@ -90,8 +90,8 @@ export default async function ModerationPage({
           </select>
         </div>
         <div>
-          <label className="text-xs text-muted-foreground">Reason</label>
-          <select name="reason" defaultValue={params.reason ?? ''} className="block rounded-lg border bg-background px-2 py-1.5 text-sm">
+          <label htmlFor="reason" className="text-xs text-muted-foreground">Reason</label>
+          <select id="reason" name="reason" defaultValue={params.reason ?? ''} className="block rounded-lg border bg-background px-2 py-1.5 text-sm">
             <option value="">All</option>
             {REPORT_REASONS.map((s) => (
               <option key={s} value={s}>{s}</option>
@@ -99,8 +99,8 @@ export default async function ModerationPage({
           </select>
         </div>
         <div>
-          <label className="text-xs text-muted-foreground">Search</label>
-          <input name="q" defaultValue={params.q ?? ''} placeholder="entity id or details" className="block rounded-lg border bg-background px-2 py-1.5 text-sm" />
+          <label htmlFor="search" className="text-xs text-muted-foreground">Search</label>
+          <input id="search" name="q" defaultValue={params.q ?? ''} placeholder="entity id or details" className="block rounded-lg border bg-background px-2 py-1.5 text-sm" />
         </div>
         <button className="rounded-lg bg-primary px-3 py-1.5 text-sm font-semibold text-primary-foreground">Apply</button>
         <Link href="/admin/moderation" className="rounded-lg border px-3 py-1.5 text-sm hover:bg-muted">Reset</Link>

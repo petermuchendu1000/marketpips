@@ -112,16 +112,16 @@ export function AnnouncementForm({ countries }: { countries: string[] }) {
 
       <div className="grid grid-cols-1 gap-3">
         <div>
-          <label className={label}>Title</label>
-          <input className={input} value={title} maxLength={200} onChange={(e) => setTitle(e.target.value)} placeholder="Heads up: scheduled maintenance" />
+          <label htmlFor="title" className={label}>Title</label>
+          <input id="title" className={input} value={title} maxLength={200} onChange={(e) => setTitle(e.target.value)} placeholder="Heads up: scheduled maintenance" />
         </div>
         <div>
-          <label className={label}>Body</label>
-          <textarea className={input + ' min-h-[96px]'} value={body} maxLength={5000} onChange={(e) => setBody(e.target.value)} placeholder="Message shown to recipients…" />
+          <label htmlFor="body" className={label}>Body</label>
+          <textarea id="body" className={input + ' min-h-[96px]'} value={body} maxLength={5000} onChange={(e) => setBody(e.target.value)} placeholder="Message shown to recipients…" />
         </div>
 
         <div>
-          <label className={label}>Channels</label>
+          <span className={label}>Channels</span>
           <div className="mt-1 flex flex-wrap gap-1.5">
             {CHANNELS.map((c) => (
               <button
@@ -141,7 +141,7 @@ export function AnnouncementForm({ countries }: { countries: string[] }) {
 
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
           <div>
-            <label className={label}>Countries (blank = all)</label>
+            <span className={label}>Countries (blank = all)</span>
             <div className="mt-1 flex max-h-24 flex-wrap gap-1.5 overflow-y-auto">
               {countries.map((c) => (
                 <button
@@ -159,7 +159,7 @@ export function AnnouncementForm({ countries }: { countries: string[] }) {
             </div>
           </div>
           <div>
-            <label className={label}>Roles (blank = all)</label>
+            <span className={label}>Roles (blank = all)</span>
             <div className="mt-1 flex max-h-24 flex-wrap gap-1.5 overflow-y-auto">
               {AUDIENCE_ROLES.map((r) => (
                 <button
@@ -177,7 +177,7 @@ export function AnnouncementForm({ countries }: { countries: string[] }) {
             </div>
           </div>
           <div>
-            <label className={label}>Account status</label>
+            <span className={label}>Account status</span>
             <div className="mt-1 flex flex-wrap gap-1.5">
               {AUDIENCE_STATUSES.map((s) => (
                 <button
@@ -197,8 +197,8 @@ export function AnnouncementForm({ countries }: { countries: string[] }) {
         </div>
 
         <div>
-          <label className={label}>Schedule (optional — blank saves a draft)</label>
-          <input type="datetime-local" className={input} value={scheduledAt} onChange={(e) => setScheduledAt(e.target.value)} />
+          <label htmlFor="schedule-blank-saves" className={label}>Schedule (optional — blank saves a draft)</label>
+          <input id="schedule-blank-saves" type="datetime-local" className={input} value={scheduledAt} onChange={(e) => setScheduledAt(e.target.value)} />
         </div>
 
         {preview && (

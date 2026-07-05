@@ -130,8 +130,8 @@ export default function ProfilePage() {
           <h2 className="card-title text-base">✏️ Edit Profile</h2>
           <div className="space-y-4 mt-2">
             <div className="form-control">
-              <label className="label"><span className="label-text">Display Name</span></label>
-              <input
+              <label htmlFor="display-name" className="label"><span className="label-text">Display Name</span></label>
+              <input id="display-name"
                 type="text"
                 className="input input-bordered"
                 value={form.display_name}
@@ -139,8 +139,8 @@ export default function ProfilePage() {
               />
             </div>
             <div className="form-control">
-              <label className="label"><span className="label-text">Username</span></label>
-              <input
+              <label htmlFor="username" className="label"><span className="label-text">Username</span></label>
+              <input id="username"
                 type="text"
                 className="input input-bordered"
                 placeholder="@username"
@@ -149,8 +149,8 @@ export default function ProfilePage() {
               />
             </div>
             <div className="form-control">
-              <label className="label"><span className="label-text">Bio</span></label>
-              <textarea
+              <label htmlFor="bio" className="label"><span className="label-text">Bio</span></label>
+              <textarea id="bio"
                 className="textarea textarea-bordered"
                 rows={3}
                 value={form.bio}
@@ -158,8 +158,8 @@ export default function ProfilePage() {
               />
             </div>
             <div className="form-control">
-              <label className="label"><span className="label-text">Phone Number</span></label>
-              <input
+              <label htmlFor="phone-number" className="label"><span className="label-text">Phone Number</span></label>
+              <input id="phone-number"
                 type="tel"
                 className="input input-bordered"
                 placeholder="+254700000000"
@@ -168,8 +168,8 @@ export default function ProfilePage() {
               />
             </div>
             <div className="form-control">
-              <label className="label"><span className="label-text">Preferred Currency</span></label>
-              <select
+              <label htmlFor="preferred-currency" className="label"><span className="label-text">Preferred Currency</span></label>
+              <select id="preferred-currency"
                 className="select select-bordered"
                 value={form.preferred_currency}
                 onChange={(e) => setForm({ ...form, preferred_currency: e.target.value as CurrencyCode })}

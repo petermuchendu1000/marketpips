@@ -99,8 +99,8 @@ export function MarketActions({
       {/* Reason-required actions: reject / dispute / cancel */}
       {(active === 'reject' || active === 'dispute' || active === 'cancel') && (
         <div className="flex flex-col gap-2 rounded-lg border p-3">
-          <label className="text-sm font-medium capitalize">{active} reason (required)</label>
-          <textarea
+          <label htmlFor="reason" className="text-sm font-medium capitalize">{active} reason (required)</label>
+          <textarea id="reason"
             value={reason}
             onChange={(e) => setReason(e.target.value)}
             rows={2}
@@ -123,7 +123,7 @@ export function MarketActions({
       {/* Resolve: outcome + notes */}
       {active === 'resolve' && (
         <div className="flex flex-col gap-2 rounded-lg border p-3">
-          <label className="text-sm font-medium">Resolve outcome</label>
+          <label htmlFor="resolve-outcome" className="text-sm font-medium">Resolve outcome</label>
           <div className="flex gap-2">
             {(['yes', 'no'] as const).map((o) => (
               <button
@@ -139,7 +139,7 @@ export function MarketActions({
               </button>
             ))}
           </div>
-          <textarea
+          <textarea id="resolve-outcome"
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
             rows={2}

@@ -207,7 +207,7 @@ export function DepositModal({ isOpen, onClose, defaultCurrency = 'KES' }: Depos
           <form onSubmit={handleSubmit} className="p-5 space-y-4">
             {/* Currency */}
             <div>
-              <label className="text-sm font-medium mb-1.5 block">Currency</label>
+              <span className="text-sm font-medium mb-1.5 block">Currency</span>
               <div className="grid grid-cols-2 gap-2">
                 {(['KES', 'UGX', 'TZS', 'RWF', 'ZMW'] as CurrencyCode[]).map((c) => (
                   <button
@@ -229,7 +229,7 @@ export function DepositModal({ isOpen, onClose, defaultCurrency = 'KES' }: Depos
 
             {/* Provider */}
             <div>
-              <label className="text-sm font-medium mb-1.5 block">Payment Method</label>
+              <span className="text-sm font-medium mb-1.5 block">Payment Method</span>
               <div className="space-y-2">
                 {availableProviders.map((p) => {
                   const info = PAYMENT_PROVIDER_LABELS[p]
@@ -253,14 +253,14 @@ export function DepositModal({ isOpen, onClose, defaultCurrency = 'KES' }: Depos
 
             {/* Amount */}
             <div>
-              <label className="text-sm font-medium mb-1.5 block">
+              <label htmlFor="amount" className="text-sm font-medium mb-1.5 block">
                 Amount ({currency})
               </label>
               <div className="relative">
                 <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground font-medium text-sm">
                   {CURRENCIES[currency]?.symbol}
                 </span>
-                <input
+                <input id="amount"
                   type="number"
                   value={amount}
                   onChange={(e) => setAmount(e.target.value)}
@@ -277,10 +277,10 @@ export function DepositModal({ isOpen, onClose, defaultCurrency = 'KES' }: Depos
 
             {/* Phone */}
             <div>
-              <label className="text-sm font-medium mb-1.5 block">
+              <label htmlFor="phone-number" className="text-sm font-medium mb-1.5 block">
                 Phone Number
               </label>
-              <input
+              <input id="phone-number"
                 type="tel"
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}

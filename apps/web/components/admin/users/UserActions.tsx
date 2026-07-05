@@ -100,9 +100,9 @@ export function UserActions({
       {/* Role */}
       {allowedRoles.length > 0 && (
         <div className="mb-4">
-          <label className="mb-1 block text-xs font-medium text-muted-foreground">Change role (current: {currentRole})</label>
+          <label htmlFor="change-role-current" className="mb-1 block text-xs font-medium text-muted-foreground">Change role (current: {currentRole})</label>
           <div className="flex gap-2">
-            <select value={role} onChange={(e) => setRole(e.target.value)} className="min-w-0 flex-1 rounded-lg border bg-background px-2 py-2 text-sm">
+            <select id="change-role-current" value={role} onChange={(e) => setRole(e.target.value)} className="min-w-0 flex-1 rounded-lg border bg-background px-2 py-2 text-sm">
               <option value="">Select role…</option>
               {allowedRoles.map((r) => (
                 <option key={r} value={r}>{r}</option>
@@ -122,8 +122,8 @@ export function UserActions({
       {/* Status */}
       {canStatus && (
         <div className="mb-4">
-          <label className="mb-1 block text-xs font-medium text-muted-foreground">Account status (current: {currentStatus})</label>
-          <input value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Reason (optional)" className="mb-2 w-full rounded-lg border bg-background px-2 py-2 text-sm" />
+          <label htmlFor="account-status-current" className="mb-1 block text-xs font-medium text-muted-foreground">Account status (current: {currentStatus})</label>
+          <input id="account-status-current" value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Reason (optional)" className="mb-2 w-full rounded-lg border bg-background px-2 py-2 text-sm" />
           <div className="flex flex-wrap gap-2">
             {(['active', 'suspended', 'closed'] as Status[])
               .filter((s) => s !== currentStatus)
@@ -144,9 +144,9 @@ export function UserActions({
       {/* Balance */}
       {canBalance && currencies.length > 0 && (
         <div className="mb-4">
-          <label className="mb-1 block text-xs font-medium text-muted-foreground">Adjust balance</label>
+          <label htmlFor="adjust-balance" className="mb-1 block text-xs font-medium text-muted-foreground">Adjust balance</label>
           <div className="flex gap-2">
-            <select value={ccy} onChange={(e) => setCcy(e.target.value)} className="rounded-lg border bg-background px-2 py-2 text-sm">
+            <select id="adjust-balance" value={ccy} onChange={(e) => setCcy(e.target.value)} className="rounded-lg border bg-background px-2 py-2 text-sm">
               {currencies.map((c) => (
                 <option key={c} value={c}>{c}</option>
               ))}
@@ -172,8 +172,8 @@ export function UserActions({
       {/* Impersonate */}
       {canImpersonate && (
         <div className="mb-4">
-          <label className="mb-1 block text-xs font-medium text-muted-foreground">Impersonate (time-boxed, audited)</label>
-          <input value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Reason (required)" className="mb-2 w-full rounded-lg border bg-background px-2 py-2 text-sm" />
+          <label htmlFor="impersonate-time-boxed" className="mb-1 block text-xs font-medium text-muted-foreground">Impersonate (time-boxed, audited)</label>
+          <input id="impersonate-time-boxed" value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Reason (required)" className="mb-2 w-full rounded-lg border bg-background px-2 py-2 text-sm" />
           <button
             disabled={pending || reason.trim().length < 3}
             onClick={() =>
@@ -199,8 +199,8 @@ export function UserActions({
       {/* Note */}
       {canNote && (
         <div>
-          <label className="mb-1 block text-xs font-medium text-muted-foreground">Add internal note</label>
-          <textarea value={note} onChange={(e) => setNote(e.target.value)} rows={2} className="w-full rounded-lg border bg-background px-2 py-2 text-sm" />
+          <label htmlFor="add-internal-note" className="mb-1 block text-xs font-medium text-muted-foreground">Add internal note</label>
+          <textarea id="add-internal-note" value={note} onChange={(e) => setNote(e.target.value)} rows={2} className="w-full rounded-lg border bg-background px-2 py-2 text-sm" />
           <button
             disabled={pending || note.trim().length === 0}
             onClick={() => run(postJson(`/api/admin/users/${userId}/note`, { note }).then((r) => { if (r.ok) setNote(''); return r }), 'Note added')}
