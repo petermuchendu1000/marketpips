@@ -133,7 +133,7 @@ export function HeroSection({ featured }: { featured?: Market | null }) {
 
           {/* Left — value proposition */}
           <div>
-            <span className="inline-flex items-center gap-2 text-[12px] font-semibold uppercase tracking-[0.12em]" style={{ color: 'var(--pip-500)' }}>
+            <span className="inline-flex items-center gap-2 text-[12px] font-semibold uppercase tracking-[0.12em]" style={{ color: 'var(--pip-text)' }}>
               <span className="w-[7px] h-[7px] rounded-full animate-pulse-dot" style={{ background: 'var(--pip-500)' }} />
               Live markets · East Africa
             </span>
@@ -141,7 +141,7 @@ export function HeroSection({ featured }: { featured?: Market | null }) {
             <h1 className="mt-5 font-display font-bold leading-[1.04] tracking-[-0.03em]"
               style={{ fontSize: 'clamp(2.4rem, 6vw, 3.9rem)', color: 'var(--text)' }}>
               The clearest view of<br />
-              <span style={{ color: 'var(--pip-500)' }}>what happens next.</span>
+              <span style={{ color: 'var(--pip-text)' }}>what happens next.</span>
             </h1>
 
             <p className="mt-6 text-[1.05rem] sm:text-[1.2rem] leading-relaxed max-w-[34ch]" style={{ color: 'var(--text-2)' }}>
@@ -165,7 +165,7 @@ export function HeroSection({ featured }: { featured?: Market | null }) {
                 { icon: <IconTrendUp size={15} />, label: 'LMSR fair pricing' },
               ].map(t => (
                 <span key={t.label} className="flex items-center gap-2 text-[13px] font-medium" style={{ color: 'var(--text-2)' }}>
-                  <span style={{ color: 'var(--pip-500)' }}>{t.icon}</span>
+                  <span style={{ color: 'var(--pip-text)' }}>{t.icon}</span>
                   {t.label}
                 </span>
               ))}

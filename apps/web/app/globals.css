@@ -17,6 +17,7 @@
 
     /* ---- Brand — Pip Blue ---- */
     --pip-600:#1E44C9; --pip-500:#2B50E4; --pip-400:#5C82F2; --pip-300:#A9C0FB; --pip-100:#E7EEFE;
+    --pip-text:var(--pip-500); /* pip blue used AS TEXT; lightened under .dark for WCAG AA */
     /* ---- Accent — Brass (emphasis only, <=5% of surface) ---- */
     --brass-600:#B57E22; --brass-500:#D9A036; --brass-100:#F7ECD4;
 
@@ -93,6 +94,10 @@
     --field:var(--ink-800);
     --pip-100:rgba(43,80,228,.16); --yes-tint:rgba(31,157,107,.16); --no-tint:rgba(209,73,91,.16);
     --brass-100:rgba(217,160,54,.16);
+    /* a11y (WCAG 2.1 AA >=4.5:1): lighten semantic text colors on dark surfaces.
+       Light-mode --yes-700/#177C54, --no-700/#B23446, --pip-500/#2B50E4 only reach
+       ~3:1 as text on the dark palette; these dark values clear 4.5:1 everywhere. */
+    --yes-700:#3FBE8A; --no-700:#EA6B7D; --pip-text:#8FB0FA;
     --e1:0 1px 2px rgba(0,0,0,.4);
     --e2:0 6px 20px rgba(0,0,0,.5);
     --e3:0 20px 56px rgba(0,0,0,.6);
@@ -216,7 +221,7 @@
   .btn-primary:hover:not(:disabled) { background:var(--pip-600); }
 
   .btn-secondary { background:transparent; color:var(--text); box-shadow:inset 0 0 0 1px var(--hairline-strong); }
-  .btn-secondary:hover:not(:disabled) { box-shadow:inset 0 0 0 1px var(--pip-400); color:var(--pip-500); }
+  .btn-secondary:hover:not(:disabled) { box-shadow:inset 0 0 0 1px var(--pip-400); color:var(--pip-text); }
 
   .btn-ghost { background:transparent; color:var(--text-2); }
   .btn-ghost:hover:not(:disabled) { background:var(--surface-2); color:var(--text); }
@@ -265,11 +270,11 @@
     cursor:pointer; transition:all var(--dur); white-space:nowrap;
   }
   .tab-pill:hover { color:var(--text); background:var(--surface-2); }
-  .tab-pill.active { background:var(--pip-100); color:var(--pip-500); border-color:color-mix(in srgb, var(--pip-500) 24%, transparent); font-weight:600; }
+  .tab-pill.active { background:var(--pip-100); color:var(--pip-text); border-color:color-mix(in srgb, var(--pip-500) 24%, transparent); font-weight:600; }
 
   /* ---- Stat chip ---- */
   .stat-chip { display:flex; align-items:center; gap:10px; padding:12px 16px; background:var(--surface); border:1px solid var(--hairline); border-radius:var(--r-md); }
-  .stat-chip-icon { width:34px; height:34px; border-radius:var(--r-sm); background:var(--pip-100); color:var(--pip-500); display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+  .stat-chip-icon { width:34px; height:34px; border-radius:var(--r-sm); background:var(--pip-100); color:var(--pip-text); display:flex; align-items:center; justify-content:center; flex-shrink:0; }
 
   /* ---- Skeleton ---- */
   @keyframes shimmer { 0% { background-position:-400px 0; } 100% { background-position:400px 0; } }
@@ -314,7 +319,7 @@
 
   /* ---- Footer link (correct hover in BOTH themes \u2014 never hover:text-white) ---- */
   .footer-link { text-decoration:none; }
-  .footer-link:hover { color:var(--pip-500) !important; }
+  .footer-link:hover { color:var(--pip-text) !important; }
 
   /* ---- Wallet chip (neutral money, brand-blue) ---- */
   .wallet-chip {
@@ -323,12 +328,12 @@
     font-size:13px; font-weight:600; border:1px solid var(--hairline);
     cursor:pointer; transition:all var(--dur); font-variant-numeric:tabular-nums;
   }
-  .wallet-chip:hover { border-color:var(--pip-400); color:var(--pip-500); }
+  .wallet-chip:hover { border-color:var(--pip-400); color:var(--pip-text); }
 
   /* ---- Avatar ---- */
   .avatar {
     width:32px; height:32px; border-radius:50%;
-    background:var(--pip-100); color:var(--pip-500); font-weight:700; font-size:13px;
+    background:var(--pip-100); color:var(--pip-text); font-weight:700; font-size:13px;
     display:flex; align-items:center; justify-content:center; flex-shrink:0;
     border:1px solid var(--hairline);
   }

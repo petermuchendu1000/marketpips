@@ -48,7 +48,7 @@ export function MarketCard({ market, compact = false }: MarketCardProps) {
 
       {/* Title */}
       <h3
-        className={`font-semibold leading-snug mb-3 transition-colors group-hover:text-[var(--pip-500)] ${
+        className={`font-semibold leading-snug mb-3 transition-colors group-hover:text-[var(--pip-text)] ${
           compact ? 'text-sm line-clamp-2' : 'text-[15px] line-clamp-3'
         }`}
         style={{ color: 'var(--text-primary)' }}
@@ -92,7 +92,7 @@ export function MarketCard({ market, compact = false }: MarketCardProps) {
         ) : market.status === 'closed' ? (
           <span className="badge badge-amber">Pending</span>
         ) : market.is_featured ? (
-          <span className="badge" style={{ background: 'var(--pip-100)', color: 'var(--pip-500)' }}>Featured</span>
+          <span className="badge" style={{ background: 'var(--pip-100)', color: 'var(--pip-text)' }}>Featured</span>
         ) : null}
       </div>
     </Link>

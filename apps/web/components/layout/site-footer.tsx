@@ -155,7 +155,7 @@ export function SiteFooter() {
           <Link
             href="/legal/responsible-play"
             className="footer-link flex-none inline-flex items-center gap-1.5 text-[12.5px] font-semibold"
-            style={{ color: 'var(--pip-500)' }}
+            style={{ color: 'var(--pip-text)' }}
           >
             Responsible-play tools <IconArrowRight size={13} />
           </Link>

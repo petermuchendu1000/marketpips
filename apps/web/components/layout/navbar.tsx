@@ -91,7 +91,7 @@ export function Navbar() {
                 href={link.href}
                 className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[13px] font-medium transition-all ${
                   isActive(link.href)
-                    ? 'bg-[var(--pip-100)] text-[var(--pip-500)]'
+                    ? 'bg-[var(--pip-100)] text-[var(--pip-text)]'
                     : 'text-[var(--text-secondary)] hover:text-[var(--text)] hover:bg-[var(--surface-2)]'
                 }`}
               >
@@ -239,7 +239,7 @@ export function Navbar() {
                   href={link.href}
                   className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all ${
                     isActive(link.href)
-                      ? 'bg-[var(--pip-100)] text-[var(--pip-500)]'
+                      ? 'bg-[var(--pip-100)] text-[var(--pip-text)]'
                       : 'text-[var(--text-secondary)]'
                   }`}
                 >

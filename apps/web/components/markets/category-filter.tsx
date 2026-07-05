@@ -87,7 +87,7 @@ export function CategoryFilter({ selected, onChange, counts = {} }: CategoryFilt
                   className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full ml-0.5 font-mono"
                   style={{
                     background: active ? 'color-mix(in srgb, var(--pip-500) 18%, transparent)' : 'var(--surface-2)',
-                    color: active ? 'var(--pip-500)' : 'var(--text-3)',
+                    color: active ? 'var(--pip-text)' : 'var(--text-3)',
                   }}
                 >
                   {count}

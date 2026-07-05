@@ -155,7 +155,7 @@ async function Results({ parsed }: { parsed: ReturnType<typeof parseSearchParams
           <ActiveFilterSummary parsed={parsed} />
         </p>
         {hasFilters && (
-          <Link href="/markets" className="text-[13px] font-semibold" style={{ color: 'var(--pip-500)' }}>
+          <Link href="/markets" className="text-[13px] font-semibold" style={{ color: 'var(--pip-text)' }}>
             Clear all
           </Link>
         )}
@@ -189,7 +189,7 @@ function ActiveFilterSummary({ parsed }: { parsed: ReturnType<typeof parseSearch
 function EmptyState({ hasFilters, query }: { hasFilters: boolean; query: string }) {
   return (
     <div className="card p-14 text-center">
-      <div className="w-12 h-12 rounded-lg grid place-items-center mx-auto mb-4" style={{ background: 'var(--pip-100)', color: 'var(--pip-500)' }}>
+      <div className="w-12 h-12 rounded-lg grid place-items-center mx-auto mb-4" style={{ background: 'var(--pip-100)', color: 'var(--pip-text)' }}>
         <IconSearch size={22} />
       </div>
       <h2 className="font-semibold mb-1" style={{ color: 'var(--text)' }}>

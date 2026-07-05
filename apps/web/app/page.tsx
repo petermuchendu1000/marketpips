@@ -90,7 +90,7 @@ export default async function HomePage() {
                 className="group inline-flex items-center gap-2 px-4 py-2.5 rounded-full text-sm font-medium transition-all"
                 style={{ background: 'var(--surface)', border: '1px solid var(--hairline)', color: 'var(--text)' }}
               >
-                <CategoryIcon category={c.key} size={15} className="transition-colors group-hover:text-[var(--pip-500)]" style={{ color: 'var(--text-3)' }} />
+                <CategoryIcon category={c.key} size={15} className="transition-colors group-hover:text-[var(--pip-text)]" style={{ color: 'var(--text-3)' }} />
                 {c.label}
               </Link>
             ))}
@@ -137,7 +137,7 @@ export default async function HomePage() {
             ].map(s => (
               <div key={s.n} className="card p-6">
                 <div className="w-10 h-10 rounded-lg grid place-items-center font-mono font-semibold"
-                  style={{ background: 'var(--pip-100)', color: 'var(--pip-500)', border: '1px solid color-mix(in srgb, var(--pip-500) 22%, transparent)' }}>
+                  style={{ background: 'var(--pip-100)', color: 'var(--pip-text)', border: '1px solid color-mix(in srgb, var(--pip-500) 22%, transparent)' }}>
                   {s.n}
                 </div>
                 <h3 className="mt-4 text-[1.15rem] font-semibold tracking-[-0.01em]" style={{ color: 'var(--text)' }}>{s.h}</h3>
@@ -165,7 +165,7 @@ export default async function HomePage() {
                 ].map((r, i, a) => (
                   <div key={r.t} className="flex items-center gap-4 p-4"
                     style={i < a.length - 1 ? { borderBottom: '1px solid var(--hairline)' } : undefined}>
-                    <span className="w-11 h-11 flex-none rounded-lg grid place-items-center" style={{ background: 'var(--surface-2)', color: 'var(--pip-500)' }}>{r.icon}</span>
+                    <span className="w-11 h-11 flex-none rounded-lg grid place-items-center" style={{ background: 'var(--surface-2)', color: 'var(--pip-text)' }}>{r.icon}</span>
                     <div>
                       <strong className="block font-semibold tracking-[-0.01em]" style={{ color: 'var(--text)' }}>{r.t}</strong>
                       <span className="text-sm" style={{ color: 'var(--text-2)' }}>{r.s}</span>
@@ -189,7 +189,7 @@ export default async function HomePage() {
               { icon: <IconWallet size={20} />, h: 'Clear, honest fees', p: 'A single small platform fee, shown before you trade. No spreads hidden against you, no surprise charges.' },
             ].map(t => (
               <div key={t.h} className="card p-6">
-                <span className="w-11 h-11 rounded-lg grid place-items-center mb-4" style={{ background: 'var(--pip-100)', color: 'var(--pip-500)' }}>{t.icon}</span>
+                <span className="w-11 h-11 rounded-lg grid place-items-center mb-4" style={{ background: 'var(--pip-100)', color: 'var(--pip-text)' }}>{t.icon}</span>
                 <h3 className="text-[1.05rem] font-semibold tracking-[-0.01em]" style={{ color: 'var(--text)' }}>{t.h}</h3>
                 <p className="mt-2 text-[0.92rem] leading-relaxed" style={{ color: 'var(--text-2)' }}>{t.p}</p>
               </div>
@@ -242,11 +242,11 @@ function Section({ eyebrow, title, href, children }: { eyebrow: string; title: s
     <section className="py-10 sm:py-12">
       <div className="flex items-end justify-between gap-4 mb-6">
         <div>
-          <div className="text-[12px] font-semibold uppercase tracking-[0.12em]" style={{ color: 'var(--pip-500)' }}>{eyebrow}</div>
+          <div className="text-[12px] font-semibold uppercase tracking-[0.12em]" style={{ color: 'var(--pip-text)' }}>{eyebrow}</div>
           <h2 className="mt-1.5 font-display text-[1.4rem] sm:text-[1.7rem] font-bold tracking-[-0.02em]" style={{ color: 'var(--text)' }}>{title}</h2>
         </div>
         {href && (
-          <Link href={href} className="flex-none flex items-center gap-1 text-[13px] font-semibold" style={{ color: 'var(--pip-500)' }}>
+          <Link href={href} className="flex-none flex items-center gap-1 text-[13px] font-semibold" style={{ color: 'var(--pip-text)' }}>
             View all <IconArrowRight size={13} />
           </Link>
         )}
@@ -259,7 +259,7 @@ function Section({ eyebrow, title, href, children }: { eyebrow: string; title: s
 function SectionHead({ eyebrow, title, align = 'center' }: { eyebrow: string; title: string; align?: 'center' | 'left' }) {
   return (
     <div className={`mb-8 sm:mb-12 ${align === 'center' ? 'text-center mx-auto max-w-2xl' : 'max-w-xl'}`}>
-      <div className="text-[12px] font-semibold uppercase tracking-[0.12em]" style={{ color: 'var(--pip-500)' }}>{eyebrow}</div>
+      <div className="text-[12px] font-semibold uppercase tracking-[0.12em]" style={{ color: 'var(--pip-text)' }}>{eyebrow}</div>
       <h2 className="mt-2 font-display font-bold tracking-[-0.02em]" style={{ fontSize: 'clamp(1.6rem, 3.5vw, 2.1rem)', color: 'var(--text)' }}>{title}</h2>
     </div>
   )
@@ -277,7 +277,7 @@ function LmsrVisual() {
     <div className="card p-6">
       <div className="flex items-center justify-between mb-4">
         <span className="text-sm font-medium" style={{ color: 'var(--text-2)' }}>Implied probability over time</span>
-        <span className="font-mono text-sm font-semibold" style={{ color: 'var(--pip-500)' }}>66%</span>
+        <span className="font-mono text-sm font-semibold" style={{ color: 'var(--pip-text)' }}>66%</span>
       </div>
       <svg viewBox={`0 0 ${w} ${h}`} className="w-full" style={{ height: 'auto' }} aria-hidden="true">
         {[0, 0.25, 0.5, 0.75, 1].map(g => (
@@ -294,7 +294,7 @@ function LmsrVisual() {
 function EmptyState() {
   return (
     <div className="card p-14 text-center">
-      <div className="w-12 h-12 rounded-lg grid place-items-center mx-auto mb-4" style={{ background: 'var(--pip-100)', color: 'var(--pip-500)' }}>
+      <div className="w-12 h-12 rounded-lg grid place-items-center mx-auto mb-4" style={{ background: 'var(--pip-100)', color: 'var(--pip-text)' }}>
         <IconTrendUp size={22} />
       </div>
       <h3 className="font-semibold mb-1" style={{ color: 'var(--text)' }}>No live markets yet</h3>
