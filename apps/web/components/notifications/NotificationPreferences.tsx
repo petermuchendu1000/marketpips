@@ -62,9 +62,9 @@ export function NotificationPreferences() {
         <div className="space-y-2">
           {ROWS.map((r) => (
             <label key={r.key} className="flex items-center justify-between gap-3 cursor-pointer">
-              <span>
-                <span className="text-sm font-medium">{r.label}</span>
-                <span className="block text-xs text-base-content/50">{r.hint}</span>
+              <span className="text-sm font-medium">
+                {r.label}
+                <span className="block text-xs font-normal text-base-content/50">{r.hint}</span>
               </span>
               <input
                 type="checkbox"
