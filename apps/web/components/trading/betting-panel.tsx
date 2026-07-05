@@ -1,60 +1,121 @@
 'use client'
 
-import { useState } from 'react'
+// components/trading/betting-panel.tsx
+// ------------------------------------------------------------
+// Order ticket for the market detail page. The live preview is driven by
+// `previewBet` (lib/trading), which mirrors the authoritative place_bet RPC —
+// so the shares, average fill price, slippage, fees and payout shown here equal
+// on-chain execution. Pure "Pip" design system: tokens + custom icons, no
+// emoji, no third-party icon set.
+import { useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/hooks/use-auth'
 import { useWallets } from '@/hooks/use-wallets'
+import { useRates } from '@/hooks/use-rates'
+import { previewBet, meetsMinBet, MIN_BET_USD } from '@/lib/trading'
+import { formatCurrency, usdToLocal } from '@/lib/currency'
 import { CURRENCIES } from '@/types'
 import type { Market } from '@/types'
-import { IconWallet, IconInfo, IconArrowRight, IconShield } from '@/components/ui/icons'
+import {
+  IconWallet,
+  IconInfo,
+  IconArrowRight,
+  IconShield,
+  IconCheck,
+} from '@/components/ui/icons'
 
 interface BettingPanelProps {
   market: Market
 }
 
+type Side = 'yes' | 'no'
+
+/** Per-status copy shown when the market is not open for trading. */
+const CLOSED_COPY: Partial<Record<Market['status'], { label: string; body: string }>> = {
+  pending: { label: 'Pending review', body: 'This market is awaiting approval and is not yet open for trading.' },
+  draft: { label: 'Draft', body: 'This market is a draft and is not open for trading.' },
+  closed: { label: 'Awaiting resolution', body: 'Trading has closed. This market is awaiting its outcome.' },
+  resolved: { label: 'Resolved', body: 'This market has settled. No new positions can be opened.' },
+  disputed: { label: 'Under dispute', body: 'The outcome is under review. Trading is paused.' },
+  cancelled: { label: 'Cancelled', body: 'This market was cancelled and stakes were refunded.' },
+}
+
 export function BettingPanel({ market }: BettingPanelProps) {
   const { user } = useAuth()
   const { wallets, preferredCurrency, refreshWallets } = useWallets()
+  const { rates } = useRates()
   const router = useRouter()
 
-  const [side, setSide] = useState<'yes' | 'no'>('yes')
+  const [side, setSide] = useState<Side>('yes')
   const [amount, setAmount] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
-  const [success, setSuccess] = useState(false)
-  const [receipt, setReceipt] = useState<{ shares: number; avgPrice: number; payout: number } | null>(null)
+  const [receipt, setReceipt] = useState<{
+    shares: number
+    avgPrice: number
+    payoutUsd: number
+  } | null>(null)
 
-  const wallet = wallets.find(w => w.currency === preferredCurrency)
+  const wallet = wallets.find((w) => w.currency === preferredCurrency)
   const balance = wallet?.available_balance ?? 0
   const currencyInfo = CURRENCIES[preferredCurrency]
   const amountNum = parseFloat(amount) || 0
 
-  // Price
-  const price = side === 'yes' ? market.yes_price : market.no_price
-  const oppPrice = side === 'yes' ? market.no_price : market.yes_price
+  const isOpen = market.status === 'active'
+  const closedCopy = CLOSED_COPY[market.status]
 
-  // Payout estimate: amount / price = shares, shares * $1 = max payout in USD
-  // shares ≈ stake / price (each share pays out 1 unit if correct)
-  const shares = amountNum > 0 && price > 0 ? amountNum / price : 0
-  const estimatedPayout = amountNum > 0 ? (amountNum / price) * (1 - 0.02) : 0
-  const potentialProfit = estimatedPayout - amountNum
-  const profitPct = amountNum > 0 ? ((potentialProfit / amountNum) * 100) : 0
+  // Authoritative, slippage-aware preview (mirrors place_bet).
+  const preview = useMemo(() => {
+    if (amountNum <= 0) return null
+    try {
+      return previewBet({
+        amountLocal: amountNum,
+        currency: preferredCurrency,
+        side,
+        yesPrice: market.yes_price,
+        noPrice: market.no_price,
+        liquidityPoolUsd: market.liquidity_pool_usd,
+        rates,
+        platformFeeRate: market.platform_fee_rate,
+        creatorRewardRate: market.creator_reward_rate,
+      })
+    } catch {
+      return null
+    }
+  }, [amountNum, preferredCurrency, side, market, rates])
 
-  const isClosed = market.status !== 'active'
+  const currentPrice = side === 'yes' ? market.yes_price : market.no_price
+  // Payout / profit in the user's local currency.
+  const payoutLocal = preview ? usdToLocal(preview.potentialPayoutUsd, preferredCurrency, rates) : 0
+  const profitLocal = payoutLocal - amountNum
+  const profitPct = amountNum > 0 ? (profitLocal / amountNum) * 100 : 0
+  // Price impact = average fill vs current marginal price (percentage points).
+  const slippagePts = preview ? (preview.avgPrice - currentPrice) * 100 : 0
+  const feeLocal = preview ? usdToLocal(preview.feeUsd, preferredCurrency, rates) : 0
 
-  const presets = balance > 0
-    ? [
-        Math.floor(balance * 0.1),
-        Math.floor(balance * 0.25),
-        Math.floor(balance * 0.5),
-        Math.floor(balance),
-      ].map(v => v.toString())
-    : ['100', '500', '1000', '2000']
+  const belowMin = amountNum > 0 && !meetsMinBet(amountNum, preferredCurrency, rates)
+  const overBalance = balance > 0 && amountNum > balance
+  const canSubmit = isOpen && amountNum > 0 && !belowMin && !overBalance && !loading
+
+  const presets = useMemo(() => {
+    if (balance > 0) {
+      return [0.1, 0.25, 0.5, 1].map((f) => Math.max(1, Math.floor(balance * f)))
+    }
+    return [currencyInfo?.minBet ?? 100, 500, 1000, 2000]
+  }, [balance, currencyInfo])
+
+  const cents = (p: number) => `${Math.round(p * 100)}\u00A2`
 
   const handleBet = async () => {
     if (!user) return router.push('/auth/login')
-    if (amountNum <= 0) return setError('Enter an amount')
-    if (balance > 0 && amountNum > balance) return setError(`Insufficient balance. You have ${currencyInfo?.symbol}${balance.toLocaleString()}`)
+    if (amountNum <= 0) return setError('Enter an amount to continue.')
+    if (belowMin) {
+      const minLocal = usdToLocal(MIN_BET_USD, preferredCurrency, rates)
+      return setError(`Minimum bet is ${formatCurrency(minLocal, preferredCurrency)}.`)
+    }
+    if (overBalance) {
+      return setError(`Insufficient balance — you have ${formatCurrency(balance, preferredCurrency)}.`)
+    }
     setError('')
     setLoading(true)
     try {
@@ -69,12 +130,11 @@ export function BettingPanel({ market }: BettingPanelProps) {
         }),
       })
       const data = await res.json()
-      if (data.success || data.order_id) {
-        setSuccess(true)
+      if (res.ok && (data.success || data.order_id)) {
         setReceipt({
-          shares: data.shares_bought ?? estimatedPayout,
-          avgPrice: data.average_price ?? price,
-          payout: data.max_payout ?? estimatedPayout,
+          shares: data.shares_bought ?? preview?.shares ?? 0,
+          avgPrice: data.average_price ?? preview?.avgPrice ?? currentPrice,
+          payoutUsd: data.max_payout ?? preview?.potentialPayoutUsd ?? 0,
         })
         await refreshWallets()
       } else {
@@ -87,223 +147,229 @@ export function BettingPanel({ market }: BettingPanelProps) {
     }
   }
 
-  if (success && receipt) {
+  // ---- Success receipt ------------------------------------------------------
+  if (receipt) {
+    const payoutLocalReceipt = usdToLocal(receipt.payoutUsd, preferredCurrency, rates)
     return (
       <div className="card p-5 text-center animate-scale-in">
         <div
-          className="w-14 h-14 rounded-full flex items-center justify-center mx-auto mb-4"
-          style={{ background: side === 'yes' ? 'var(--green-dim)' : 'var(--red-dim)' }}
+          className={`mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-pill ${
+            side === 'yes' ? 'bg-yes/10 text-yes' : 'bg-no/10 text-no'
+          }`}
         >
-          <svg width="28" height="28" viewBox="0 0 24 24" fill="none"
-            stroke={side === 'yes' ? 'var(--green)' : 'var(--red)'}
-            strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-            <polyline points="20 6 9 17 4 12"/>
-          </svg>
+          <IconCheck size={26} />
         </div>
-        <h3 className="font-display text-lg font-bold mb-1" style={{ color: 'var(--text-primary)' }}>
-          Bet Placed!
-        </h3>
-        <p className="text-sm mb-4" style={{ color: 'var(--text-secondary)' }}>
-          You bet {currencyInfo?.symbol}{amountNum.toLocaleString()} on{' '}
-          <strong style={{ color: side === 'yes' ? 'var(--green)' : 'var(--red)' }}>
-            {side.toUpperCase()}
-          </strong>
+        <h3 className="font-display text-lg text-text-primary">Bet placed</h3>
+        <p className="mb-4 mt-1 text-sm text-text-secondary">
+          {formatCurrency(amountNum, preferredCurrency)} on{' '}
+          <strong className={side === 'yes' ? 'text-yes' : 'text-no'}>{side.toUpperCase()}</strong>
         </p>
 
-        <div className="rounded-xl p-4 mb-5 space-y-2"
-          style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border)' }}>
+        <dl className="mb-5 space-y-2 rounded-md border border-hairline bg-surface-2 p-4">
           <div className="flex justify-between text-sm">
-            <span style={{ color: 'var(--text-muted)' }}>Avg. price</span>
-            <span className="font-mono font-semibold" style={{ color: 'var(--text-primary)' }}>
-              {Math.round(receipt.avgPrice * 100)}¢
-            </span>
+            <dt className="text-text-muted">Shares</dt>
+            <dd className="font-mono font-semibold text-text-primary">{receipt.shares.toFixed(2)}</dd>
           </div>
           <div className="flex justify-between text-sm">
-            <span style={{ color: 'var(--text-muted)' }}>Max payout</span>
-            <span className="font-mono font-bold" style={{ color: 'var(--green)' }}>
-              {currencyInfo?.symbol}{receipt.payout.toLocaleString(undefined, { maximumFractionDigits: 0 })}
-            </span>
+            <dt className="text-text-muted">Avg. fill</dt>
+            <dd className="font-mono font-semibold text-text-primary">{cents(receipt.avgPrice)}</dd>
           </div>
-        </div>
+          <div className="flex justify-between text-sm">
+            <dt className="text-text-muted">Max payout</dt>
+            <dd className="font-mono font-bold text-yes">{formatCurrency(payoutLocalReceipt, preferredCurrency)}</dd>
+          </div>
+        </dl>
 
         <button
-          onClick={() => { setSuccess(false); setAmount(''); setReceipt(null) }}
-          className="btn btn-secondary w-full mb-2"
+          onClick={() => {
+            setReceipt(null)
+            setAmount('')
+          }}
+          className="btn btn-secondary mb-2 w-full"
         >
           Place another bet
         </button>
-        <button
-          onClick={() => router.push('/portfolio')}
-          className="btn btn-ghost w-full text-sm"
-          style={{ color: 'var(--text-muted)' }}
-        >
+        <button onClick={() => router.push('/portfolio')} className="btn btn-ghost w-full text-sm">
           View portfolio <IconArrowRight size={13} />
         </button>
       </div>
     )
   }
 
+  // ---- Order ticket ---------------------------------------------------------
   return (
-    <div className="card p-5 space-y-4 animate-fade-in">
-      <div className="flex items-center justify-between">
-        <h3 className="font-semibold text-sm" style={{ color: 'var(--text-primary)' }}>
-          Place Bet
-        </h3>
+    <div className="card animate-fade-in p-5">
+      <div className="mb-4 flex items-center justify-between">
+        <h3 className="font-display text-sm text-text-primary">Order ticket</h3>
         {user && wallet && (
-          <div className="flex items-center gap-1.5 text-xs" style={{ color: 'var(--text-muted)' }}>
-            <IconWallet size={12} />
-            <span className="font-mono">
-              {currencyInfo?.symbol}{balance.toLocaleString()} {preferredCurrency}
-            </span>
-          </div>
+          <span className="flex items-center gap-1.5 text-xs text-text-muted">
+            <IconWallet size={13} />
+            <span className="font-mono">{formatCurrency(balance, preferredCurrency)}</span>
+          </span>
         )}
       </div>
 
-      {/* YES / NO toggle */}
+      {/* YES / NO selector */}
       <div className="grid grid-cols-2 gap-2">
         <button
+          type="button"
           onClick={() => setSide('yes')}
-          className={`btn-yes transition-all ${side === 'yes' ? 'active' : ''}`}
-          disabled={isClosed}
+          className={`btn-yes ${side === 'yes' ? 'active' : ''}`}
+          aria-pressed={side === 'yes'}
+          disabled={!isOpen}
         >
-          <div className="text-lg font-black">YES</div>
-          <div className="text-sm opacity-80">{Math.round(market.yes_price * 100)}¢</div>
+          <span className="flex flex-col leading-tight">
+            <span className="text-base font-bold">YES</span>
+            <span className="font-mono text-xs opacity-80">{cents(market.yes_price)}</span>
+          </span>
         </button>
         <button
+          type="button"
           onClick={() => setSide('no')}
-          className={`btn-no transition-all ${side === 'no' ? 'active' : ''}`}
-          disabled={isClosed}
+          className={`btn-no ${side === 'no' ? 'active' : ''}`}
+          aria-pressed={side === 'no'}
+          disabled={!isOpen}
         >
-          <div className="text-lg font-black">NO</div>
-          <div className="text-sm opacity-80">{Math.round(market.no_price * 100)}¢</div>
+          <span className="flex flex-col leading-tight">
+            <span className="text-base font-bold">NO</span>
+            <span className="font-mono text-xs opacity-80">{cents(market.no_price)}</span>
+          </span>
         </button>
       </div>
 
-      {isClosed ? (
-        <div className="rounded-xl p-4 text-center text-sm"
-          style={{ background: 'var(--bg-secondary)', color: 'var(--text-muted)' }}>
-          This market is {market.status}. No new bets accepted.
+      {!isOpen ? (
+        <div className="mt-4 rounded-md border border-hairline bg-surface-2 p-4 text-center">
+          <p className="text-sm font-semibold text-text-primary">{closedCopy?.label ?? 'Closed'}</p>
+          <p className="mt-1 text-xs text-text-muted">
+            {closedCopy?.body ?? 'This market is not open for trading.'}
+          </p>
         </div>
       ) : (
         <>
-          {/* Amount input */}
-          <div>
-            <label htmlFor="amount" className="text-xs font-semibold uppercase tracking-wide block mb-2"
-              style={{ color: 'var(--text-muted)' }}>
+          {/* Amount */}
+          <div className="mt-4">
+            <label
+              htmlFor="bet-amount"
+              className="mb-2 block text-xs font-semibold uppercase tracking-wide text-text-muted"
+            >
               Amount ({preferredCurrency})
             </label>
 
-            {/* Quick presets */}
-            <div className="grid grid-cols-4 gap-1.5 mb-2">
-              {presets.map(v => (
-                <button
-                  key={v}
-                  onClick={() => setAmount(v)}
-                  className="py-1.5 text-xs font-semibold rounded-lg border transition-all"
-                  style={{
-                    background: amount === v ? 'var(--green)' : 'var(--bg-tertiary)',
-                    color: amount === v ? '#fff' : 'var(--text-secondary)',
-                    borderColor: amount === v ? 'var(--green)' : 'var(--border)',
-                  }}
-                >
-                  {currencyInfo?.symbol}{parseInt(v).toLocaleString()}
-                </button>
-              ))}
+            <div className="mb-2 grid grid-cols-4 gap-1.5">
+              {presets.map((v) => {
+                const active = amountNum === v
+                return (
+                  <button
+                    key={v}
+                    type="button"
+                    onClick={() => {
+                      setAmount(String(v))
+                      setError('')
+                    }}
+                    className={`rounded-sm border py-1.5 text-xs font-semibold transition-colors ${
+                      active
+                        ? 'border-pip-400 bg-pip-100 text-pip-500'
+                        : 'border-hairline bg-surface-2 text-text-secondary hover:border-pip-300'
+                    }`}
+                  >
+                    {formatCurrency(v, preferredCurrency, { compact: true })}
+                  </button>
+                )
+              })}
             </div>
 
-            <input id="amount"
-              className="input input-lg text-right"
+            <input
+              id="bet-amount"
+              className="input input-lg w-full text-right"
               type="number"
+              inputMode="decimal"
+              min={0}
               placeholder="0"
               value={amount}
-              onChange={e => { setAmount(e.target.value); setError('') }}
-              style={{
-                color: side === 'yes' ? 'var(--green)' : 'var(--red)',
-                borderColor: amount ? (side === 'yes' ? 'var(--green)' : 'var(--red)') : undefined,
+              onChange={(e) => {
+                setAmount(e.target.value)
+                setError('')
               }}
             />
           </div>
 
-          {/* Payout estimate */}
-          {amountNum > 0 && (
-            <div className="rounded-xl p-3 space-y-2 animate-fade-in"
-              style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border)' }}>
+          {/* Live preview — mirrors place_bet */}
+          {preview && (
+            <dl className="mt-4 space-y-2 rounded-md border border-hairline bg-surface-2 p-3 animate-fade-in">
               <div className="flex justify-between text-xs">
-                <span style={{ color: 'var(--text-muted)' }}>Avg. price</span>
-                <span className="font-mono font-semibold" style={{ color: 'var(--text-primary)' }}>
-                  {Math.round(price * 100)}¢
-                </span>
+                <dt className="text-text-muted">Est. shares</dt>
+                <dd className="font-mono text-text-primary">{preview.shares.toFixed(2)}</dd>
               </div>
               <div className="flex justify-between text-xs">
-                <span style={{ color: 'var(--text-muted)' }}>Platform fee</span>
-                <span className="font-mono" style={{ color: 'var(--text-muted)' }}>2%</span>
+                <dt className="text-text-muted">Avg. fill price</dt>
+                <dd className="font-mono text-text-primary">{cents(preview.avgPrice)}</dd>
+              </div>
+              <div className="flex justify-between text-xs">
+                <dt className="text-text-muted">Price impact</dt>
+                <dd className="font-mono text-text-secondary">
+                  {slippagePts >= 0 ? '+' : ''}
+                  {slippagePts.toFixed(2)} pts
+                </dd>
+              </div>
+              <div className="flex justify-between text-xs">
+                <dt className="text-text-muted">Fee ({(market.platform_fee_rate * 100).toFixed(1)}%)</dt>
+                <dd className="font-mono text-text-secondary">{formatCurrency(feeLocal, preferredCurrency)}</dd>
               </div>
               <div className="divider" />
-              <div className="flex justify-between text-sm">
-                <span className="font-semibold" style={{ color: 'var(--text-primary)' }}>Max payout</span>
-                <span
-                  className="font-mono font-bold"
-                  style={{ color: side === 'yes' ? 'var(--green)' : 'var(--red)' }}
-                >
-                  {currencyInfo?.symbol}{estimatedPayout.toLocaleString(undefined, { maximumFractionDigits: 0 })}
-                  <span className="text-xs ml-1 opacity-70">
-                    (+{profitPct.toFixed(0)}%)
-                  </span>
-                </span>
+              <div className="flex items-baseline justify-between text-sm">
+                <dt className="font-semibold text-text-primary">Max payout</dt>
+                <dd className={`font-mono font-bold ${side === 'yes' ? 'text-yes' : 'text-no'}`}>
+                  {formatCurrency(payoutLocal, preferredCurrency)}
+                  {profitPct > 0 && <span className="ml-1 text-xs opacity-70">(+{profitPct.toFixed(0)}%)</span>}
+                </dd>
               </div>
-            </div>
+            </dl>
           )}
 
-          {/* Error */}
-          {error && (
-            <div className="flex items-start gap-2 text-xs p-3 rounded-lg animate-fade-in"
-              style={{ background: 'var(--red-faint)', color: 'var(--red)', border: '1px solid var(--red-dim)' }}>
+          {(error || belowMin) && (
+            <div className="mt-3 flex items-start gap-2 rounded-sm border border-no/30 bg-no/10 p-3 text-xs text-no animate-fade-in">
               <IconInfo size={13} className="mt-0.5 flex-shrink-0" />
-              <span>{error}</span>
+              <span>
+                {error ||
+                  `Minimum bet is ${formatCurrency(usdToLocal(MIN_BET_USD, preferredCurrency, rates), preferredCurrency)}.`}
+              </span>
             </div>
           )}
 
-          {/* Submit */}
           {user ? (
             <button
-              className="btn btn-lg w-full transition-all"
+              type="button"
+              className={`btn btn-lg mt-4 w-full ${side === 'yes' ? 'btn-yes active' : 'btn-no active'}`}
               onClick={handleBet}
-              disabled={loading || amountNum <= 0}
-              style={{
-                background: side === 'yes' ? 'var(--green)' : 'var(--red)',
-                color: '#fff',
-                borderColor: 'transparent',
-                opacity: (loading || amountNum <= 0) ? 0.5 : 1,
-              }}
+              disabled={!canSubmit}
             >
               {loading ? (
                 <span className="flex items-center gap-2">
                   <svg className="animate-spin" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <path d="M21 12a9 9 0 11-6.219-8.56"/>
+                    <path d="M21 12a9 9 0 11-6.219-8.56" />
                   </svg>
-                  Placing bet…
+                  Placing bet
                 </span>
               ) : (
                 <>
                   Bet {side.toUpperCase()}
-                  {amountNum > 0 && ` · ${currencyInfo?.symbol}${amountNum.toLocaleString()}`}
+                  {amountNum > 0 && ` \u00B7 ${formatCurrency(amountNum, preferredCurrency)}`}
                 </>
               )}
             </button>
           ) : (
-            <button
-              className="btn btn-primary btn-lg w-full"
-              onClick={() => router.push('/auth/login')}
-            >
-              Sign in to bet <IconArrowRight size={15} />
+            <button type="button" className="btn btn-primary btn-lg mt-4 w-full" onClick={() => router.push('/auth/login')}>
+              Sign in to trade <IconArrowRight size={15} />
             </button>
           )}
 
-          {/* Disclaimer */}
-          <div className="flex items-start gap-1.5 text-[11px]" style={{ color: 'var(--text-muted)' }}>
-            <IconShield size={11} className="mt-0.5 flex-shrink-0" />
-            <span>Prices update in real-time. Payouts subject to LMSR pricing. 2% platform fee applies.</span>
-          </div>
+          <p className="mt-3 flex items-start gap-1.5 text-[11px] text-text-muted">
+            <IconShield size={12} className="mt-0.5 flex-shrink-0" />
+            <span>
+              Prices follow LMSR and update live. Your preview equals on-chain execution — a{' '}
+              {(market.platform_fee_rate * 100).toFixed(1)}% fee applies.
+            </span>
+          </p>
         </>
       )}
     </div>
