@@ -1,28 +1,61 @@
-// components/admin/finance/FinanceBadges.tsx — transaction status & provider pills.
+// components/admin/finance/FinanceBadges.tsx — transaction status / provider / type
+// pills, delegating to the shared tone-driven admin Pill so finance reads as one
+// system with the rest of the control plane.
 import type { Enums } from '@/types/supabase'
+import { Pill, toneFor, type PillTone } from '@/components/admin/ui'
 
-function Pill({ children, className }: { children: React.ReactNode; className: string }) {
-  return (
-    <span className={'inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ' + className}>
-      {children}
-    </span>
-  )
-}
+const DASH = <span className="text-[var(--text-muted)]">—</span>
 
-const STATUS_MAP: Record<string, string> = {
-  completed: 'bg-green-500/10 text-green-600 dark:text-green-400',
-  processing: 'bg-blue-500/10 text-blue-600 dark:text-blue-400',
-  pending: 'bg-amber-500/15 text-amber-600 dark:text-amber-400',
-  failed: 'bg-red-500/10 text-red-600 dark:text-red-400',
-  refunded: 'bg-violet-500/10 text-violet-600 dark:text-violet-400',
+/** Money-lifecycle status → tone. Terminal-good is green, in-flight blue,
+ *  waiting amber, failure red, reversal violet. */
+const STATUS_TONE: Record<string, PillTone> = {
+  completed: 'green',
+  processing: 'blue',
+  pending: 'amber',
+  failed: 'red',
+  refunded: 'violet',
 }
 
 export function TxnStatusBadge({ status }: { status: Enums<'transaction_status'> | null }) {
-  if (!status) return <span className="text-muted-foreground">—</span>
-  return <Pill className={STATUS_MAP[status] ?? 'bg-muted text-muted-foreground'}>{status}</Pill>
+  if (!status) return DASH
+  return (
+    <Pill tone={toneFor(status, STATUS_TONE)} dot>
+      {status}
+    </Pill>
+  )
+}
+
+/** Providers are neutral by default — they identify a rail, not a state. */
+const PROVIDER_LABEL: Record<string, string> = {
+  mpesa: 'M-Pesa',
+  mtn_momo: 'MTN MoMo',
+  airtel_money: 'Airtel Money',
+  pesapal: 'Pesapal',
+  bank_transfer: 'Bank',
+  internal: 'Internal',
 }
 
 export function ProviderBadge({ provider }: { provider: Enums<'payment_provider'> | null }) {
-  if (!provider) return <span className="text-muted-foreground">—</span>
-  return <Pill className="bg-muted text-muted-foreground">{provider}</Pill>
+  if (!provider) return DASH
+  return <Pill tone="slate">{PROVIDER_LABEL[provider] ?? provider}</Pill>
+}
+
+/** Ledger transaction type → tone. Inflows green, outflows red, wagering blue,
+ *  incentives teal-ish violet, fees amber. */
+const TYPE_TONE: Record<string, PillTone> = {
+  deposit: 'green',
+  bet_won: 'green',
+  bonus: 'green',
+  referral_bonus: 'violet',
+  creator_reward: 'violet',
+  withdrawal: 'red',
+  bet_lost: 'slate',
+  bet_placed: 'blue',
+  bet_refunded: 'violet',
+  fee: 'amber',
+}
+
+export function TxnTypeBadge({ type }: { type: Enums<'transaction_type'> | string | null }) {
+  if (!type) return DASH
+  return <Pill tone={toneFor(type, TYPE_TONE)}>{String(type).replace(/_/g, ' ')}</Pill>
 }
