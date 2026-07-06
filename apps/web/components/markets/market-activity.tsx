@@ -1,7 +1,9 @@
 // components/markets/market-activity.tsx
+// Recent activity feed on the Pip system: custom icons only (no lucide) and
+// design tokens throughout (no shadcn text-muted-foreground / text-foreground).
 import { formatDistanceToNow } from 'date-fns'
-import { TrendingUp, TrendingDown } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { IconTrendUp, IconTrendDown } from '@/components/ui/icons'
 
 interface ActivityItem {
   id: string
@@ -10,7 +12,7 @@ interface ActivityItem {
   amount_usd: number | null
   side: 'yes' | 'no' | null
   price: number | null
-  created_at: string | null | null
+  created_at: string | null
   user?: {
     display_name: string | null
     username: string | null
@@ -23,11 +25,7 @@ interface MarketActivityProps {
 
 export function MarketActivity({ activity }: MarketActivityProps) {
   if (!activity.length) {
-    return (
-      <p className="text-center text-muted-foreground text-sm py-4">
-        No activity yet
-      </p>
-    )
+    return <p className="py-4 text-center text-sm text-text-muted">No activity yet</p>
   }
 
   return (
@@ -35,36 +33,35 @@ export function MarketActivity({ activity }: MarketActivityProps) {
       {activity.map((item) => {
         const isBuy = item.action === 'bet_yes' || item.action === 'bet_no'
         const isYes = item.side === 'yes'
-        const displayName = item.user?.display_name || item.user?.username || `User...${item.user_id.slice(-4)}`
+        const displayName =
+          item.user?.display_name || item.user?.username || `User…${item.user_id.slice(-4)}`
 
         return (
           <div key={item.id} className="flex items-center justify-between text-sm">
-            <div className="flex items-center gap-2 min-w-0">
-              {isBuy && (
-                isYes
-                  ? <TrendingUp className="w-3.5 h-3.5 text-yes flex-none" />
-                  : <TrendingDown className="w-3.5 h-3.5 text-no flex-none" />
-              )}
-              <span className="truncate text-muted-foreground">
-                <span className="font-medium text-foreground">{displayName}</span>
-                {' '}
+            <div className="flex min-w-0 items-center gap-2">
+              {isBuy &&
+                (isYes ? (
+                  <IconTrendUp size={14} className="flex-none text-yes" />
+                ) : (
+                  <IconTrendDown size={14} className="flex-none text-no" />
+                ))}
+              <span className="truncate text-text-muted">
+                <span className="font-medium text-text-primary">{displayName}</span>{' '}
                 {isBuy
-                  ? `bet ${isYes ? 'YES' : 'NO'} at ${item.price ? Math.round(item.price * 100) : '?'}¢`
-                  : item.action.replace(/_/g, ' ')
-                }
+                  ? `bet ${isYes ? 'YES' : 'NO'} at ${item.price ? Math.round(item.price * 100) : '?'}\u00A2`
+                  : item.action.replace(/_/g, ' ')}
               </span>
             </div>
-            <div className="flex items-center gap-3 flex-none ml-2">
+            <div className="ml-2 flex flex-none items-center gap-3">
               {item.amount_usd && (
-                <span className={cn(
-                  'text-xs font-medium',
-                  isYes ? 'text-yes' : 'text-no'
-                )}>
+                <span className={cn('font-mono text-xs font-medium', isYes ? 'text-yes' : 'text-no')}>
                   ${item.amount_usd.toFixed(2)}
                 </span>
               )}
-              <span className="text-xs text-muted-foreground">
-                {item.created_at ? formatDistanceToNow(new Date(item.created_at), { addSuffix: true }) : ''}
+              <span className="text-xs text-text-muted">
+                {item.created_at
+                  ? formatDistanceToNow(new Date(item.created_at), { addSuffix: true })
+                  : ''}
               </span>
             </div>
           </div>
