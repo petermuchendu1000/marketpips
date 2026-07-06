@@ -2,6 +2,8 @@
 import Link from 'next/link'
 import { requirePageCapability } from '@/lib/admin/page-guard'
 import { MarketStatusBadge } from '@/components/admin/markets/MarketBadges'
+import { PageHeader, Panel, Pill, EmptyState } from '@/components/admin/ui'
+import { IconGavel, IconClock, IconArrowRight } from '@/components/ui/icons'
 
 export const dynamic = 'force-dynamic'
 export const metadata = { title: 'Admin — Market disputes' }
@@ -21,37 +23,47 @@ export default async function DisputesPage() {
 
   return (
     <div>
-      <div className="mb-6 flex items-center gap-3">
-        <Link href="/admin/markets" className="text-sm text-muted-foreground hover:underline">← Markets</Link>
-        <h1 className="text-2xl font-black">Dispute queue</h1>
-        <span className="rounded-full bg-red-500/10 px-2 py-0.5 text-xs font-medium text-red-600 dark:text-red-400">
-          {rows.length} open
-        </span>
-      </div>
+      <PageHeader
+        crumbs={[{ label: 'Markets', href: '/admin/markets' }, { label: 'Disputes' }]}
+        title="Dispute queue"
+        description="Markets flagged for dispute, oldest first. Resolve or cancel each before its SLA lapses."
+        meta={<Pill tone={rows.length > 0 ? 'red' : 'green'} dot>{rows.length} open</Pill>}
+      />
 
       {rows.length === 0 ? (
-        <div className="rounded-xl border p-8 text-center text-muted-foreground">No disputed markets. 🎉</div>
+        <Panel>
+          <EmptyState icon={<IconGavel size={20} />} title="No disputed markets" description="Every disputed market has been resolved. The queue is clear." />
+        </Panel>
       ) : (
         <div className="flex flex-col gap-3">
           {rows.map((m) => {
             const creator = (m as { creator?: { username: string | null } | null }).creator
             const ageHrs = m.updated_at ? Math.round((Date.now() - new Date(m.updated_at).getTime()) / 3_600_000) : null
+            const overdue = ageHrs != null && ageHrs >= 48
             return (
-              <div key={m.id} className="rounded-xl border p-4">
+              <Panel key={m.id} className="p-4">
                 <div className="flex flex-wrap items-start justify-between gap-3">
-                  <div>
-                    <Link href={`/admin/markets/${m.id}`} className="font-semibold text-primary hover:underline">{m.title}</Link>
-                    <p className="text-xs text-muted-foreground">by {creator?.username ?? '—'} · SLA age: {ageHrs != null ? `${ageHrs}h` : '—'}</p>
+                  <div className="min-w-0">
+                    <Link href={`/admin/markets/${m.id}`} className="font-semibold text-[var(--text-primary)] hover:text-[var(--green)]">{m.title}</Link>
+                    <p className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-[var(--text-muted)]">
+                      <span>by {creator?.username ?? '—'}</span>
+                      <span className="inline-flex items-center gap-1">
+                        <IconClock size={12} /> SLA age: {ageHrs != null ? `${ageHrs}h` : '—'}
+                      </span>
+                      {overdue && <Pill tone="red">Overdue</Pill>}
+                    </p>
                   </div>
                   <MarketStatusBadge status={m.status} />
                 </div>
                 {m.resolution_notes && (
-                  <p className="mt-2 whitespace-pre-wrap rounded-lg bg-muted/40 p-2 text-xs text-muted-foreground">{m.resolution_notes}</p>
+                  <p className="mt-3 whitespace-pre-wrap rounded-lg bg-[var(--bg-secondary)] p-3 text-xs text-[var(--text-secondary)]">{m.resolution_notes}</p>
                 )}
                 <div className="mt-3">
-                  <Link href={`/admin/markets/${m.id}`} className="rounded-lg border px-3 py-1.5 text-sm font-medium hover:bg-muted">Review & resolve →</Link>
+                  <Link href={`/admin/markets/${m.id}`} className="btn btn-secondary btn-sm gap-1.5">
+                    Review &amp; resolve <IconArrowRight size={14} />
+                  </Link>
                 </div>
-              </div>
+              </Panel>
             )
           })}
         </div>

@@ -16,6 +16,8 @@ export interface AllowedAction {
   danger?: boolean
 }
 
+const AREA = 'w-full rounded-[10px] border bg-[var(--surface)] px-3 py-2 text-sm text-[var(--text-primary)] outline-none transition focus:border-[var(--green)] focus:shadow-[0_0_0_3px_var(--green-faint)]'
+
 export function MarketActions({
   marketId,
   actions,
@@ -64,9 +66,6 @@ export function MarketActions({
     }
   }
 
-  const btn =
-    'rounded-lg px-3 py-1.5 text-sm font-semibold disabled:opacity-50'
-
   return (
     <div className="flex flex-col gap-3">
       <div className="flex flex-wrap gap-2">
@@ -76,20 +75,13 @@ export function MarketActions({
             disabled={busy || pending}
             onClick={() => {
               setErr(null)
-              // Simple actions post immediately; others open an inline form.
               if (a.key === 'approve' || a.key === 'close') {
                 post({ action: a.key })
               } else {
                 setActive(active === a.key ? null : a.key)
               }
             }}
-            className={
-              btn +
-              ' ' +
-              (a.danger
-                ? 'border border-red-500/50 text-red-600 hover:bg-red-500/10 dark:text-red-400'
-                : 'border hover:bg-muted')
-            }
+            className={`btn btn-sm ${a.danger ? 'btn-secondary text-red-600 dark:text-red-400' : 'btn-secondary'}`}
           >
             {a.label}
           </button>
@@ -98,22 +90,12 @@ export function MarketActions({
 
       {/* Reason-required actions: reject / dispute / cancel */}
       {(active === 'reject' || active === 'dispute' || active === 'cancel') && (
-        <div className="flex flex-col gap-2 rounded-lg border p-3">
-          <label htmlFor="reason" className="text-sm font-medium capitalize">{active} reason (required)</label>
-          <textarea id="reason"
-            value={reason}
-            onChange={(e) => setReason(e.target.value)}
-            rows={2}
-            className="rounded-lg border bg-background px-2 py-1.5 text-sm"
-            placeholder="Explain why…"
-          />
+        <div className="flex flex-col gap-2 rounded-[10px] border bg-[var(--bg-secondary)] p-3">
+          <label htmlFor="reason" className="text-sm font-medium capitalize text-[var(--text-secondary)]">{active} reason (required)</label>
+          <textarea id="reason" value={reason} onChange={(e) => setReason(e.target.value)} rows={2} className={AREA} placeholder="Explain why…" />
           <div className="flex justify-end gap-2">
-            <button className={btn + ' border hover:bg-muted'} onClick={() => setActive(null)}>Cancel</button>
-            <button
-              disabled={busy || reason.trim().length < 3}
-              onClick={() => post({ action: active, reason })}
-              className={btn + ' bg-red-600 text-white hover:opacity-90'}
-            >
+            <button className="btn btn-secondary btn-sm" onClick={() => setActive(null)}>Cancel</button>
+            <button disabled={busy || reason.trim().length < 3} onClick={() => post({ action: active, reason })} className="btn btn-no btn-sm">
               Confirm {active}
             </button>
           </div>
@@ -122,37 +104,20 @@ export function MarketActions({
 
       {/* Resolve: outcome + notes */}
       {active === 'resolve' && (
-        <div className="flex flex-col gap-2 rounded-lg border p-3">
-          <label htmlFor="resolve-outcome" className="text-sm font-medium">Resolve outcome</label>
+        <div className="flex flex-col gap-2 rounded-[10px] border bg-[var(--bg-secondary)] p-3">
+          <span className="text-sm font-medium text-[var(--text-secondary)]">Resolve outcome</span>
           <div className="flex gap-2">
             {(['yes', 'no'] as const).map((o) => (
-              <button
-                key={o}
-                onClick={() => setOutcome(o)}
-                className={
-                  btn +
-                  ' ' +
-                  (outcome === o ? 'bg-primary text-primary-foreground' : 'border hover:bg-muted')
-                }
-              >
+              <button key={o} onClick={() => setOutcome(o)} className={`btn btn-sm ${outcome === o ? (o === 'yes' ? 'btn-yes' : 'btn-no') : 'btn-secondary'}`}>
                 {o.toUpperCase()}
               </button>
             ))}
           </div>
-          <textarea id="resolve-outcome"
-            value={notes}
-            onChange={(e) => setNotes(e.target.value)}
-            rows={2}
-            placeholder="Resolution notes / source (min 10 chars)"
-            className="rounded-lg border bg-background px-2 py-1.5 text-sm"
-          />
+          <label htmlFor="resolve-notes" className="sr-only">Resolution notes</label>
+          <textarea id="resolve-notes" value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} placeholder="Resolution notes / source (min 10 chars)" className={AREA} />
           <div className="flex justify-end gap-2">
-            <button className={btn + ' border hover:bg-muted'} onClick={() => setActive(null)}>Cancel</button>
-            <button
-              disabled={busy || notes.trim().length < 10}
-              onClick={() => post({ action: 'resolve', outcome, resolution_notes: notes })}
-              className={btn + ' bg-green-600 text-white hover:opacity-90'}
-            >
+            <button className="btn btn-secondary btn-sm" onClick={() => setActive(null)}>Cancel</button>
+            <button disabled={busy || notes.trim().length < 10} onClick={() => post({ action: 'resolve', outcome, resolution_notes: notes })} className="btn btn-yes btn-sm">
               Resolve &amp; pay out
             </button>
           </div>
@@ -161,36 +126,23 @@ export function MarketActions({
 
       {/* Feature / trend toggles */}
       {active === 'feature' && (
-        <div className="flex flex-col gap-2 rounded-lg border p-3">
-          <label className="flex items-center gap-2 text-sm">
-            <input type="checkbox" checked={feat} onChange={(e) => setFeat(e.target.checked)} /> Featured
+        <div className="flex flex-col gap-2.5 rounded-[10px] border bg-[var(--bg-secondary)] p-3">
+          <label className="flex items-center gap-2 text-sm text-[var(--text-secondary)]">
+            <input type="checkbox" checked={feat} onChange={(e) => setFeat(e.target.checked)} className="accent-[var(--green)]" /> Featured
           </label>
-          <label className="flex items-center gap-2 text-sm">
-            <input type="checkbox" checked={trend} onChange={(e) => setTrend(e.target.checked)} /> Trending
+          <label className="flex items-center gap-2 text-sm text-[var(--text-secondary)]">
+            <input type="checkbox" checked={trend} onChange={(e) => setTrend(e.target.checked)} className="accent-[var(--green)]" /> Trending
           </label>
-          <label className="text-sm">
+          <label htmlFor="feat-order" className="flex items-center gap-2 text-sm text-[var(--text-secondary)]">
             Featured order
-            <input
-              type="number"
-              value={order}
-              onChange={(e) => setOrder(e.target.value)}
-              disabled={!feat}
-              className="ml-2 w-24 rounded-lg border bg-background px-2 py-1 text-sm disabled:opacity-50"
-            />
+            <input id="feat-order" type="number" value={order} onChange={(e) => setOrder(e.target.value)} disabled={!feat} className="admin-field ml-1 w-24 disabled:opacity-50" />
           </label>
           <div className="flex justify-end gap-2">
-            <button className={btn + ' border hover:bg-muted'} onClick={() => setActive(null)}>Cancel</button>
+            <button className="btn btn-secondary btn-sm" onClick={() => setActive(null)}>Cancel</button>
             <button
               disabled={busy}
-              onClick={() =>
-                post({
-                  action: 'feature',
-                  is_featured: feat,
-                  is_trending: trend,
-                  featured_order: feat && order !== '' ? Number(order) : null,
-                })
-              }
-              className={btn + ' bg-primary text-primary-foreground hover:opacity-90'}
+              onClick={() => post({ action: 'feature', is_featured: feat, is_trending: trend, featured_order: feat && order !== '' ? Number(order) : null })}
+              className="btn btn-primary btn-sm"
             >
               Save
             </button>
