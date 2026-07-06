@@ -26,41 +26,29 @@ export function KycReviewActions({ docId }: { docId: string }) {
   }
 
   return (
-    <div className="flex flex-col items-end gap-2">
+    <div className="flex shrink-0 flex-col items-end gap-2">
       {!rejecting ? (
         <div className="flex gap-2">
-          <button
-            disabled={pending}
-            onClick={() => submit('verified')}
-            className="rounded-lg bg-green-600 px-3 py-1.5 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-50"
-          >
+          <button disabled={pending} onClick={() => submit('verified')} className="btn btn-yes btn-sm">
             Approve
           </button>
-          <button
-            disabled={pending}
-            onClick={() => setRejecting(true)}
-            className="rounded-lg border border-red-500/50 px-3 py-1.5 text-sm font-semibold text-red-600 hover:bg-red-500/10 disabled:opacity-50 dark:text-red-400"
-          >
+          <button disabled={pending} onClick={() => setRejecting(true)} className="btn btn-secondary btn-sm text-red-600 dark:text-red-400">
             Reject
           </button>
         </div>
       ) : (
         <div className="flex flex-col items-end gap-2">
+          <label htmlFor={`kyc-reason-${docId}`} className="sr-only">Rejection reason</label>
           <input
+            id={`kyc-reason-${docId}`}
             value={reason}
             onChange={(e) => setReason(e.target.value)}
             placeholder="Rejection reason (required)"
-            className="w-64 rounded-lg border bg-background px-2 py-1.5 text-sm"
+            className="admin-field w-64"
           />
           <div className="flex gap-2">
-            <button onClick={() => setRejecting(false)} className="rounded-lg border px-3 py-1.5 text-sm hover:bg-muted">
-              Cancel
-            </button>
-            <button
-              disabled={pending || reason.trim().length < 3}
-              onClick={() => submit('rejected')}
-              className="rounded-lg bg-red-600 px-3 py-1.5 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-50"
-            >
+            <button onClick={() => setRejecting(false)} className="btn btn-secondary btn-sm">Cancel</button>
+            <button disabled={pending || reason.trim().length < 3} onClick={() => submit('rejected')} className="btn btn-no btn-sm">
               Confirm reject
             </button>
           </div>
