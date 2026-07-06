@@ -80,7 +80,7 @@ export function VerificationMeter({ level, pending }: VerificationMeterProps) {
                   ) : (
                     <span
                       className={`h-1.5 w-1.5 rounded-pill ${
-                        st === 'current' ? 'bg-pip-500' : 'bg-hairline-strong'
+                        st === 'current' ? 'bg-pip-500' : 'bg-[var(--hairline-strong)]'
                       }`}
                     />
                   )}

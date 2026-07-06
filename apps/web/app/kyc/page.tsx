@@ -1,16 +1,19 @@
 'use client'
 
-// app/kyc/page.tsx — Identity verification (stepped flow)
-// Thin client wrapper: guards auth, resolves the current KYC status, and hands
-// off to the KycWizard. Verified / pending users see a terminal state instead.
+// app/kyc/page.tsx — Identity verification (Verification Console)
+// Thin client wrapper: guards auth, resolves the current KYC status, and hands off
+// to the KycWizard. Verified / pending users see a terminal state re-skinned onto
+// the same two-pane console for visual continuity.
 import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/hooks/use-auth'
 import { createClient } from '@/lib/supabase/client'
 import { KycWizard } from '@/components/kyc/kyc-wizard'
+import { KycConsole } from '@/components/kyc/kyc-console'
+import { VerificationMeter } from '@/components/kyc/verification-meter'
 import { LevelBadge } from '@/components/kyc/level-badge'
-import { IconCheck, IconClock } from '@/components/ui/icons'
+import { IconCheck, IconClock, IconShield, IconArrowRight } from '@/components/ui/icons'
 
 export default function KYCPage() {
   const { user, profile, loading } = useAuth()
@@ -39,67 +42,104 @@ export default function KYCPage() {
       })
   }, [user, profile, supabase])
 
+  // ---- Loading -------------------------------------------------------------
   if (loading || !user || !ready) {
     return (
-      <div className="mx-auto max-w-lg px-4 py-16">
+      <div className="mx-auto max-w-xl px-4 py-16">
         <div className="skeleton h-8 w-48 rounded-md" />
         <div className="skeleton mt-6 h-64 w-full rounded-md" />
       </div>
     )
   }
 
+  // ---- Verified ------------------------------------------------------------
   if (status === 'verified') {
     return (
-      <div className="mx-auto max-w-lg px-4 py-16">
-        <div className="card p-8 text-center">
-          <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-pill bg-yes/10 text-yes">
-            <IconCheck size={28} strokeWidth={2.5} />
+      <KycConsole bridge={<TerminalBridge state="verified" />}>
+        <div className="card animate-scale-in p-8 text-center sm:p-10">
+          <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-pill bg-yes/10 text-yes-700">
+            <IconCheck size={30} strokeWidth={2.5} />
           </div>
           <div className="mb-3 flex justify-center">
             <LevelBadge level="enhanced" />
           </div>
           <h1 className="font-display text-2xl text-text-primary">Identity verified</h1>
-          <p className="mx-auto mt-2 max-w-sm text-sm text-text-secondary">
+          <p className="mx-auto mt-2 max-w-sm text-sm leading-relaxed text-text-secondary">
             You&apos;re fully verified — all deposit, withdrawal and trading features are unlocked.
           </p>
-          <Link href="/portfolio" className="btn btn-secondary mt-6">
-            Go to portfolio
+          <Link href="/portfolio" className="btn btn-primary mt-6">
+            Go to portfolio <IconArrowRight size={15} />
           </Link>
         </div>
-      </div>
+      </KycConsole>
     )
   }
 
+  // ---- Pending -------------------------------------------------------------
   if (status === 'pending') {
     return (
-      <div className="mx-auto max-w-lg px-4 py-16">
-        <div className="card p-8 text-center">
-          <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-pill bg-amber/10 text-amber">
+      <KycConsole bridge={<TerminalBridge state="pending" />}>
+        <div className="card animate-scale-in p-8 text-center sm:p-10">
+          <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-pill bg-brass-100 text-brass-600">
             <IconClock size={28} />
           </div>
           <div className="mb-3 flex justify-center">
             <LevelBadge level="enhanced" pending />
           </div>
           <h1 className="font-display text-2xl text-text-primary">Under review</h1>
-          <p className="mx-auto mt-2 max-w-sm text-sm text-text-secondary">
+          <p className="mx-auto mt-2 max-w-sm text-sm leading-relaxed text-text-secondary">
             Your documents are with our compliance team. This usually takes 1–2 business days, and
             we&apos;ll email you as soon as you&apos;re verified.
           </p>
+          <div className="mx-auto mt-6 flex max-w-xs items-center justify-center gap-1.5 rounded-md border border-hairline bg-surface-2 px-3 py-2 text-xs text-text-muted">
+            <IconShield size={13} className="text-pip-500" /> Your documents are encrypted and private.
+          </div>
           <Link href="/portfolio" className="btn btn-secondary mt-6">
             Back to portfolio
           </Link>
         </div>
-      </div>
+      </KycConsole>
     )
   }
 
+  // ---- Unverified → wizard -------------------------------------------------
   return (
-    <div className="px-4 py-8">
-      <KycWizard
-        user={user}
-        initialPhone={profile?.phone_number ?? ''}
-        initialCountry={profile?.country_code ?? 'KE'}
-      />
+    <KycWizard
+      user={user}
+      initialPhone={profile?.phone_number ?? ''}
+      initialCountry={profile?.country_code ?? 'KE'}
+    />
+  )
+}
+
+function TerminalBridge({ state }: { state: 'verified' | 'pending' }) {
+  return (
+    <div className="space-y-9">
+      <VerificationMeter level="enhanced" pending={state === 'pending'} />
+      <div className="rounded-md border border-hairline bg-surface p-4">
+        <p className="flex items-center gap-2 text-sm font-semibold text-text-primary">
+          {state === 'verified' ? (
+            <>
+              <span className="flex h-6 w-6 items-center justify-center rounded-pill bg-yes/10 text-yes-700">
+                <IconCheck size={13} strokeWidth={2.5} />
+              </span>
+              All checks complete
+            </>
+          ) : (
+            <>
+              <span className="flex h-6 w-6 items-center justify-center rounded-pill bg-brass-100 text-brass-600">
+                <IconClock size={13} />
+              </span>
+              Awaiting review
+            </>
+          )}
+        </p>
+        <p className="mt-1.5 text-xs leading-snug text-text-muted">
+          {state === 'verified'
+            ? 'Enhanced verification unlocks full deposits, withdrawals and the highest limits.'
+            : 'A compliance officer is reviewing your documents. No further action is needed.'}
+        </p>
+      </div>
     </div>
   )
 }

@@ -36,9 +36,9 @@ export function KycConsole({ bridge, children }: KycConsoleProps) {
       </aside>
 
       {/* GATE — the focused step */}
-      <main className="flex justify-center px-4 py-8 sm:px-6 lg:py-12">
+      <div className="flex justify-center px-4 py-8 sm:px-6 lg:py-12">
         <div className="w-full max-w-xl">{children}</div>
-      </main>
+      </div>
     </div>
   )
 }
