@@ -2,7 +2,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { z } from 'zod'
-import type { Enums } from '@/types/supabase'
+import type { Enums, Json } from '@/types/supabase'
 import { presetHeaders } from '@/lib/http/cache-headers'
 
 // GET - list markets with filters
@@ -84,11 +84,22 @@ const createMarketSchema = z.object({
     'entertainment', 'weather', 'governance', 'elections', 'business',
     'health', 'social', 'other'
   ]),
+  // Structure. The trading engine is binary (LMSR YES/NO); multiple_choice is
+  // accepted at the schema level for forward-compatibility but the creator UI
+  // only publishes binary today.
+  resolution_type: z.enum(['binary', 'multiple_choice']).default('binary'),
   resolution_criteria: z.string().min(20).max(1000),
+  // Credible authoritative source the market resolves against.
+  resolution_source: z.string().url().max(500).optional(),
   closes_at: z.string().datetime(),
   resolves_at: z.string().datetime().optional(),
   tags: z.array(z.string().max(30)).max(10).default([]),
   cover_image_url: z.string().url().optional(),
+  // Creator-set opening probability for YES (0.01–0.99). place_bet v2 seeds the
+  // LMSR from the stored yes_price, so this opening estimate is honoured.
+  initial_probability: z.number().min(0.01).max(0.99).optional(),
+  // Structured deterministic-resolution metadata (tie / void handling, etc.).
+  metadata: z.record(z.string(), z.unknown()).optional(),
 })
 
 // POST - create market
@@ -157,15 +168,23 @@ export async function POST(req: NextRequest) {
     const isAdmin = profile?.role === 'admin' || profile?.role === 'moderator'
     const status = isAdmin ? 'active' : 'pending'
 
+    // Opening probability -> seed yes_price/no_price (defaults to an even 50/50).
+    const { initial_probability, metadata, ...marketData } = data
+    const yesPrice = Math.round((initial_probability ?? 0.5) * 1e6) / 1e6
+    const noPrice = Math.round((1 - yesPrice) * 1e6) / 1e6
+
     const adminClient = await createAdminClient()
     const { data: market, error: createError } = await adminClient
       .from('markets')
       .insert({
-        ...data,
+        ...marketData,
         slug,
         creator_id: user.id,
         status,
         resolver_id: isAdmin ? user.id : null,
+        yes_price: yesPrice,
+        no_price: noPrice,
+        metadata: (metadata ?? null) as Json,
       })
       .select()
       .single()
