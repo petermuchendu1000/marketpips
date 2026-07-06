@@ -1,28 +1,24 @@
 'use client'
 
-import { useEffect, useMemo, useRef, useState } from 'react'
+// app/kyc/page.tsx — Identity verification (stepped flow)
+// Thin client wrapper: guards auth, resolves the current KYC status, and hands
+// off to the KycWizard. Verified / pending users see a terminal state instead.
+import { useEffect, useMemo, useState } from 'react'
+import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/hooks/use-auth'
 import { createClient } from '@/lib/supabase/client'
-
-type DocType = 'national_id' | 'passport' | 'drivers_license'
+import { KycWizard } from '@/components/kyc/kyc-wizard'
+import { LevelBadge } from '@/components/kyc/level-badge'
+import { IconCheck, IconClock } from '@/components/ui/icons'
 
 export default function KYCPage() {
-  const { user, loading } = useAuth()
+  const { user, profile, loading } = useAuth()
   const router = useRouter()
   const supabase = useMemo(() => createClient(), [])
 
-  const [docType, setDocType] = useState<DocType>('national_id')
-  const [docNumber, setDocNumber] = useState('')
-  const [countryOfIssue, setCountryOfIssue] = useState('KE')
-  const [expiryDate, setExpiryDate] = useState('')
-  const [frontFile, setFrontFile] = useState<File | null>(null)
-  const [backFile, setBackFile] = useState<File | null>(null)
-  const [selfieFile, setSelfieFile] = useState<File | null>(null)
-  const [submitting, setSubmitting] = useState(false)
-  const [submitted, setSubmitted] = useState(false)
-  const [existingStatus, setExistingStatus] = useState<string | null>(null)
-  const [error, setError] = useState('')
+  const [status, setStatus] = useState<string | null>(null)
+  const [ready, setReady] = useState(false)
 
   useEffect(() => {
     if (!loading && !user) router.push('/auth/login')
@@ -36,213 +32,73 @@ export default function KYCPage() {
       .eq('user_id', user.id)
       .order('created_at', { ascending: false })
       .limit(1)
-      .single()
+      .maybeSingle()
       .then(({ data }) => {
-        if (data) setExistingStatus(data.status)
+        setStatus(data?.status ?? profile?.kyc_status ?? 'unverified')
+        setReady(true)
       })
-  }, [user, supabase])
+  }, [user, profile, supabase])
 
-  const uploadFile = async (file: File, path: string): Promise<string | null> => {
-    const { data, error } = await supabase.storage
-      .from('kyc-documents')
-      .upload(path, file, { upsert: true })
-    if (error) return null
-    const { data: { publicUrl } } = supabase.storage.from('kyc-documents').getPublicUrl(data.path)
-    return publicUrl
+  if (loading || !user || !ready) {
+    return (
+      <div className="mx-auto max-w-lg px-4 py-16">
+        <div className="skeleton h-8 w-48 rounded-md" />
+        <div className="skeleton mt-6 h-64 w-full rounded-md" />
+      </div>
+    )
   }
 
-  const handleSubmit = async () => {
-    if (!user) return
-    if (!frontFile) return setError('Please upload the front of your document.')
-    if (!selfieFile) return setError('Please upload a selfie photo.')
-    setError('')
-    setSubmitting(true)
-
-    const ts = Date.now()
-    const [frontUrl, backUrl, selfieUrl] = await Promise.all([
-      uploadFile(frontFile, `${user.id}/${ts}-front.${frontFile.name.split('.').pop()}`),
-      backFile ? uploadFile(backFile, `${user.id}/${ts}-back.${backFile.name.split('.').pop()}`) : Promise.resolve(null),
-      uploadFile(selfieFile, `${user.id}/${ts}-selfie.${selfieFile.name.split('.').pop()}`),
-    ])
-
-    if (!frontUrl || !selfieUrl) {
-      setError('File upload failed. Please try again.')
-      setSubmitting(false)
-      return
-    }
-
-    const { error: dbErr } = await supabase.from('kyc_documents').insert({
-      user_id: user.id,
-      document_type: docType,
-      document_number: docNumber || null,
-      country_of_issue: countryOfIssue,
-      expiry_date: expiryDate || null,
-      front_image_url: frontUrl,
-      back_image_url: backUrl,
-      selfie_image_url: selfieUrl,
-      status: 'pending',
-    })
-
-    if (dbErr) {
-      setError(dbErr.message)
-      setSubmitting(false)
-      return
-    }
-
-    await supabase.from('profiles').update({ kyc_status: 'pending' }).eq('id', user.id)
-    setSubmitting(false)
-    setSubmitted(true)
-    setExistingStatus('pending')
+  if (status === 'verified') {
+    return (
+      <div className="mx-auto max-w-lg px-4 py-16">
+        <div className="card p-8 text-center">
+          <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-pill bg-yes/10 text-yes">
+            <IconCheck size={28} strokeWidth={2.5} />
+          </div>
+          <div className="mb-3 flex justify-center">
+            <LevelBadge level="enhanced" />
+          </div>
+          <h1 className="font-display text-2xl text-text-primary">Identity verified</h1>
+          <p className="mx-auto mt-2 max-w-sm text-sm text-text-secondary">
+            You&apos;re fully verified — all deposit, withdrawal and trading features are unlocked.
+          </p>
+          <Link href="/portfolio" className="btn btn-secondary mt-6">
+            Go to portfolio
+          </Link>
+        </div>
+      </div>
+    )
   }
 
-  if (loading || !user) return (
-    <div className="min-h-screen flex items-center justify-center">
-      <span className="loading loading-spinner loading-lg" />
-    </div>
-  )
-
-  if (existingStatus === 'verified') return (
-    <div className="container mx-auto px-4 py-16 max-w-lg text-center">
-      <div className="text-6xl mb-4">✅</div>
-      <h1 className="text-2xl font-bold mb-2">Identity Verified</h1>
-      <p className="text-base-content/60">Your identity has been verified. You can now use all platform features.</p>
-    </div>
-  )
-
-  if (existingStatus === 'pending' || submitted) return (
-    <div className="container mx-auto px-4 py-16 max-w-lg text-center">
-      <div className="text-6xl mb-4">⏳</div>
-      <h1 className="text-2xl font-bold mb-2">Under Review</h1>
-      <p className="text-base-content/60">Your documents are being reviewed. This usually takes 1–2 business days.</p>
-    </div>
-  )
+  if (status === 'pending') {
+    return (
+      <div className="mx-auto max-w-lg px-4 py-16">
+        <div className="card p-8 text-center">
+          <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-pill bg-amber/10 text-amber">
+            <IconClock size={28} />
+          </div>
+          <div className="mb-3 flex justify-center">
+            <LevelBadge level="enhanced" pending />
+          </div>
+          <h1 className="font-display text-2xl text-text-primary">Under review</h1>
+          <p className="mx-auto mt-2 max-w-sm text-sm text-text-secondary">
+            Your documents are with our compliance team. This usually takes 1–2 business days, and
+            we&apos;ll email you as soon as you&apos;re verified.
+          </p>
+          <Link href="/portfolio" className="btn btn-secondary mt-6">
+            Back to portfolio
+          </Link>
+        </div>
+      </div>
+    )
+  }
 
   return (
-    <div className="container mx-auto px-4 py-8 max-w-lg">
-      <h1 className="text-2xl font-bold mb-2">🪪 Identity Verification (KYC)</h1>
-      <p className="text-sm text-base-content/60 mb-6">
-        Verify your identity to unlock higher deposit/withdrawal limits and full platform access.
-      </p>
-
-      <div className="steps steps-horizontal w-full mb-8 text-xs">
-        <div className="step step-primary">Select Document</div>
-        <div className="step step-primary">Upload Photos</div>
-        <div className="step">Review</div>
-      </div>
-
-      <div className="space-y-5">
-        <div className="form-control">
-          <span className="label"><span className="label-text font-medium">Document Type</span></span>
-          <div className="flex gap-2 flex-wrap">
-            {(['national_id', 'passport', 'drivers_license'] as DocType[]).map((dt) => (
-              <button
-                key={dt}
-                className={`btn btn-sm ${docType === dt ? 'btn-primary' : 'btn-outline'}`}
-                onClick={() => setDocType(dt)}
-              >
-                {dt === 'national_id' ? '🪪 National ID' : dt === 'passport' ? '📕 Passport' : '🚗 Driving Licence'}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        <div className="grid grid-cols-2 gap-4">
-          <div className="form-control">
-            <label htmlFor="document-number" className="label"><span className="label-text">Document Number</span></label>
-            <input id="document-number"
-              type="text"
-              className="input input-bordered input-sm"
-              placeholder="e.g. 12345678"
-              value={docNumber}
-              onChange={(e) => setDocNumber(e.target.value)}
-            />
-          </div>
-          <div className="form-control">
-            <label htmlFor="country-of-issue" className="label"><span className="label-text">Country of Issue</span></label>
-            <select id="country-of-issue"
-              className="select select-bordered select-sm"
-              value={countryOfIssue}
-              onChange={(e) => setCountryOfIssue(e.target.value)}
-            >
-              <option value="KE">🇰🇪 Kenya</option>
-              <option value="TZ">🇹🇿 Tanzania</option>
-              <option value="UG">🇺🇬 Uganda</option>
-              <option value="RW">🇷🇼 Rwanda</option>
-              <option value="ZM">🇿🇲 Zambia</option>
-              <option value="ET">🇪🇹 Ethiopia</option>
-              <option value="BI">🇧🇮 Burundi</option>
-            </select>
-          </div>
-        </div>
-
-        <div className="form-control">
-          <label htmlFor="expiry-date" className="label"><span className="label-text">Expiry Date (optional)</span></label>
-          <input id="expiry-date"
-            type="date"
-            className="input input-bordered input-sm"
-            value={expiryDate}
-            onChange={(e) => setExpiryDate(e.target.value)}
-          />
-        </div>
-
-        <FileUpload label="📄 Front of Document *" onFile={setFrontFile} />
-        {docType !== 'passport' && (
-          <FileUpload label="📄 Back of Document" onFile={setBackFile} />
-        )}
-        <FileUpload label="🤳 Selfie Photo *" onFile={setSelfieFile} hint="Hold your document next to your face" />
-
-        {error && <p className="text-error text-sm">{error}</p>}
-
-        <button
-          className={`btn btn-primary w-full ${submitting ? 'loading' : ''}`}
-          onClick={handleSubmit}
-          disabled={submitting}
-        >
-          Submit for Verification
-        </button>
-
-        <p className="text-xs text-base-content/40 text-center">
-          Your documents are encrypted and stored securely. We only use them for identity verification.
-        </p>
-      </div>
-    </div>
-  )
-}
-
-function FileUpload({ label, hint, onFile }: { label: string; hint?: string; onFile: (f: File) => void }) {
-  const ref = useRef<HTMLInputElement>(null)
-  const [name, setName] = useState('')
-  return (
-    <div className="form-control">
-      <span className="label">
-        <span className="label-text font-medium">{label}</span>
-        {hint && <span className="label-text-alt text-base-content/50">{hint}</span>}
-      </span>
-      <button
-        type="button"
-        aria-label={name ? `${label}: ${name}. Change file` : `Upload ${label}`}
-        className="w-full border-2 border-dashed border-base-300 rounded-xl p-4 flex flex-col items-center gap-2 cursor-pointer hover:border-primary focus-visible:border-primary transition-colors"
-        onClick={() => ref.current?.click()}
-      >
-        {name ? (
-          <span className="text-sm text-success">✓ {name}</span>
-        ) : (
-          <>
-            <span className="text-2xl" aria-hidden="true">📁</span>
-            <span className="text-sm text-base-content/60">Click to upload or drag & drop</span>
-            <span className="text-xs text-base-content/40">JPG, PNG, PDF (max 5MB)</span>
-          </>
-        )}
-      </button>
-      <input
-        ref={ref}
-        type="file"
-        className="hidden"
-        accept="image/jpeg,image/png,application/pdf"
-        onChange={(e) => {
-          const f = e.target.files?.[0]
-          if (f) { onFile(f); setName(f.name) }
-        }}
+    <div className="px-4 py-8">
+      <KycWizard
+        user={user}
+        initialPhone={profile?.phone_number ?? ''}
+        initialCountry={profile?.country_code ?? 'KE'}
       />
     </div>
   )
