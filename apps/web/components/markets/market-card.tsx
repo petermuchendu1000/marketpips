@@ -3,11 +3,36 @@
 import Link from 'next/link'
 import type { Market } from '@/types'
 import { CATEGORY_LABELS } from '@/types'
+import { splitHighlight } from '@/lib/search'
 import { IconClock, IconUser, IconTrendUp, CategoryIcon } from '@/components/ui/icons'
 
 interface MarketCardProps {
   market: Market
   compact?: boolean
+  /** When set, matching query tokens in the title are highlighted (search UI). */
+  query?: string
+}
+
+/** Render a title, highlighting query-token matches with a brand-tinted mark. */
+function TitleContent({ title, query }: { title: string; query?: string }) {
+  if (!query) return <>{title}</>
+  return (
+    <>
+      {splitHighlight(title, query).map((seg, i) =>
+        seg.match ? (
+          <mark
+            key={i}
+            className="rounded-[3px] px-0.5"
+            style={{ background: 'var(--pip-100)', color: 'inherit' }}
+          >
+            {seg.text}
+          </mark>
+        ) : (
+          <span key={i}>{seg.text}</span>
+        ),
+      )}
+    </>
+  )
 }
 
 function timeLeft(closes: string) {
@@ -21,7 +46,7 @@ function timeLeft(closes: string) {
   return `${m}m`
 }
 
-export function MarketCard({ market, compact = false }: MarketCardProps) {
+export function MarketCard({ market, compact = false, query }: MarketCardProps) {
   const cat = CATEGORY_LABELS[market.category] ?? { emoji: '', label: 'Other', color: '' }
   const yesPct = Math.round(market.yes_price * 100)
   const noPct = 100 - yesPct
@@ -53,7 +78,7 @@ export function MarketCard({ market, compact = false }: MarketCardProps) {
         }`}
         style={{ color: 'var(--text-primary)' }}
       >
-        {market.title}
+        <TitleContent title={market.title} query={query} />
       </h3>
 
       {/* Probability bar + YES/NO chips */}
