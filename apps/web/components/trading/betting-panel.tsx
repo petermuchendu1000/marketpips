@@ -125,17 +125,22 @@ export function BettingPanel({ market }: BettingPanelProps) {
         body: JSON.stringify({
           market_id: market.id,
           side,
-          amount: amountNum,
+          amount_local: amountNum,
           currency: preferredCurrency,
+          order_type: 'market',
         }),
       })
       const data = await res.json()
-      if (res.ok && (data.success || data.order_id)) {
+      // place_bet RPC result is nested under `data.data`.
+      const rpc = data?.data ?? {}
+      if (res.ok && (data.success || rpc.order_id)) {
         setReceipt({
-          shares: data.shares_bought ?? preview?.shares ?? 0,
-          avgPrice: data.average_price ?? preview?.avgPrice ?? currentPrice,
-          payoutUsd: data.max_payout ?? preview?.potentialPayoutUsd ?? 0,
+          shares: rpc.shares ?? preview?.shares ?? 0,
+          avgPrice: rpc.avg_fill_price ?? preview?.avgPrice ?? currentPrice,
+          payoutUsd: rpc.potential_payout_usd ?? preview?.potentialPayoutUsd ?? 0,
         })
+        // Let dependent panels (e.g. live position P&L) refresh.
+        window.dispatchEvent(new CustomEvent('marketpips:bet-placed', { detail: { marketId: market.id } }))
         await refreshWallets()
       } else {
         setError(data.error ?? 'Order failed. Please try again.')

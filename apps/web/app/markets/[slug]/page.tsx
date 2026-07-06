@@ -7,6 +7,7 @@ import { createClient } from '@/lib/supabase/server'
 import { MarketHeader } from '@/components/markets/market-header'
 import { PriceChart } from '@/components/markets/price-chart'
 import { BettingPanel } from '@/components/trading/betting-panel'
+import { PositionSummary } from '@/components/trading/position-summary'
 import { MarketActivity } from '@/components/markets/market-activity'
 import { MarketComments } from '@/components/markets/market-comments'
 import { RelatedMarkets } from '@/components/markets/related-markets'
@@ -175,6 +176,9 @@ export default async function MarketPage({ params }: { params: Promise<{ slug: s
         <div className="space-y-4">
           <div className="lg:sticky lg:top-20 lg:space-y-4">
             <BettingPanel market={market} />
+
+            {/* Real-time position & P&L (only renders when the user holds one) */}
+            <PositionSummary market={market} />
 
             {/* Settlement / resolution rules */}
             <div className="card p-4">
