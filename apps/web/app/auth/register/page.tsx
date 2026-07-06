@@ -1,26 +1,41 @@
 'use client'
 
-import { useState } from 'react'
+// app/auth/register/page.tsx — Create account (Preview → Gate → Bridge)
+import { useMemo, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
+import { AuthShell } from '@/components/auth/auth-shell'
+import { PasswordInput } from '@/components/auth/password-input'
 import { LogoMark, IconShield, IconArrowRight, IconCheck } from '@/components/ui/icons'
 
 const COUNTRIES = [
-  { code: 'KE', name: 'Kenya', flag: '🇰🇪', currency: 'KES' },
-  { code: 'UG', name: 'Uganda', flag: '🇺🇬', currency: 'UGX' },
-  { code: 'TZ', name: 'Tanzania', flag: '🇹🇿', currency: 'TZS' },
-  { code: 'RW', name: 'Rwanda', flag: '🇷🇼', currency: 'RWF' },
-  { code: 'ZM', name: 'Zambia', flag: '🇿🇲', currency: 'ZMW' },
-  { code: 'ET', name: 'Ethiopia', flag: '🇪🇹', currency: 'ETB' },
-  { code: 'BI', name: 'Burundi', flag: '🇧🇮', currency: 'BIF' },
+  { code: 'KE', name: 'Kenya', currency: 'KES' },
+  { code: 'UG', name: 'Uganda', currency: 'UGX' },
+  { code: 'TZ', name: 'Tanzania', currency: 'TZS' },
+  { code: 'RW', name: 'Rwanda', currency: 'RWF' },
+  { code: 'ZM', name: 'Zambia', currency: 'ZMW' },
+  { code: 'ET', name: 'Ethiopia', currency: 'ETB' },
+  { code: 'BI', name: 'Burundi', currency: 'BIF' },
 ]
 
-const PERKS = [
-  'Trade on elections, sports, crypto & more',
-  'Deposit with M-Pesa, MTN MoMo, Airtel',
-  'Multi-currency wallets (KES, UGX, TZS…)',
-  'Earn bonuses for referring friends',
+/** 0..4 password strength from length + character variety. */
+function scorePassword(pw: string): number {
+  if (!pw) return 0
+  let score = 0
+  if (pw.length >= 8) score++
+  if (pw.length >= 12) score++
+  if (/[a-z]/.test(pw) && /[A-Z]/.test(pw)) score++
+  if (/\d/.test(pw) && /[^A-Za-z0-9]/.test(pw)) score++
+  return Math.min(score, 4)
+}
+
+const STRENGTH = [
+  { label: 'Too short', cls: 'bg-no' },
+  { label: 'Weak', cls: 'bg-no' },
+  { label: 'Fair', cls: 'bg-amber' },
+  { label: 'Good', cls: 'bg-pip-500' },
+  { label: 'Strong', cls: 'bg-yes' },
 ]
 
 export default function RegisterPage() {
@@ -32,11 +47,20 @@ export default function RegisterPage() {
   const [name, setName] = useState('')
   const [country, setCountry] = useState('KE')
   const [refCode, setRefCode] = useState(
-    typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('ref') ?? '' : ''
+    typeof window !== 'undefined'
+      ? new URLSearchParams(window.location.search).get('ref') ?? ''
+      : '',
+  )
+  const [showRef, setShowRef] = useState(
+    typeof window !== 'undefined' && !!new URLSearchParams(window.location.search).get('ref'),
   )
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [done, setDone] = useState(false)
+
+  const strength = useMemo(() => scorePassword(password), [password])
+  const canSubmit =
+    !loading && name.trim().length > 1 && /\S+@\S+\.\S+/.test(email) && password.length >= 8
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -51,174 +75,196 @@ export default function RegisterPage() {
         data: {
           display_name: name,
           country_code: country,
-          preferred_currency: COUNTRIES.find(c => c.code === country)?.currency ?? 'KES',
+          preferred_currency: COUNTRIES.find((c) => c.code === country)?.currency ?? 'KES',
           referral_code_used: refCode || null,
         },
         emailRedirectTo: `${window.location.origin}/auth/callback`,
       },
     })
 
-    if (error) { setError(error.message); setLoading(false) }
-    else setDone(true)
+    if (error) {
+      setError(error.message)
+      setLoading(false)
+    } else {
+      setDone(true)
+    }
   }
 
-  if (done) return (
-    <div className="min-h-[calc(100dvh-56px)] flex items-center justify-center px-4 py-12"
-      style={{ background: 'var(--bg)' }}>
-      <div className="w-full max-w-sm text-center">
-        <div className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-5"
-          style={{ background: 'var(--green-dim)' }}>
-          <IconCheck size={28} className="text-green-light" strokeWidth={2.5} />
+  if (done) {
+    return (
+      <AuthShell
+        bridgeHeading="You're almost in."
+        bridgeSub="Confirm your email to activate your account and claim your welcome wallet."
+      >
+        <div className="text-center">
+          <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-pill bg-yes/10 text-yes">
+            <IconCheck size={28} strokeWidth={2.5} />
+          </div>
+          <h2 className="font-display text-2xl text-text-primary">Check your email</h2>
+          <p className="mx-auto mt-2 max-w-xs text-sm text-text-secondary">
+            We sent a confirmation link to <strong className="text-text-primary">{email}</strong>.
+            Click it to activate your account.
+          </p>
+          <Link href="/auth/login" className="btn btn-secondary mt-6 w-full">
+            Go to sign in
+          </Link>
         </div>
-        <h2 className="font-display text-2xl font-bold mb-2" style={{ color: 'var(--text-primary)' }}>
-          Check your email
-        </h2>
-        <p className="text-sm mb-6" style={{ color: 'var(--text-secondary)' }}>
-          We sent a confirmation link to <strong>{email}</strong>. Click it to activate your account.
-        </p>
-        <Link href="/auth/login" className="btn btn-secondary w-full">
-          Go to Sign in
-        </Link>
-      </div>
-    </div>
-  )
+      </AuthShell>
+    )
+  }
 
   return (
-    <div className="min-h-[calc(100dvh-56px)] flex items-start justify-center px-4 py-10"
-      style={{ background: 'var(--bg)' }}>
-      <div className="w-full max-w-sm">
-        {/* Logo */}
-        <div className="flex flex-col items-center mb-7">
-          <LogoMark size={44} className="mb-3" />
-          <h1 className="font-display text-2xl font-bold" style={{ color: 'var(--text-primary)' }}>
-            Create your account
-          </h1>
-          <p className="text-sm mt-1 text-center" style={{ color: 'var(--text-muted)' }}>
-            Free to join · No credit card needed
-          </p>
-        </div>
-
-        {/* Perks */}
-        <div className="rounded-xl p-4 mb-6 space-y-2"
-          style={{ background: 'var(--green-faint)', border: '1px solid rgba(34,197,94,0.15)' }}>
-          {PERKS.map(p => (
-            <div key={p} className="flex items-center gap-2 text-xs"
-              style={{ color: 'var(--text-secondary)' }}>
-              <IconCheck size={12} className="text-green-light flex-shrink-0" strokeWidth={2.5} />
-              <span>{p}</span>
-            </div>
-          ))}
-        </div>
-
-        <form onSubmit={handleRegister} className="space-y-4">
-          <div>
-            <label htmlFor="full-name" className="text-xs font-semibold uppercase tracking-wide block mb-1.5"
-              style={{ color: 'var(--text-muted)' }}>Full Name</label>
-            <input id="full-name"
-              className="input"
-              type="text"
-              placeholder="John Kamau"
-              value={name}
-              onChange={e => setName(e.target.value)}
-              required
-            />
-          </div>
-
-          <div>
-            <label htmlFor="email" className="text-xs font-semibold uppercase tracking-wide block mb-1.5"
-              style={{ color: 'var(--text-muted)' }}>Email</label>
-            <input id="email"
-              className="input"
-              type="email"
-              placeholder="you@example.com"
-              value={email}
-              onChange={e => setEmail(e.target.value)}
-              required
-              autoComplete="email"
-            />
-          </div>
-
-          <div>
-            <label htmlFor="password" className="text-xs font-semibold uppercase tracking-wide block mb-1.5"
-              style={{ color: 'var(--text-muted)' }}>Password</label>
-            <input id="password"
-              className="input"
-              type="password"
-              placeholder="Min. 8 characters"
-              value={password}
-              onChange={e => setPassword(e.target.value)}
-              required
-              minLength={8}
-              autoComplete="new-password"
-            />
-          </div>
-
-          <div>
-            <label htmlFor="country" className="text-xs font-semibold uppercase tracking-wide block mb-1.5"
-              style={{ color: 'var(--text-muted)' }}>Country</label>
-            <select id="country"
-              className="input"
-              value={country}
-              onChange={e => setCountry(e.target.value)}
-            >
-              {COUNTRIES.map(c => (
-                <option key={c.code} value={c.code}>
-                  {c.flag} {c.name} · {c.currency}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {refCode !== '' && (
-            <div>
-              <label htmlFor="referral-code" className="text-xs font-semibold uppercase tracking-wide block mb-1.5"
-                style={{ color: 'var(--text-muted)' }}>Referral Code</label>
-              <input id="referral-code"
-                className="input font-mono"
-                type="text"
-                value={refCode}
-                onChange={e => setRefCode(e.target.value)}
-                placeholder="Optional"
-              />
-            </div>
-          )}
-
-          {error && (
-            <div className="text-xs p-3 rounded-lg"
-              style={{ background: 'var(--red-faint)', color: 'var(--red)', border: '1px solid var(--red-dim)' }}>
-              {error}
-            </div>
-          )}
-
-          <button
-            type="submit"
-            className="btn btn-primary btn-lg w-full mt-2"
-            disabled={loading}
-          >
-            {loading ? (
-              <span className="flex items-center gap-2">
-                <svg className="animate-spin" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 12a9 9 0 11-6.219-8.56"/></svg>
-                Creating account…
-              </span>
-            ) : (
-              <>Create free account <IconArrowRight size={15} /></>
-            )}
-          </button>
-        </form>
-
-        <p className="text-center text-sm mt-5" style={{ color: 'var(--text-muted)' }}>
-          Already have an account?{' '}
-          <Link href="/auth/login" style={{ color: 'var(--green)', fontWeight: 600 }}>
-            Sign in
-          </Link>
-        </p>
-
-        <div className="flex items-center justify-center gap-1.5 mt-6 text-xs"
-          style={{ color: 'var(--text-muted)' }}>
-          <IconShield size={11} />
-          <span>Your data is encrypted and never shared</span>
-        </div>
+    <AuthShell
+      bridgeHeading="Start with an edge."
+      bridgeSub="Create a free account in under a minute. No credit card, no lock-in — just markets priced by the crowd."
+    >
+      <div className="mb-6 flex flex-col items-center text-center lg:items-start lg:text-left">
+        <LogoMark size={40} className="mb-3 lg:hidden" />
+        <h1 className="font-display text-2xl text-text-primary">Create your account</h1>
+        <p className="mt-1 text-sm text-text-muted">Free to join · No credit card needed</p>
       </div>
-    </div>
+
+      <form onSubmit={handleRegister} className="space-y-4">
+        <div>
+          <label htmlFor="full-name" className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-text-muted">
+            Full name
+          </label>
+          <input
+            id="full-name"
+            className="input w-full"
+            type="text"
+            placeholder="John Kamau"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            required
+            autoComplete="name"
+          />
+        </div>
+
+        <div>
+          <label htmlFor="email" className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-text-muted">
+            Email
+          </label>
+          <input
+            id="email"
+            className="input w-full"
+            type="email"
+            placeholder="you@example.com"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            required
+            autoComplete="email"
+          />
+        </div>
+
+        <div>
+          <label htmlFor="password" className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-text-muted">
+            Password
+          </label>
+          <PasswordInput
+            id="password"
+            value={password}
+            onChange={setPassword}
+            required
+            autoComplete="new-password"
+            describedBy="pw-strength"
+          />
+          {password.length > 0 && (
+            <div id="pw-strength" className="mt-2">
+              <div className="flex gap-1" aria-hidden>
+                {[0, 1, 2, 3].map((i) => (
+                  <span
+                    key={i}
+                    className={`h-1 flex-1 rounded-pill transition-colors ${
+                      i < strength ? STRENGTH[strength].cls : 'bg-hairline'
+                    }`}
+                  />
+                ))}
+              </div>
+              <p className="mt-1 text-xs text-text-muted">
+                Password strength: <span className="font-medium">{STRENGTH[strength].label}</span>
+                {password.length < 8 && ' · at least 8 characters'}
+              </p>
+            </div>
+          )}
+        </div>
+
+        <div>
+          <label htmlFor="country" className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-text-muted">
+            Country
+          </label>
+          <select
+            id="country"
+            className="input w-full"
+            value={country}
+            onChange={(e) => setCountry(e.target.value)}
+          >
+            {COUNTRIES.map((c) => (
+              <option key={c.code} value={c.code}>
+                {c.name} · {c.currency}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        {/* Referral — progressive disclosure */}
+        {showRef ? (
+          <div>
+            <label htmlFor="ref" className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-text-muted">
+              Referral code <span className="font-normal normal-case text-text-muted">(optional)</span>
+            </label>
+            <input
+              id="ref"
+              className="input w-full"
+              type="text"
+              placeholder="Enter code"
+              value={refCode}
+              onChange={(e) => setRefCode(e.target.value)}
+            />
+          </div>
+        ) : (
+          <button
+            type="button"
+            onClick={() => setShowRef(true)}
+            className="text-xs font-medium text-pip-500 hover:underline"
+          >
+            Have a referral code?
+          </button>
+        )}
+
+        {error && (
+          <div role="alert" aria-live="assertive" className="rounded-md border border-no/30 bg-no/10 p-3 text-xs text-no">
+            {error}
+          </div>
+        )}
+
+        <button type="submit" className="btn btn-primary btn-lg mt-1 w-full" disabled={!canSubmit}>
+          {loading ? (
+            <span className="flex items-center gap-2">
+              <svg className="animate-spin" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M21 12a9 9 0 11-6.219-8.56" />
+              </svg>
+              Creating account…
+            </span>
+          ) : (
+            <>
+              Create free account <IconArrowRight size={15} />
+            </>
+          )}
+        </button>
+      </form>
+
+      <p className="mt-5 text-center text-sm text-text-muted">
+        Already have an account?{' '}
+        <Link href="/auth/login" className="font-semibold text-pip-500 hover:underline">
+          Sign in
+        </Link>
+      </p>
+
+      <div className="mt-6 flex items-center justify-center gap-1.5 text-xs text-text-muted">
+        <IconShield size={11} />
+        <span>Your data is encrypted and never shared</span>
+      </div>
+    </AuthShell>
   )
 }
