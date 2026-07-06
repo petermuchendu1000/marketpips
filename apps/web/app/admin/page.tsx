@@ -1,116 +1,150 @@
-// app/admin/page.tsx — Admin overview / operational cockpit.
-//
-// Access is enforced by app/admin/layout.tsx (portal gate) + middleware + RLS.
-// KPIs and queues are filtered by the operator's capabilities so each role sees
-// only what it may act on. superadmin sees everything (god-mode).
+// app/admin/page.tsx — Control-plane dashboard.
+// Operational at a glance: headline KPIs, a triage grid of work queues, and a
+// live activity feed. Every queue links straight to the console that clears it.
 import Link from 'next/link'
+import { redirect } from 'next/navigation'
 import { getAuthContext } from '@/lib/auth'
-import { createClient } from '@/lib/supabase/server'
-import { roleHasCapability, isSuperadmin } from '@/lib/admin/rbac'
+import { canAccessAdminPortal } from '@/lib/admin/rbac'
+import { PageHeader, Kpi, KpiGrid, Panel, PanelHead, Table, Th, Td, EmptyRow, Pill } from '@/components/admin/ui'
+import {
+  IconUsers, IconMarkets, IconWallet, IconShield, IconFlag, IconGavel,
+  IconDeposit, IconWithdraw, IconArrowRight, IconActivity,
+} from '@/components/ui/icons'
 
 export const dynamic = 'force-dynamic'
-export const metadata = { title: 'Admin — Overview' }
+export const metadata = { title: 'Admin — Dashboard' }
 
-type CountableTable = 'profiles' | 'markets' | 'withdrawals' | 'deposits'
-
-async function count(
-  supabase: Awaited<ReturnType<typeof createClient>>,
-  table: CountableTable,
-  build?: (q: any) => any
-): Promise<number> {
-  let q: any = supabase.from(table).select('id', { count: 'exact', head: true })
-  if (build) q = build(q)
-  const { count } = await q
-  return count ?? 0
+async function count(sb: any, table: string, build: (q: any) => any): Promise<number> {
+  try {
+    const { count } = await build(sb.from(table).select('id', { count: 'exact', head: true }))
+    return count ?? 0
+  } catch {
+    return 0
+  }
 }
 
-export default async function AdminOverviewPage() {
+export default async function AdminDashboard() {
   const ctx = await getAuthContext()
-  // Layout already guards; this is belt-and-suspenders + gives us the role.
-  if (!ctx) return null
-  const role = ctx.role
-  const supabase = ctx.supabase
-
-  const can = (c: Parameters<typeof roleHasCapability>[1]) => roleHasCapability(role, c)
-  const startOfToday = new Date()
-  startOfToday.setHours(0, 0, 0, 0)
-
-  // Build the KPI set the operator is allowed to see.
-  const kpis: { label: string; value: number; emoji: string; alert?: boolean; href?: string }[] = []
+  if (!ctx) redirect('/auth/login?next=/admin')
+  if (!canAccessAdminPortal(ctx.role)) redirect('/')
+  const sb = ctx.supabase
 
   const [
-    totalUsers,
-    activeMarkets,
-    pendingMarkets,
-    pendingKyc,
-    pendingWithdrawals,
-    depositsToday,
+    totalUsers, activeMarkets, pendingMarkets, disputedMarkets,
+    pendingKyc, depositsInFlight, withdrawalsReview, openReports, recentRes,
   ] = await Promise.all([
-    can('users:read') ? count(supabase, 'profiles') : Promise.resolve(0),
-    count(supabase, 'markets', (q) => q.eq('status', 'active')),
-    can('markets:approve') ? count(supabase, 'markets', (q) => q.eq('status', 'pending')) : Promise.resolve(0),
-    can('kyc:review') ? count(supabase, 'profiles', (q) => q.eq('kyc_status', 'pending')) : Promise.resolve(0),
-    can('finance:withdrawals')
-      ? count(supabase, 'withdrawals', (q) => q.eq('status', 'pending'))
-      : Promise.resolve(0),
-    can('finance:deposits')
-      ? count(supabase, 'deposits', (q) => q.gte('created_at', startOfToday.toISOString()))
-      : Promise.resolve(0),
+    count(sb, 'profiles', (q) => q),
+    count(sb, 'markets', (q) => q.eq('status', 'active')),
+    count(sb, 'markets', (q) => q.eq('status', 'pending')),
+    count(sb, 'markets', (q) => q.eq('status', 'disputed')),
+    count(sb, 'kyc_documents', (q) => q.eq('status', 'pending')),
+    count(sb, 'deposits', (q) => q.in('status', ['pending', 'processing'])),
+    count(sb, 'withdrawals', (q) => q.eq('requires_review', true).in('status', ['pending', 'processing'])),
+    count(sb, 'content_reports', (q) => q.in('status', ['open', 'reviewing'])),
+    sb.from('transactions').select('*').eq('type', 'bet_placed').order('created_at', { ascending: false }).limit(8),
   ])
 
-  if (can('users:read')) kpis.push({ label: 'Total Users', value: totalUsers, emoji: '👥', href: '/admin/users' })
-  kpis.push({ label: 'Active Markets', value: activeMarkets, emoji: '🏪', href: '/admin/markets' })
-  if (can('markets:approve'))
-    kpis.push({ label: 'Pending Markets', value: pendingMarkets, emoji: '⏳', alert: pendingMarkets > 0, href: '/admin/markets' })
-  if (can('kyc:review'))
-    kpis.push({ label: 'Pending KYC', value: pendingKyc, emoji: '🪪', alert: pendingKyc > 0, href: '/admin/kyc' })
-  if (can('finance:withdrawals'))
-    kpis.push({ label: 'Pending Withdrawals', value: pendingWithdrawals, emoji: '💸', alert: pendingWithdrawals > 0, href: '/admin/finance/withdrawals' })
-  if (can('finance:deposits'))
-    kpis.push({ label: 'Deposits Today', value: depositsToday, emoji: '💰', href: '/admin/finance/deposits' })
+  const recent = (recentRes?.data ?? []) as Array<{
+    id: string; user_id: string; description: string | null; amount_usd: number; created_at: string | null
+  }>
+
+  const queues = [
+    { label: 'Markets awaiting review', value: pendingMarkets, href: '/admin/markets?status=pending', icon: <IconMarkets size={18} />, tone: 'amber' as const },
+    { label: 'Disputed markets', value: disputedMarkets, href: '/admin/markets/disputes', icon: <IconGavel size={18} />, tone: 'red' as const },
+    { label: 'KYC pending verification', value: pendingKyc, href: '/admin/kyc', icon: <IconShield size={18} />, tone: 'blue' as const },
+    { label: 'Deposits in flight', value: depositsInFlight, href: '/admin/finance/deposits?status=processing', icon: <IconDeposit size={18} />, tone: 'slate' as const },
+    { label: 'Withdrawals to review', value: withdrawalsReview, href: '/admin/finance/withdrawals?status=processing', icon: <IconWithdraw size={18} />, tone: 'amber' as const },
+    { label: 'Open moderation reports', value: openReports, href: '/admin/moderation?status=open', icon: <IconFlag size={18} />, tone: 'red' as const },
+  ]
+
+  const toneClasses: Record<string, string> = {
+    amber: 'text-amber-600 dark:text-amber-400 bg-amber-500/10',
+    red: 'text-red-600 dark:text-red-400 bg-red-500/10',
+    blue: 'text-blue-600 dark:text-blue-400 bg-blue-500/10',
+    slate: 'text-slate-600 dark:text-slate-300 bg-slate-500/10',
+  }
+
+  const fmtMoney = (n: number) => `$${(n ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
 
   return (
     <div>
-      <div className="mb-6 flex items-center gap-3">
-        <h1 className="text-2xl font-black">Overview</h1>
-        {isSuperadmin(role) && (
-          <span className="rounded-full bg-amber-500/15 px-2.5 py-0.5 text-xs font-semibold text-amber-600 dark:text-amber-400">
-            👑 Full control
-          </span>
-        )}
-      </div>
+      <PageHeader
+        title="Dashboard"
+        description="Live health of the platform and everything waiting on an operator."
+      />
 
-      <div className="grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-6">
-        {kpis.map((stat) => {
-          const card = (
-            <div
-              className={
-                'h-full rounded-2xl border bg-card p-4 transition-colors ' +
-                (stat.alert ? 'border-amber-500/50' : 'hover:bg-muted')
-              }
-            >
-              <div className="mb-1 flex items-center justify-between">
-                <span className="text-2xl">{stat.emoji}</span>
-                {stat.alert && <span className="text-xs font-medium text-amber-500">Attention</span>}
+      {/* Headline KPIs */}
+      <KpiGrid className="mb-8">
+        <Kpi label="Total users" value={totalUsers.toLocaleString()} icon={<IconUsers size={18} />} href="/admin/users" sub="All registered accounts" />
+        <Kpi label="Active markets" value={activeMarkets.toLocaleString()} icon={<IconMarkets size={18} />} href="/admin/markets?status=active" sub="Currently trading" />
+        <Kpi label="Awaiting review" value={pendingMarkets.toLocaleString()} icon={<IconGavel size={18} />} href="/admin/markets?status=pending" tone={pendingMarkets > 0 ? 'attention' : 'default'} sub="Markets pending approval" />
+        <Kpi label="Open reports" value={openReports.toLocaleString()} icon={<IconFlag size={18} />} href="/admin/moderation?status=open" tone={openReports > 0 ? 'attention' : 'default'} sub="Moderation workload" />
+      </KpiGrid>
+
+      {/* Work queues */}
+      <div className="mb-8">
+        <div className="mb-3 flex items-center justify-between">
+          <h2 className="text-sm font-semibold text-[var(--text-primary)]">Operational queues</h2>
+          <span className="text-xs text-[var(--text-muted)]">Sorted by where attention is needed</span>
+        </div>
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          {queues.map((q) => (
+            <Link key={q.href} href={q.href} className="admin-panel group flex items-center gap-4 p-4 transition-colors hover:border-[var(--border-hover)]">
+              <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg ${toneClasses[q.tone]}`}>
+                {q.icon}
+              </span>
+              <div className="min-w-0 flex-1">
+                <div className="flex items-baseline gap-2">
+                  <span className="admin-kpi-value text-xl text-[var(--text-primary)]">{q.value.toLocaleString()}</span>
+                  {q.value > 0 && <Pill tone={q.tone === 'slate' ? 'neutral' : q.tone} dot>Needs action</Pill>}
+                </div>
+                <p className="mt-0.5 truncate text-xs text-[var(--text-secondary)]">{q.label}</p>
               </div>
-              <p className="text-3xl font-black">{stat.value.toLocaleString()}</p>
-              <p className="text-xs text-muted-foreground">{stat.label}</p>
-            </div>
-          )
-          return stat.href ? (
-            <Link key={stat.label} href={stat.href}>
-              {card}
+              <IconArrowRight size={16} className="shrink-0 text-[var(--text-muted)] transition-transform group-hover:translate-x-0.5" />
             </Link>
-          ) : (
-            <div key={stat.label}>{card}</div>
-          )
-        })}
+          ))}
+        </div>
       </div>
 
-      <p className="mt-8 text-sm text-muted-foreground">
-        Use the navigation to manage users, creators, marketers, markets, finance, gateways,
-        settings, compliance, and audit. Sections you can see are scoped to your role.
-      </p>
+      {/* Recent activity */}
+      <Panel>
+        <PanelHead
+          title="Recent trading activity"
+          description="Latest bets placed across all markets"
+          actions={<Link href="/admin/finance/ledger" className="btn btn-ghost btn-sm gap-1">Full ledger <IconArrowRight size={13} /></Link>}
+        />
+        <div className="table-wrapper overflow-x-auto">
+          <Table>
+            <thead>
+              <tr>
+                <Th>User</Th>
+                <Th>Activity</Th>
+                <Th num>Amount</Th>
+                <Th>Time</Th>
+              </tr>
+            </thead>
+            <tbody>
+              {recent.map((tx) => (
+                <tr key={tx.id}>
+                  <Td><span className="font-mono text-xs text-[var(--text-secondary)]">{tx.user_id.slice(0, 8)}</span></Td>
+                  <Td><span className="text-[var(--text-secondary)]">{tx.description || 'Bet placed'}</span></Td>
+                  <Td num><span className="font-medium tabular-nums">{fmtMoney(tx.amount_usd)}</span></Td>
+                  <Td>
+                    <span className="text-xs text-[var(--text-muted)]">
+                      {tx.created_at ? new Date(tx.created_at).toLocaleString('en-KE', { dateStyle: 'medium', timeStyle: 'short' }) : '—'}
+                    </span>
+                  </Td>
+                </tr>
+              ))}
+              {recent.length === 0 && (
+                <EmptyRow colSpan={4}>
+                  <span className="inline-flex items-center gap-2"><IconActivity size={15} /> No recent activity.</span>
+                </EmptyRow>
+              )}
+            </tbody>
+          </Table>
+        </div>
+      </Panel>
     </div>
   )
 }

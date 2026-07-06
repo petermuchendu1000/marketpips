@@ -1,52 +1,58 @@
 'use client'
 
+// components/admin/AdminNav.tsx — control-plane sidebar.
+// Uses the bespoke MarketPips icon language (zero external icon libraries) to
+// stay consistent with the rest of the product.
 import { useState } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import {
-  LayoutDashboard,
-  Users,
-  PenSquare,
-  Megaphone,
-  ShieldCheck,
-  BarChart3,
-  Flag,
-  Wallet,
-  Coins,
-  Settings,
-  Banknote,
-  Plug,
-  Bell,
-  KeyRound,
-  ScrollText,
-  Menu,
-  X,
-  type LucideIcon,
-} from 'lucide-react'
-import { cn } from '@/lib/utils'
+  IconGrid, IconUsers, IconPen, IconMegaphone, IconShield, IconMarkets,
+  IconFlag, IconWallet, IconCoins, IconSettings, IconBanknote, IconPlug,
+  IconBell, IconKey, IconScroll, IconMenu, IconX,
+} from '@/components/ui/icons'
 import type { AdminNavGroup } from '@/lib/admin/nav'
 
-const ICONS: Record<string, LucideIcon> = {
-  LayoutDashboard,
-  Users,
-  PenSquare,
-  Megaphone,
-  ShieldCheck,
-  BarChart3,
-  Flag,
-  Wallet,
-  Coins,
-  Settings,
-  Banknote,
-  Plug,
-  Bell,
-  KeyRound,
-  ScrollText,
+type IconCmp = (p: { size?: number; className?: string }) => React.ReactElement
+
+const ICONS: Record<string, IconCmp> = {
+  LayoutDashboard: IconGrid,
+  Users: IconUsers,
+  PenSquare: IconPen,
+  Megaphone: IconMegaphone,
+  ShieldCheck: IconShield,
+  BarChart3: IconMarkets,
+  Flag: IconFlag,
+  Wallet: IconWallet,
+  Coins: IconCoins,
+  Settings: IconSettings,
+  Banknote: IconBanknote,
+  Plug: IconPlug,
+  Bell: IconBell,
+  KeyRound: IconKey,
+  ScrollText: IconScroll,
 }
 
 function isActive(pathname: string, href: string, exact?: boolean): boolean {
   if (exact) return pathname === href
   return pathname === href || pathname.startsWith(href + '/')
+}
+
+function BrandMark() {
+  return (
+    <Link href="/admin" className="flex items-center gap-2.5">
+      <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-[var(--text-primary)] text-[var(--bg)]">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+          <path d="M4 15l4.5-5 3.5 3.5L20 6" />
+          <path d="M15 6h5v5" />
+        </svg>
+      </span>
+      <span className="flex flex-col leading-none">
+        <span className="font-display text-[0.95rem] text-[var(--text-primary)]">MarketPips</span>
+        <span className="mt-0.5 text-[0.62rem] font-medium uppercase tracking-[0.18em] text-[var(--text-muted)]">Control Plane</span>
+      </span>
+    </Link>
+  )
 }
 
 function NavList({
@@ -59,15 +65,15 @@ function NavList({
   onNavigate?: () => void
 }) {
   return (
-    <nav className="flex flex-col gap-6 p-4" aria-label="Admin navigation">
+    <nav className="flex flex-col gap-5 px-3 py-4" aria-label="Admin navigation">
       {groups.map((group) => (
         <div key={group.label}>
-          <p className="px-2 mb-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+          <p className="mb-1.5 px-2.5 text-[0.62rem] font-semibold uppercase tracking-[0.14em] text-[var(--text-muted)]">
             {group.label}
           </p>
           <ul className="flex flex-col gap-0.5">
             {group.items.map((item) => {
-              const Icon = ICONS[item.icon] ?? LayoutDashboard
+              const Icon = ICONS[item.icon] ?? IconGrid
               const active = isActive(pathname, item.href, item.exact)
               return (
                 <li key={item.href}>
@@ -75,14 +81,10 @@ function NavList({
                     href={item.href}
                     onClick={onNavigate}
                     aria-current={active ? 'page' : undefined}
-                    className={cn(
-                      'flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors',
-                      active
-                        ? 'bg-primary/10 text-primary font-semibold'
-                        : 'text-foreground/80 hover:bg-muted hover:text-foreground'
-                    )}
+                    data-active={active}
+                    className="admin-nav-link"
                   >
-                    <Icon className="h-4 w-4 shrink-0" aria-hidden />
+                    <Icon size={17} className="admin-nav-icon" />
                     <span className="truncate">{item.label}</span>
                   </Link>
                 </li>
@@ -102,32 +104,31 @@ export function AdminNav({ groups }: { groups: AdminNavGroup[] }) {
   return (
     <>
       {/* Mobile top bar */}
-      <div className="flex items-center justify-between border-b bg-card px-4 py-3 md:hidden">
-        <span className="font-black">🛠️ Admin</span>
+      <div className="flex items-center justify-between border-b bg-[var(--surface)] px-4 py-3 md:hidden">
+        <BrandMark />
         <button
           type="button"
           onClick={() => setOpen((v) => !v)}
           aria-label={open ? 'Close menu' : 'Open menu'}
-          className="rounded-lg border p-2 hover:bg-muted"
+          aria-expanded={open}
+          className="btn btn-secondary btn-sm !px-2"
         >
-          {open ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+          {open ? <IconX size={18} /> : <IconMenu size={18} />}
         </button>
       </div>
 
       {/* Mobile drawer */}
       {open && (
-        <div className="border-b bg-card md:hidden">
+        <div className="border-b bg-[var(--surface)] md:hidden">
           <NavList groups={groups} pathname={pathname} onNavigate={() => setOpen(false)} />
         </div>
       )}
 
       {/* Desktop sidebar */}
-      <aside className="hidden w-64 shrink-0 border-r bg-card md:block">
-        <div className="sticky top-0 max-h-screen overflow-y-auto">
-          <div className="px-6 py-5">
-            <Link href="/admin" className="font-black text-lg">
-              🛠️ Admin
-            </Link>
+      <aside className="hidden w-[15.5rem] shrink-0 border-r bg-[var(--surface)] md:block">
+        <div className="sticky top-0 flex max-h-screen flex-col overflow-y-auto scrollbar-hide">
+          <div className="border-b px-5 py-4">
+            <BrandMark />
           </div>
           <NavList groups={groups} pathname={pathname} />
         </div>

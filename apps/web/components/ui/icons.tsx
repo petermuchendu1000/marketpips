@@ -132,3 +132,31 @@ export function CategoryIcon({ category, size = 16, className = '', style }: Ico
   const C = CATEGORY_ICON[category] ?? IconMarkets
   return <C size={size} className={className} style={style} />
 }
+
+// ============================================================
+// Admin control-plane glyphs — bespoke, institutional, thin-stroke.
+// Same construction grammar as the icons above (24px grid, 1.75 stroke).
+// ============================================================
+export const IconGrid       = icon(<><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></>)
+export const IconUsers      = icon(<><circle cx="9" cy="8" r="3.2"/><path d="M3.5 20c0-3.2 2.6-5.4 5.5-5.4s5.5 2.2 5.5 5.4"/><path d="M16 5.2a3.2 3.2 0 010 5.9"/><path d="M17.5 14.9c2.1.6 3.5 2.4 3.5 4.6"/></>)
+export const IconPen        = icon(<><path d="M4 20h4L18.5 9.5a2.1 2.1 0 00-3-3L5 17v3z"/><path d="M13.5 6.5l3 3"/></>)
+export const IconMegaphone  = icon(<><path d="M3 11v2a1 1 0 001 1h2l3.5 3.5V7.5L6 11H4a1 1 0 00-1 0z"/><path d="M9.5 7.5L19 4v16l-9.5-3.5"/><path d="M6 14v3a2 2 0 004 0"/></>)
+export const IconFlag       = icon(<><path d="M5 21V4"/><path d="M5 4h11l-1.5 3.5L16 11H5"/></>)
+export const IconCoins      = icon(<><ellipse cx="9" cy="7" rx="5" ry="2.6"/><path d="M4 7v4c0 1.4 2.2 2.6 5 2.6s5-1.2 5-2.6V7"/><path d="M10 14.4c0 1.4 2.2 2.6 5 2.6s5-1.2 5-2.6v-4"/><path d="M10 10.4c.6 1 2.6 1.9 5 1.9 1 0 2-.15 2.8-.4"/></>)
+export const IconBanknote   = icon(<><rect x="2.5" y="6" width="19" height="12" rx="2"/><circle cx="12" cy="12" r="2.4"/><path d="M6 9.5v.01M18 14.5v.01"/></>)
+export const IconPlug       = icon(<><path d="M9 3v5M15 3v5"/><path d="M7 8h10v3a5 5 0 01-10 0V8z"/><path d="M12 16v5"/></>)
+export const IconKey        = icon(<><circle cx="8" cy="8" r="4"/><path d="M11 11l7 7M16 16l2-2M18 18l1.5-1.5"/></>)
+export const IconScroll     = icon(<><path d="M6 4h11a2 2 0 012 2v0a2 2 0 01-2 2H8"/><path d="M6 4a2 2 0 00-2 2v10a2 2 0 002 2h11"/><path d="M17 18a2 2 0 002-2V8"/><path d="M8 9h6M8 12.5h6"/></>)
+export const IconDownload   = icon(<><path d="M12 4v11M7 11l5 5 5-5"/><path d="M4 20h16"/></>)
+export const IconUpload     = icon(<><path d="M12 20V9M7 13l5-5 5 5"/><path d="M4 4h16"/></>)
+export const IconGavel      = icon(<><path d="M13 5l4 4"/><path d="M8.5 9.5l5-5 3.5 3.5-5 5z"/><path d="M6 12l6 6"/><path d="M4 20h9"/></>)
+export const IconBan        = icon(<><circle cx="12" cy="12" r="8.5"/><path d="M6 6l12 12"/></>)
+export const IconDots       = icon(<><circle cx="5" cy="12" r="1.4"/><circle cx="12" cy="12" r="1.4"/><circle cx="19" cy="12" r="1.4"/></>)
+export const IconSort       = icon(<><path d="M8 4v16M8 20l-3-3M8 4l3 3"/><path d="M16 4v16M16 20l3-3M16 4l-3 3" opacity="0.4"/></>)
+export const IconLock       = icon(<><rect x="4.5" y="10" width="15" height="10" rx="2"/><path d="M8 10V7a4 4 0 018 0v3"/></>)
+export const IconUnlock     = icon(<><rect x="4.5" y="10" width="15" height="10" rx="2"/><path d="M8 10V7a4 4 0 017.5-2"/></>)
+export const IconSpinner    = icon(<><path d="M12 3a9 9 0 109 9" /></>)
+export const IconBriefcase  = icon(<><rect x="3" y="7.5" width="18" height="12" rx="2"/><path d="M8.5 7.5V6a2 2 0 012-2h3a2 2 0 012 2v1.5"/><path d="M3 12.5h18"/></>)
+export const IconActivity   = icon(<><path d="M3 12h4l2.5-7 5 14L17 12h4"/></>)
+export const IconLink       = icon(<><path d="M10 13a4 4 0 005.7 0l2.6-2.6a4 4 0 00-5.7-5.7L11 6.3"/><path d="M14 11a4 4 0 00-5.7 0l-2.6 2.6a4 4 0 005.7 5.7L13 17.7"/></>)
+export const IconAlertTriangle = icon(<><path d="M12 4l9 15.5H3L12 4z"/><path d="M12 10v4M12 17.5v.01"/></>)
