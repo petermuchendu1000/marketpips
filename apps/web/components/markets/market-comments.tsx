@@ -2,13 +2,21 @@
 
 // components/markets/market-comments.tsx
 import { useState, useEffect, useCallback, useMemo } from 'react'
-import { Send, Loader2 } from 'lucide-react'
 import { formatDistanceToNow } from 'date-fns'
 import { createClient } from '@/lib/supabase/client'
 import { useAuth } from '@/hooks/use-auth'
-import { avatarColor, truncate } from '@/lib/utils'
+import { avatarColor } from '@/lib/utils'
+import { IconComments, IconArrowRight } from '@/components/ui/icons'
 import toast from 'react-hot-toast'
 import type { Comment } from '@/types'
+
+function Spinner() {
+  return (
+    <svg className="animate-spin" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+      <path d="M21 12a9 9 0 11-6.219-8.56" />
+    </svg>
+  )
+}
 
 interface MarketCommentsProps {
   marketId: string
@@ -77,28 +85,36 @@ export function MarketComments({ marketId }: MarketCommentsProps) {
   }
 
   return (
-    <div className="rounded-2xl border bg-card p-4">
-      <h3 className="text-sm font-semibold text-muted-foreground mb-4">
-        💬 Discussion ({comments.length})
-      </h3>
+    <div className="card p-4">
+      <h2 className="mb-4 flex items-center gap-2 text-sm font-semibold text-text-secondary">
+        <span className="flex h-6 w-6 items-center justify-center rounded-sm bg-pip-100 text-pip-500">
+          <IconComments size={14} />
+        </span>
+        Discussion ({comments.length})
+      </h2>
 
       {/* Comment form */}
       {user && (
-        <form onSubmit={handleSubmit} className="flex gap-2 mb-4">
+        <form onSubmit={handleSubmit} className="mb-4 flex gap-2">
+          <label htmlFor="market-comment" className="sr-only">
+            Share your analysis
+          </label>
           <input
+            id="market-comment"
             type="text"
             value={newComment}
             onChange={(e) => setNewComment(e.target.value)}
-            placeholder="Share your analysis..."
+            placeholder="Share your analysis…"
             maxLength={500}
-            className="flex-1 px-3 py-2 rounded-xl border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+            className="input flex-1"
           />
           <button
             type="submit"
             disabled={isSubmitting || !newComment.trim()}
-            className="px-3 py-2 rounded-xl bg-primary text-primary-foreground disabled:opacity-50"
+            className="btn btn-primary flex-none"
+            aria-label="Post comment"
           >
-            {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+            {isSubmitting ? <Spinner /> : <IconArrowRight size={16} />}
           </button>
         </form>
       )}
@@ -117,8 +133,8 @@ export function MarketComments({ marketId }: MarketCommentsProps) {
           ))}
         </div>
       ) : comments.length === 0 ? (
-        <p className="text-center text-muted-foreground text-sm py-6">
-          No comments yet. Be the first to share your prediction!
+        <p className="py-6 text-center text-sm text-text-muted">
+          No comments yet. Be the first to share your prediction.
         </p>
       ) : (
         <div className="space-y-4">
@@ -128,15 +144,15 @@ export function MarketComments({ marketId }: MarketCommentsProps) {
                 {comment.user?.display_name?.[0]?.toUpperCase() || '?'}
               </div>
               <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2 mb-0.5">
-                  <span className="text-sm font-medium truncate">
+                <div className="mb-0.5 flex items-center gap-2">
+                  <span className="truncate text-sm font-medium text-text-primary">
                     {comment.user?.display_name || comment.user?.username || 'Anonymous'}
                   </span>
-                  <span className="text-xs text-muted-foreground flex-none">
+                  <span className="flex-none text-xs text-text-muted">
                     {formatDistanceToNow(new Date(comment.created_at), { addSuffix: true })}
                   </span>
                 </div>
-                <p className="text-sm text-muted-foreground leading-relaxed">
+                <p className="text-sm leading-relaxed text-text-secondary">
                   {comment.content}
                 </p>
               </div>
