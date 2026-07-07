@@ -2369,6 +2369,14 @@ export type Database = {
         }
         Returns: Json
       }
+      admin_resolve_market_options: {
+        Args: {
+          p_market_id: string
+          p_winning_option_id: string
+          p_notes: string
+        }
+        Returns: Json
+      }
       lmsr_price_multi: {
         Args: { q: number[]; b: number }
         Returns: number[]

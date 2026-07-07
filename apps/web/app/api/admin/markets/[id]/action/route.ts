@@ -14,7 +14,15 @@ const schema = z.discriminatedUnion('action', [
   z.object({ action: z.literal('reject'), reason: z.string().min(3).max(1000) }),
   z.object({ action: z.literal('close'), reason: z.string().max(1000).optional() }),
   z.object({ action: z.literal('dispute'), reason: z.string().min(3).max(1000) }),
-  z.object({ action: z.literal('resolve'), outcome: z.enum(['yes', 'no']), resolution_notes: z.string().min(10).max(1000) }),
+  // Resolve either a binary outcome (yes/no) OR a multiple_choice winning
+  // option. Exactly one is required; enforced in the handler (discriminatedUnion
+  // members can't carry a .refine()).
+  z.object({
+    action: z.literal('resolve'),
+    outcome: z.enum(['yes', 'no']).optional(),
+    winning_option_id: z.string().uuid().optional(),
+    resolution_notes: z.string().min(10).max(1000),
+  }),
   z.object({ action: z.literal('cancel'), reason: z.string().min(3).max(1000) }),
   z.object({
     action: z.literal('feature'),
@@ -66,10 +74,24 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       rpc = 'admin_dispute_market'
       args = { p_market_id: id, p_reason: body.reason }
       break
-    case 'resolve':
-      rpc = 'admin_resolve_market'
-      args = { p_market_id: id, p_outcome: body.outcome, p_notes: body.resolution_notes }
+    case 'resolve': {
+      const hasOption = !!body.winning_option_id
+      const hasOutcome = !!body.outcome
+      if (hasOption === hasOutcome) {
+        return NextResponse.json(
+          { error: 'Provide exactly one of `outcome` (binary) or `winning_option_id` (multiple choice).' },
+          { status: 400 },
+        )
+      }
+      if (hasOption) {
+        rpc = 'admin_resolve_market_options'
+        args = { p_market_id: id, p_winning_option_id: body.winning_option_id, p_notes: body.resolution_notes }
+      } else {
+        rpc = 'admin_resolve_market'
+        args = { p_market_id: id, p_outcome: body.outcome, p_notes: body.resolution_notes }
+      }
       break
+    }
     case 'cancel':
       rpc = 'admin_cancel_market'
       args = { p_market_id: id, p_reason: body.reason }
