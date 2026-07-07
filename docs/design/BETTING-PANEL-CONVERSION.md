@@ -89,14 +89,17 @@ surface with the reward and total always visible and the stake pre-seeded.
 ## 4. Strategy shipped
 
 **A. Mobile: sticky trade bar + bottom sheet (decouples mobile from desktop).**
-- A `fixed bottom-0` bar (`lg:hidden`) shows the market's live headline price and
-  a full-width, high-contrast primary CTA in the thumb zone. It respects the
-  iOS safe-area inset.
-- Tapping it opens a bottom sheet (slide-up, backdrop, focus-managed, `Esc`/
-  swipe-down/backdrop to close) that hosts the **same** `BettingPanel` — one
-  source of truth, zero logic duplication.
-- The desktop sticky sidebar is unchanged; the sidebar panel is simply hidden on
-  mobile so there's exactly one visible ticket per breakpoint.
+- A `fixed bottom-0` bar (`lg:hidden`) in the thumb zone carries **direct-action
+  buttons**, not a hollow gateway: binary shows tappable **Buy YES / Buy NO**
+  (with live price); multiple_choice shows **Buy {front-runner}**. The entry tap
+  *is* the decision.
+- Tapping a button opens a bottom sheet (slide-up, backdrop, focus-managed,
+  `Esc`/swipe-down/backdrop to close) that hosts the **same** `BettingPanel`
+  **pre-selected** on the tapped side/option with the stake pre-filled — so the
+  flow is **2 meaningful taps** (decide → confirm), not a wasted "Trade" tap
+  followed by an in-sheet decision.
+- The desktop sticky sidebar is unchanged; the sidebar panel is hidden on mobile
+  so there's exactly one visible ticket per breakpoint.
 
 **B. Instant payout hook.** The panel seeds a sensible default stake (first
 balance-aware preset) so the live preview — shares, avg fill, fee, and a bold

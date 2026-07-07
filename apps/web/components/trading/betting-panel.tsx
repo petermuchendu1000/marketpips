@@ -32,6 +32,10 @@ interface BettingPanelProps {
   market: Market
   /** market_options rows for multiple_choice markets (empty/undefined for binary). */
   options?: MarketOption[]
+  /** Pre-select a side on mount (binary) — e.g. the mobile bar's Buy YES/NO. */
+  initialSide?: 'yes' | 'no'
+  /** Pre-select an option on mount (multiple_choice). */
+  initialOptionId?: string
 }
 
 type Side = 'yes' | 'no'
@@ -53,7 +57,7 @@ const OUTCOME_PALETTE = [
   '#4bb37b', '#d06a4a', '#8a6cf0', '#b0983a',
 ]
 
-export function BettingPanel({ market, options }: BettingPanelProps) {
+export function BettingPanel({ market, options, initialSide, initialOptionId }: BettingPanelProps) {
   const { user } = useAuth()
   const { wallets, preferredCurrency, refreshWallets } = useWallets()
   const { rates } = useRates()
@@ -66,9 +70,9 @@ export function BettingPanel({ market, options }: BettingPanelProps) {
     [market, options],
   )
 
-  const [side, setSide] = useState<Side>('yes')
+  const [side, setSide] = useState<Side>(initialSide ?? 'yes')
   const [selectedOptionId, setSelectedOptionId] = useState<string>(
-    () => (isMulti ? outcomes[0]?.id ?? '' : ''),
+    () => (isMulti ? initialOptionId ?? outcomes[0]?.id ?? '' : ''),
   )
   const [amount, setAmount] = useState('')
   // Whether the user has interacted with the amount field. Until they do, we

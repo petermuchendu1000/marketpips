@@ -31,6 +31,10 @@ export function MobileTradeBar({
   options?: MarketOption[]
 }) {
   const [open, setOpen] = useState(false)
+  // The side/option the user tapped in the bar — pre-selected in the sheet so
+  // the entry tap captures the real decision (not a hollow "Trade" gateway).
+  const [pendingSide, setPendingSide] = useState<'yes' | 'no'>('yes')
+  const [pendingOptionId, setPendingOptionId] = useState<string | undefined>(undefined)
   const sheetRef = useRef<HTMLDivElement>(null)
   const lastFocused = useRef<HTMLElement | null>(null)
   const dragStartY = useRef<number | null>(null)
@@ -45,6 +49,15 @@ export function MobileTradeBar({
     setOpen(false)
     setDragY(0)
   }, [])
+
+  const openWith = (s: 'yes' | 'no') => {
+    setPendingSide(s)
+    setOpen(true)
+  }
+  const openWithOption = (id?: string) => {
+    setPendingOptionId(id)
+    setOpen(true)
+  }
 
   // Open/close side effects: body-scroll lock, focus management, Esc-to-close.
   useEffect(() => {
@@ -86,34 +99,49 @@ export function MobileTradeBar({
         className="fixed inset-x-0 bottom-0 z-40 border-t border-hairline bg-[color:var(--surface-1)]/95 px-4 pt-3 backdrop-blur lg:hidden"
         style={{ paddingBottom: 'calc(0.75rem + env(safe-area-inset-bottom))' }}
       >
-        <div className="flex items-center gap-3">
-          <div className="min-w-0 flex-1">
-            {isMulti ? (
-              <div className="flex min-w-0 items-baseline gap-1.5 text-sm">
-                <span className="truncate font-medium text-text-primary">{leader?.label ?? 'Multiple options'}</span>
-                {leader && (
-                  <span className="flex-none font-mono font-semibold text-pip-500">{Math.round(leader.price * 100)}%</span>
-                )}
-                <span className="flex-none text-xs text-text-muted">· {outcomes.length} options</span>
-              </div>
-            ) : (
-              <div className="flex items-center gap-2 text-sm">
-                <span className="price-yes font-semibold">YES {cents(market.yes_price)}</span>
-                <span className="text-text-muted">·</span>
-                <span className="price-no font-semibold">NO {cents(market.no_price)}</span>
-              </div>
-            )}
-          </div>
+        {/* Direct-action buttons: the entry tap IS the decision (Buy YES/NO or
+            the multiple_choice front-runner), opening the sheet pre-selected. */}
+        {isMulti ? (
           <button
             type="button"
-            onClick={() => setOpen(true)}
-            className="btn btn-primary btn-lg flex-none px-6"
+            onClick={() => openWithOption(leader?.id)}
+            className="btn btn-primary btn-lg w-full"
             aria-haspopup="dialog"
             aria-expanded={open}
           >
-            Trade <IconArrowRight size={15} />
+            {leader ? (
+              <span className="flex w-full items-center justify-center gap-1.5">
+                <span className="truncate">Buy {leader.label}</span>
+                <span className="flex-none font-mono opacity-80">{Math.round(leader.price * 100)}%</span>
+              </span>
+            ) : (
+              <>Trade <IconArrowRight size={15} /></>
+            )}
           </button>
-        </div>
+        ) : (
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              type="button"
+              onClick={() => openWith('yes')}
+              className="btn-yes btn-lg"
+              aria-haspopup="dialog"
+              aria-expanded={open}
+            >
+              <span className="font-bold">Buy YES</span>
+              <span className="ml-1.5 font-mono text-xs opacity-80">{cents(market.yes_price)}</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => openWith('no')}
+              className="btn-no btn-lg"
+              aria-haspopup="dialog"
+              aria-expanded={open}
+            >
+              <span className="font-bold">Buy NO</span>
+              <span className="ml-1.5 font-mono text-xs opacity-80">{cents(market.no_price)}</span>
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Bottom sheet */}
@@ -167,7 +195,12 @@ export function MobileTradeBar({
 
               {/* The single source-of-truth order ticket */}
               <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-4">
-                <BettingPanel market={market} options={options} />
+                <BettingPanel
+                  market={market}
+                  options={options}
+                  initialSide={pendingSide}
+                  initialOptionId={pendingOptionId}
+                />
               </div>
             </div>
           </div>
