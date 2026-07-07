@@ -13,14 +13,16 @@ import { useCallback, useEffect, useState } from 'react'
 import { useAuth } from '@/hooks/use-auth'
 import { createClient } from '@/lib/supabase/client'
 import { formatUSD } from '@/lib/utils'
-import type { Market, Position } from '@/types'
+import type { Market, MarketOption, Position } from '@/types'
 import { IconPortfolio, IconTrendUp, IconTrendDown } from '@/components/ui/icons'
 
 interface PositionSummaryProps {
   market: Market
+  /** Options for multiple_choice markets (used to label + price option positions). */
+  options?: MarketOption[]
 }
 
-export function PositionSummary({ market }: PositionSummaryProps) {
+export function PositionSummary({ market, options }: PositionSummaryProps) {
   const { user } = useAuth()
   const [positions, setPositions] = useState<Position[]>([])
   const [loaded, setLoaded] = useState(false)
@@ -70,7 +72,16 @@ export function PositionSummary({ market }: PositionSummaryProps) {
 
       <div className="space-y-3">
         {positions.map((pos) => {
-          const livePrice = pos.side === 'yes' ? market.yes_price : market.no_price
+          // Option positions price against their live option probability; binary
+          // positions against the market's yes/no price.
+          const option = pos.market_option_id
+            ? options?.find((o) => o.id === pos.market_option_id)
+            : undefined
+          const livePrice = option
+            ? option.price
+            : pos.side === 'no'
+              ? market.no_price
+              : market.yes_price
           const currentValue = pos.shares * livePrice
           const unrealized = currentValue - pos.total_invested_usd
           const up = unrealized >= 0
@@ -83,11 +94,17 @@ export function PositionSummary({ market }: PositionSummaryProps) {
               className="rounded-md border border-hairline bg-surface-2 p-3"
             >
               <div className="mb-2 flex items-center justify-between">
-                <span
-                  className={`badge ${pos.side === 'yes' ? 'badge-green' : 'badge-red'}`}
-                >
-                  {pos.side.toUpperCase()}
-                </span>
+                {option ? (
+                  <span className="badge badge-muted max-w-[10rem] truncate" title={option.label}>
+                    {option.label}
+                  </span>
+                ) : (
+                  <span
+                    className={`badge ${pos.side === 'yes' ? 'badge-green' : 'badge-red'}`}
+                  >
+                    {(pos.side ?? 'yes').toUpperCase()}
+                  </span>
+                )}
                 <span
                   className={`inline-flex items-center gap-1 font-mono text-sm font-bold ${
                     up ? 'text-yes' : 'text-no'

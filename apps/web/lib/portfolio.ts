@@ -223,6 +223,60 @@ export interface PositionWithMarket extends PositionValuationInput {
   market?: MarketValuationInput | null
 }
 
+/** Raw position row as read from the DB (side is NULL for option positions). */
+export interface RawPositionForValuation {
+  id: string
+  side: PositionSide | null
+  market_option_id?: string | null
+  shares: number
+  total_invested_usd: number
+  is_active?: boolean
+}
+
+/** The single option row needed to value a multiple_choice position. */
+export interface OptionForValuation {
+  price: number
+  is_winner: boolean | null
+}
+
+/**
+ * Map a raw position into the binary valuation model.
+ *
+ * Multiple-choice (option) positions carry `market_option_id` and a NULL
+ * `side`. We model them as a synthetic YES position whose `yes_price` is the
+ * option's live probability and whose settlement is decided by the option's
+ * `is_winner` flag — so the entire tested binary P&L path (mark-to-market,
+ * win/loss classification, realized/unrealized split) is reused verbatim and
+ * we never branch on resolution type below this layer.
+ */
+export function toValuationInput<M extends MarketValuationInput>(
+  p: RawPositionForValuation,
+  market: M | null | undefined,
+  option?: OptionForValuation | null,
+): PositionWithMarket {
+  if (p.market_option_id && option && market) {
+    const price = num(option.price)
+    const resolvedOutcome: PositionSide | null =
+      market.status === 'resolved' ? (option.is_winner ? 'yes' : 'no') : null
+    return {
+      id: p.id,
+      side: 'yes',
+      shares: p.shares,
+      total_invested_usd: p.total_invested_usd,
+      is_active: p.is_active,
+      market: { ...market, yes_price: price, no_price: 1 - price, resolved_outcome: resolvedOutcome },
+    }
+  }
+  return {
+    id: p.id,
+    side: (p.side ?? 'yes') as PositionSide,
+    shares: p.shares,
+    total_invested_usd: p.total_invested_usd,
+    is_active: p.is_active,
+    market: market ?? null,
+  }
+}
+
 /**
  * Aggregate live P&L across a set of positions (each carrying its joined market).
  * Open and settled positions are summarized separately so the UI can show

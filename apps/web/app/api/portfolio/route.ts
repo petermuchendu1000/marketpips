@@ -8,13 +8,13 @@
 // client (NOT the admin client) so that enforcement is preserved.
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
-import { summarizePortfolio, type PositionWithMarket } from '@/lib/portfolio'
+import { summarizePortfolio, toValuationInput, type PositionWithMarket } from '@/lib/portfolio'
 import type { Position, Transaction, Wallet } from '@/types'
 
 export const dynamic = 'force-dynamic'
 
 const POSITION_SELECT = `
-  id, user_id, market_id, side, shares, total_invested_usd, avg_entry_price,
+  id, user_id, market_id, market_option_id, side, shares, total_invested_usd, avg_entry_price,
   current_value_usd, unrealized_pnl_usd, realized_pnl_usd, total_payout_usd,
   is_active, created_at, updated_at,
   market:markets(id, title, slug, yes_price, no_price, status, resolved_outcome, closes_at)
@@ -62,16 +62,39 @@ export async function GET(req: NextRequest) {
     const transactions = (transactionsRes.data || []) as Transaction[]
     const wallets = (walletsRes.data || []) as Wallet[]
 
+    // Fetch the option rows referenced by multiple_choice positions so they can
+    // be valued at their live probability (RLS: market_options is public-read).
+    const optionIds = Array.from(
+      new Set(rawPositions.map((p) => p.market_option_id).filter((id): id is string => !!id)),
+    )
+    const optionsById = new Map<string, { price: number; is_winner: boolean | null }>()
+    if (optionIds.length > 0) {
+      const { data: optionRows } = await supabase
+        .from('market_options')
+        .select('id, price, is_winner')
+        .in('id', optionIds)
+      for (const o of (optionRows as { id: string; price: number; is_winner: boolean | null }[]) ?? []) {
+        optionsById.set(o.id, { price: o.price, is_winner: o.is_winner })
+      }
+    }
+
     // Live mark-to-market P&L (ignores the stale current_value_usd column).
+    // Option positions are normalized to the binary valuation model.
     const { summary, positions: pnl } = summarizePortfolio(
-      rawPositions.map((p) => ({
-        id: p.id,
-        side: p.side,
-        shares: p.shares,
-        total_invested_usd: p.total_invested_usd,
-        is_active: p.is_active,
-        market: (p as any).market ?? null,
-      })),
+      rawPositions.map((p) =>
+        toValuationInput(
+          {
+            id: p.id,
+            side: p.side,
+            market_option_id: p.market_option_id,
+            shares: p.shares,
+            total_invested_usd: p.total_invested_usd,
+            is_active: p.is_active,
+          },
+          (p as any).market ?? null,
+          p.market_option_id ? optionsById.get(p.market_option_id) : null,
+        ),
+      ),
     )
 
     // Merge computed P&L back onto each position row for the client.

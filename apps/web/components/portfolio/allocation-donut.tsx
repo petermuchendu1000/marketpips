@@ -11,7 +11,7 @@ import { formatUSD } from '@/lib/utils'
 export interface AllocationSlice {
   label: string
   value: number
-  side: 'yes' | 'no'
+  side: 'yes' | 'no' | 'option'
 }
 
 interface AllocationDonutProps {

@@ -14,7 +14,10 @@ export interface HoldingRow {
   id: string
   title: string
   slug: string
-  side: 'yes' | 'no'
+  /** 'option' for multiple_choice positions (label carried in optionLabel). */
+  side: 'yes' | 'no' | 'option'
+  /** Chosen option label for multiple_choice positions. */
+  optionLabel?: string
   shares: number
   avgCost: number // entry price (0..1)
   livePrice: number // current mark (0..1)
@@ -90,11 +93,20 @@ export function HoldingsTable({ holdings }: HoldingsTableProps) {
                         >
                           <IconChevronDown size={15} />
                         </button>
-                        <span
-                          className={`badge ${h.side === 'yes' ? 'badge-green' : 'badge-red'} flex-none`}
-                        >
-                          {h.side.toUpperCase()}
-                        </span>
+                        {h.side === 'option' ? (
+                          <span
+                            className="badge badge-muted flex-none max-w-[9rem] truncate"
+                            title={h.optionLabel}
+                          >
+                            {h.optionLabel ?? 'Pick'}
+                          </span>
+                        ) : (
+                          <span
+                            className={`badge ${h.side === 'yes' ? 'badge-green' : 'badge-red'} flex-none`}
+                          >
+                            {h.side.toUpperCase()}
+                          </span>
+                        )}
                         <span className="min-w-0 truncate font-medium text-text-primary">
                           {h.title}
                         </span>

@@ -4,7 +4,7 @@
 // stale positions.current_value_usd snapshot). Pure Pip system, no emoji.
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
-import { summarizePortfolio } from '@/lib/portfolio'
+import { summarizePortfolio, toValuationInput } from '@/lib/portfolio'
 import { buildRatesMap, localToUsd } from '@/lib/currency'
 import type { Position, Transaction, Wallet, CurrencyCode, MarketStatus } from '@/types'
 import { SummaryCards } from '@/components/portfolio/summary-cards'
@@ -25,6 +25,7 @@ type JoinedMarket = {
   no_price: number
   status: MarketStatus
   resolved_outcome: 'yes' | 'no' | null
+  resolved_option_id: string | null
   closes_at: string
 }
 
@@ -46,7 +47,7 @@ async function PortfolioData() {
     supabase
       .from('positions')
       .select(
-        `*, market:markets(id, title, slug, yes_price, no_price, status, resolved_outcome, closes_at)`,
+        `*, market:markets(id, title, slug, yes_price, no_price, status, resolved_outcome, resolved_option_id, closes_at)`,
       )
       .eq('user_id', user.id)
       .order('created_at', { ascending: false })
@@ -68,16 +69,47 @@ async function PortfolioData() {
     (ratesRes.data as { from_currency: string; rate: number | string | null }[]) ?? [],
   )
 
-  // Live mark-to-market P&L (single source of truth).
+  // Resolve the option rows behind multiple_choice positions (label for the
+  // holdings table, live price + winner flag for valuation).
+  const optionIds = Array.from(
+    new Set(positions.map((p) => p.market_option_id).filter((id): id is string => !!id)),
+  )
+  const optionsById = new Map<
+    string,
+    { label: string; price: number; is_winner: boolean | null }
+  >()
+  if (optionIds.length > 0) {
+    const { data: optionRows } = await supabase
+      .from('market_options')
+      .select('id, label, price, is_winner')
+      .in('id', optionIds)
+    for (const o of (optionRows as {
+      id: string
+      label: string
+      price: number
+      is_winner: boolean | null
+    }[]) ?? []) {
+      optionsById.set(o.id, { label: o.label, price: o.price, is_winner: o.is_winner })
+    }
+  }
+
+  // Live mark-to-market P&L (single source of truth). Option positions are
+  // normalized to the binary valuation model via toValuationInput.
   const { summary, positions: pnl } = summarizePortfolio(
-    positions.map((p) => ({
-      id: p.id,
-      side: p.side,
-      shares: p.shares,
-      total_invested_usd: p.total_invested_usd,
-      is_active: p.is_active,
-      market: p.market ?? null,
-    })),
+    positions.map((p) =>
+      toValuationInput(
+        {
+          id: p.id,
+          side: p.side,
+          market_option_id: p.market_option_id,
+          shares: p.shares,
+          total_invested_usd: p.total_invested_usd,
+          is_active: p.is_active,
+        },
+        p.market ?? null,
+        p.market_option_id ? optionsById.get(p.market_option_id) : null,
+      ),
+    ),
   )
   const pnlById = new Map(pnl.map((c) => [c.positionId, c]))
 
@@ -106,20 +138,41 @@ async function PortfolioData() {
     startOfDay.setUTCHours(0, 0, 0, 0)
     const { data: history } = await supabase
       .from('price_history')
-      .select('market_id, yes_price, no_price, recorded_at')
+      .select('market_id, market_option_id, yes_price, no_price, price, recorded_at')
       .in('market_id', marketIds)
       .gte('recorded_at', startOfDay.toISOString())
       .order('recorded_at', { ascending: true })
 
+    // Binary markets: first tick keyed by market. Option markets: first tick
+    // keyed by option id (price_history rows carry market_option_id + price).
     const dayOpen = new Map<string, { yes: number; no: number }>()
-    for (const row of (history as { market_id: string; yes_price: number; no_price: number }[]) ?? []) {
-      if (!dayOpen.has(row.market_id)) dayOpen.set(row.market_id, { yes: row.yes_price, no: row.no_price })
+    const dayOpenOption = new Map<string, number>()
+    for (const row of (history as {
+      market_id: string
+      market_option_id: string | null
+      yes_price: number | null
+      no_price: number | null
+      price: number | null
+    }[]) ?? []) {
+      if (row.market_option_id) {
+        if (!dayOpenOption.has(row.market_option_id) && row.price != null) {
+          dayOpenOption.set(row.market_option_id, row.price)
+        }
+      } else if (!dayOpen.has(row.market_id) && row.yes_price != null && row.no_price != null) {
+        dayOpen.set(row.market_id, { yes: row.yes_price, no: row.no_price })
+      }
     }
     for (const p of openPositions) {
       const c = pnlById.get(p.id)
-      const open = dayOpen.get(p.market!.id)
-      if (!c || !open) continue
-      const openPrice = p.side === 'yes' ? open.yes : open.no
+      if (!c) continue
+      let openPrice: number | undefined
+      if (p.market_option_id) {
+        openPrice = dayOpenOption.get(p.market_option_id)
+      } else {
+        const open = dayOpen.get(p.market!.id)
+        openPrice = open ? (p.side === 'yes' ? open.yes : open.no) : undefined
+      }
+      if (openPrice == null) continue
       const openValue = p.shares * openPrice
       todayPnl += c.currentValue - openValue
     }
@@ -130,11 +183,13 @@ async function PortfolioData() {
   const holdings: HoldingRow[] = openPositions
     .map((p) => {
       const c = pnlById.get(p.id)!
+      const option = p.market_option_id ? optionsById.get(p.market_option_id) : null
       return {
         id: p.id,
         title: p.market!.title,
         slug: p.market!.slug,
-        side: p.side,
+        side: (option ? 'option' : p.side ?? 'yes') as HoldingRow['side'],
+        optionLabel: option?.label,
         shares: p.shares,
         avgCost: p.avg_entry_price,
         livePrice: c.markPrice,
@@ -150,7 +205,7 @@ async function PortfolioData() {
     .sort((a, b) => b.marketValue - a.marketValue)
 
   const slices: AllocationSlice[] = holdings.map((h) => ({
-    label: h.title,
+    label: h.optionLabel ? `${h.title} — ${h.optionLabel}` : h.title,
     value: h.marketValue,
     side: h.side,
   }))

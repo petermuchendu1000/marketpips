@@ -549,6 +549,7 @@ export type Database = {
           price: number | null
           metadata: Json | null
           created_at: string | null
+          market_option_id: string | null
         }
         Insert: {
           id?: string
@@ -560,6 +561,7 @@ export type Database = {
           price?: number | null
           metadata?: Json | null
           created_at?: string | null
+          market_option_id?: string | null
         }
         Update: {
           id?: string
@@ -571,6 +573,7 @@ export type Database = {
           price?: number | null
           metadata?: Json | null
           created_at?: string | null
+          market_option_id?: string | null
         }
         Relationships: [
           {
@@ -600,6 +603,10 @@ export type Database = {
           is_winner: boolean | null
           display_order: number | null
           created_at: string | null
+          q_shares: number | null
+          total_invested_usd: number | null
+          is_active: boolean | null
+          updated_at: string | null
         }
         Insert: {
           id?: string
@@ -611,6 +618,10 @@ export type Database = {
           is_winner?: boolean | null
           display_order?: number | null
           created_at?: string | null
+          q_shares?: number | null
+          total_invested_usd?: number | null
+          is_active?: boolean | null
+          updated_at?: string | null
         }
         Update: {
           id?: string
@@ -622,6 +633,10 @@ export type Database = {
           is_winner?: boolean | null
           display_order?: number | null
           created_at?: string | null
+          q_shares?: number | null
+          total_invested_usd?: number | null
+          is_active?: boolean | null
+          updated_at?: string | null
         }
         Relationships: [
           {
@@ -679,6 +694,7 @@ export type Database = {
           metadata: Json | null
           created_at: string | null
           updated_at: string | null
+          resolved_option_id: string | null
         }
         Insert: {
           id?: string
@@ -725,6 +741,7 @@ export type Database = {
           metadata?: Json | null
           created_at?: string | null
           updated_at?: string | null
+          resolved_option_id?: string | null
         }
         Update: {
           id?: string
@@ -771,6 +788,7 @@ export type Database = {
           metadata?: Json | null
           created_at?: string | null
           updated_at?: string | null
+          resolved_option_id?: string | null
         }
         Relationships: [
           {
@@ -860,6 +878,7 @@ export type Database = {
           metadata: Json | null
           created_at: string | null
           updated_at: string | null
+          market_option_id: string | null
         }
         Insert: {
           id?: string
@@ -887,6 +906,7 @@ export type Database = {
           metadata?: Json | null
           created_at?: string | null
           updated_at?: string | null
+          market_option_id?: string | null
         }
         Update: {
           id?: string
@@ -914,6 +934,7 @@ export type Database = {
           metadata?: Json | null
           created_at?: string | null
           updated_at?: string | null
+          market_option_id?: string | null
         }
         Relationships: [
           {
@@ -957,6 +978,7 @@ export type Database = {
           claimed_at: string | null
           created_at: string | null
           updated_at: string | null
+          market_option_id: string | null
         }
         Insert: {
           id?: string
@@ -975,6 +997,7 @@ export type Database = {
           claimed_at?: string | null
           created_at?: string | null
           updated_at?: string | null
+          market_option_id?: string | null
         }
         Update: {
           id?: string
@@ -993,6 +1016,7 @@ export type Database = {
           claimed_at?: string | null
           created_at?: string | null
           updated_at?: string | null
+          market_option_id?: string | null
         }
         Relationships: [
           {
@@ -1026,6 +1050,8 @@ export type Database = {
           no_price: number
           volume_usd: number | null
           recorded_at: string | null
+          market_option_id: string | null
+          price: number | null
         }
         Insert: {
           id?: string
@@ -1034,6 +1060,8 @@ export type Database = {
           no_price: number
           volume_usd?: number | null
           recorded_at?: string | null
+          market_option_id?: string | null
+          price?: number | null
         }
         Update: {
           id?: string
@@ -1042,6 +1070,8 @@ export type Database = {
           no_price?: number
           volume_usd?: number | null
           recorded_at?: string | null
+          market_option_id?: string | null
+          price?: number | null
         }
         Relationships: [
           {
@@ -1243,6 +1273,7 @@ export type Database = {
           failed_at: string | null
           created_at: string | null
           updated_at: string | null
+          market_option_id: string | null
         }
         Insert: {
           id?: string
@@ -1274,6 +1305,7 @@ export type Database = {
           failed_at?: string | null
           created_at?: string | null
           updated_at?: string | null
+          market_option_id?: string | null
         }
         Update: {
           id?: string
@@ -1305,6 +1337,7 @@ export type Database = {
           failed_at?: string | null
           created_at?: string | null
           updated_at?: string | null
+          market_option_id?: string | null
         }
         Relationships: [
           {
@@ -2315,6 +2348,34 @@ export type Database = {
           p_client_order_id?: string | null
         }
         Returns: Json
+      }
+      place_bet_option: {
+        Args: {
+          p_user_id: string
+          p_market_id: string
+          p_option_id: string
+          p_amount_local: number
+          p_currency: Database["public"]["Enums"]["currency_code"]
+          p_client_order_id?: string | null
+        }
+        Returns: Json
+      }
+      resolve_market_options: {
+        Args: {
+          p_market_id: string
+          p_winning_option_id: string
+          p_resolver_id: string
+          p_resolution_notes?: string | null
+        }
+        Returns: Json
+      }
+      lmsr_price_multi: {
+        Args: { q: number[]; b: number }
+        Returns: number[]
+      }
+      seed_binary_options: {
+        Args: { p_market_id: string }
+        Returns: undefined
       }
       refresh_leaderboard: {
         Args: Record<PropertyKey, never>

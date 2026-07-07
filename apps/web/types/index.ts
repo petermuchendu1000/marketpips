@@ -156,6 +156,8 @@ export interface Market {
   resolution_source: string | null
   resolution_criteria: string
   resolved_outcome: OrderSide | null
+  /** Winning option for multiple_choice markets (binary uses resolved_outcome). */
+  resolved_option_id: string | null
   resolution_notes: string | null
   yes_price: number
   no_price: number
@@ -185,6 +187,30 @@ export interface Market {
   updated_at: string
   // Joined fields
   creator?: Profile
+  /** Joined market_options rows (multiple_choice markets). */
+  options?: MarketOption[]
+}
+
+/**
+ * A single mutually-exclusive outcome of a multiple_choice market.
+ * Mirrors the `public.market_options` table (see migration 020).
+ */
+export interface MarketOption {
+  id: string
+  market_id: string
+  label: string
+  description: string | null
+  /** Current probability in [0,1]. */
+  price: number
+  volume_usd: number
+  /** LMSR inventory (net USD staked on this option). */
+  q_shares: number | null
+  total_invested_usd: number | null
+  is_winner: boolean | null
+  is_active: boolean | null
+  display_order: number
+  created_at: string
+  updated_at: string | null
 }
 
 export interface Order {
@@ -192,7 +218,10 @@ export interface Order {
   market_id: string
   user_id: string
   wallet_id: string
-  side: OrderSide
+  /** NULL for option-based (multiple_choice) orders. */
+  side: OrderSide | null
+  /** Set for multiple_choice orders (references market_options.id). */
+  market_option_id: string | null
   type: OrderType
   status: OrderStatus
   amount_usd: number
@@ -222,7 +251,10 @@ export interface Position {
   user_id: string
   market_id: string
   wallet_id: string
-  side: PositionSide
+  /** NULL for option-based (multiple_choice) positions. */
+  side: PositionSide | null
+  /** Set for multiple_choice positions (references market_options.id). */
+  market_option_id: string | null
   shares: number
   total_invested_usd: number
   avg_entry_price: number
