@@ -8,10 +8,78 @@ import { formatDistanceToNow, format } from 'date-fns'
 import toast from 'react-hot-toast'
 import type { Market, MarketStatus } from '@/types'
 import { CATEGORY_LABELS } from '@/types'
-import { CategoryIcon, IconShare, IconExternalLink } from '@/components/ui/icons'
+import type { Outcome } from '@/lib/markets/outcomes'
+import { CategoryIcon, IconShare, IconExternalLink, IconCheck } from '@/components/ui/icons'
 
 interface MarketHeaderProps {
   market: Market
+  /** Canonical outcome list (binary → [Yes,No], multi → options by rank). */
+  outcomes?: Outcome[]
+  /** True for multiple_choice markets. */
+  isMulti?: boolean
+}
+
+// Brand-led categorical palette (shared with the outcomes chart / donut).
+const OUTCOME_PALETTE = [
+  'var(--pip-500)', 'var(--yes)', '#7c6cf0', '#e0973b',
+  '#3aa5c2', '#c2557a', '#5b8def', '#9a8c5c',
+  '#4bb37b', '#d06a4a', '#8a6cf0', '#b0983a',
+]
+
+/** Ranked probability breakdown for multiple-choice markets. */
+function OutcomesBreakdown({ outcomes }: { outcomes: Outcome[] }) {
+  const ranked = [...outcomes].sort((a, b) => b.price - a.price)
+  const anyWinner = ranked.some((o) => o.isWinner === true)
+  return (
+    <ul className="mt-4 space-y-2.5">
+      {ranked.map((o, i) => {
+        const pct = Math.round(o.price * 100)
+        const won = o.isWinner === true
+        const dimmed = anyWinner && !won
+        return (
+          <li key={o.id}>
+            <div className="mb-1 flex items-center justify-between gap-3">
+              <span className="flex min-w-0 items-center gap-2">
+                <span
+                  className="h-2.5 w-2.5 flex-none rounded-[2px]"
+                  style={{ background: OUTCOME_PALETTE[i % OUTCOME_PALETTE.length] }}
+                  aria-hidden
+                />
+                <span
+                  className={`truncate text-sm font-medium ${
+                    dimmed ? 'text-text-muted' : 'text-text-primary'
+                  }`}
+                >
+                  {o.label}
+                </span>
+                {won && (
+                  <span className="badge badge-green gap-1 flex-none">
+                    <IconCheck size={11} /> Winner
+                  </span>
+                )}
+              </span>
+              <span
+                className={`flex-none font-mono text-sm font-bold ${
+                  dimmed ? 'text-text-muted' : 'text-text-primary'
+                }`}
+              >
+                {pct}%
+              </span>
+            </div>
+            <div className="prob-bar">
+              <div
+                className="prob-bar-fill"
+                style={{
+                  width: `${pct}%`,
+                  background: dimmed ? 'var(--hairline)' : OUTCOME_PALETTE[i % OUTCOME_PALETTE.length],
+                }}
+              />
+            </div>
+          </li>
+        )
+      })}
+    </ul>
+  )
 }
 
 /** Market state-machine badge mapping (single source of visual truth). */
@@ -25,11 +93,12 @@ const STATUS_BADGE: Record<MarketStatus, { label: string; className: string }> =
   cancelled: { label: 'Cancelled', className: 'badge-muted' },
 }
 
-export function MarketHeader({ market }: MarketHeaderProps) {
+export function MarketHeader({ market, outcomes, isMulti }: MarketHeaderProps) {
   const category = CATEGORY_LABELS[market.category]
   const yesPercent = Math.round(market.yes_price * 100)
   const isResolved = market.status === 'resolved'
   const badge = STATUS_BADGE[market.status]
+  const showMulti = !!isMulti && !!outcomes && outcomes.length > 0
 
   const handleShare = async () => {
     const url = `${window.location.origin}/markets/${market.slug}`
@@ -72,35 +141,39 @@ export function MarketHeader({ market }: MarketHeaderProps) {
 
         <h1 className="font-display text-xl leading-snug text-text-primary">{market.title}</h1>
 
-        {/* Live probability */}
-        <div className="mt-4 flex items-center gap-4">
-          <div className="flex-1">
-            <div className="mb-1.5 flex items-end gap-2">
-              <span
-                className={`font-mono text-4xl font-bold ${
-                  isResolved && market.resolved_outcome !== 'yes' ? 'text-text-muted' : 'text-yes'
+        {/* Live probability — ranked options for multiple choice, YES gauge for binary */}
+        {showMulti ? (
+          <OutcomesBreakdown outcomes={outcomes!} />
+        ) : (
+          <div className="mt-4 flex items-center gap-4">
+            <div className="flex-1">
+              <div className="mb-1.5 flex items-end gap-2">
+                <span
+                  className={`font-mono text-4xl font-bold ${
+                    isResolved && market.resolved_outcome !== 'yes' ? 'text-text-muted' : 'text-yes'
+                  }`}
+                >
+                  {yesPercent}%
+                </span>
+                <span className="mb-1.5 text-sm text-text-muted">chance YES</span>
+              </div>
+              <div className="prob-bar">
+                <div className="prob-bar-fill" style={{ width: `${yesPercent}%` }} />
+              </div>
+            </div>
+
+            {isResolved && market.resolved_outcome && (
+              <div
+                className={`flex flex-col items-center rounded-md px-4 py-2 text-white ${
+                  market.resolved_outcome === 'yes' ? 'bg-yes' : 'bg-no'
                 }`}
               >
-                {yesPercent}%
-              </span>
-              <span className="mb-1.5 text-sm text-text-muted">chance YES</span>
-            </div>
-            <div className="prob-bar">
-              <div className="prob-bar-fill" style={{ width: `${yesPercent}%` }} />
-            </div>
+                <span className="text-xs font-semibold uppercase tracking-wide opacity-90">Resolved</span>
+                <span className="font-display text-lg leading-tight">{market.resolved_outcome.toUpperCase()}</span>
+              </div>
+            )}
           </div>
-
-          {isResolved && market.resolved_outcome && (
-            <div
-              className={`flex flex-col items-center rounded-md px-4 py-2 text-white ${
-                market.resolved_outcome === 'yes' ? 'bg-yes' : 'bg-no'
-              }`}
-            >
-              <span className="text-xs font-semibold uppercase tracking-wide opacity-90">Resolved</span>
-              <span className="font-display text-lg leading-tight">{market.resolved_outcome.toUpperCase()}</span>
-            </div>
-          )}
-        </div>
+        )}
 
         <p className="mt-4 whitespace-pre-line text-sm leading-relaxed text-text-secondary">
           {market.description}

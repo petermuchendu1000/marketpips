@@ -6,11 +6,13 @@ import type { Metadata } from 'next'
 import { createClient } from '@/lib/supabase/server'
 import { MarketHeader } from '@/components/markets/market-header'
 import { PriceChart } from '@/components/markets/price-chart'
+import { OutcomesChart } from '@/components/markets/outcomes-chart'
 import { BettingPanel } from '@/components/trading/betting-panel'
 import { PositionSummary } from '@/components/trading/position-summary'
 import { MarketActivity } from '@/components/markets/market-activity'
 import { MarketComments } from '@/components/markets/market-comments'
 import { RelatedMarkets } from '@/components/markets/related-markets'
+import { normalizeOutcomes, isMultiOutcome } from '@/lib/markets/outcomes'
 import { formatUSD } from '@/lib/utils'
 import {
   IconTrendUp,
@@ -20,7 +22,7 @@ import {
   IconChevronLeft,
   IconExternalLink,
 } from '@/components/ui/icons'
-import type { Market } from '@/types'
+import type { Market, MarketOption } from '@/types'
 
 // Live market data — render dynamically per request (no static prerender).
 export const dynamic = 'force-dynamic'
@@ -30,11 +32,19 @@ const getMarket = cache(async (slug: string) => {
   const { data } = await supabase
     .from('markets')
     .select(
-      `*, creator:profiles!markets_creator_id_fkey(id, display_name, avatar_url, username)`,
+      `*, creator:profiles!markets_creator_id_fkey(id, display_name, avatar_url, username), options:market_options(*)`,
     )
     .eq('slug', slug)
     .single()
-  return data as Market | null
+  if (!data) return null
+  // Options arrive unordered from the join; present them by display_order.
+  const market = data as unknown as Market
+  if (Array.isArray(market.options)) {
+    market.options = [...market.options].sort(
+      (a, b) => (a.display_order ?? 0) - (b.display_order ?? 0) || a.label.localeCompare(b.label),
+    )
+  }
+  return market
 })
 
 export async function generateMetadata({
@@ -60,15 +70,50 @@ export async function generateMetadata({
   }
 }
 
-async function MarketPriceHistory({ marketId }: { marketId: string }) {
+async function MarketPriceHistory({
+  marketId,
+  options,
+}: {
+  marketId: string
+  options?: MarketOption[] | null
+}) {
   const supabase = await createClient()
+
+  // Multiple-choice: one probability series per option (price_history rows are
+  // keyed by market_option_id with a single `price`).
+  if (options && options.length > 0) {
+    const { data: history } = await supabase
+      .from('price_history')
+      .select('market_option_id, price, recorded_at')
+      .eq('market_id', marketId)
+      .not('market_option_id', 'is', null)
+      .order('recorded_at', { ascending: true })
+      .limit(1000)
+    return (
+      <OutcomesChart
+        options={options.map((o) => ({ id: o.id, label: o.label, price: o.price }))}
+        data={(history || []).map((h) => ({
+          optionId: h.market_option_id as string,
+          price: h.price ?? 0,
+          recordedAt: h.recorded_at,
+        }))}
+      />
+    )
+  }
+
   const { data: history } = await supabase
     .from('price_history')
     .select('yes_price, no_price, volume_usd, recorded_at')
     .eq('market_id', marketId)
+    .is('market_option_id', null)
     .order('recorded_at', { ascending: true })
     .limit(200)
-  return <PriceChart data={history || []} />
+  return <PriceChart data={(history || []).map((h) => ({
+    yes_price: h.yes_price ?? 0,
+    no_price: h.no_price ?? 0,
+    volume_usd: h.volume_usd,
+    recorded_at: h.recorded_at,
+  }))} />
 }
 
 async function MarketActivityFeed({ marketId }: { marketId: string }) {
@@ -120,6 +165,11 @@ export default async function MarketPage({ params }: { params: Promise<{ slug: s
   const resolvesAt = market.resolves_at ? new Date(market.resolves_at) : null
   const dateFmt: Intl.DateTimeFormatOptions = { day: 'numeric', month: 'short', year: 'numeric' }
 
+  // Canonical outcome model — the single place the UI learns binary vs multi.
+  const options = market.options ?? []
+  const isMulti = isMultiOutcome(market, options)
+  const outcomes = normalizeOutcomes(market, options)
+
   // SEO: structured data for the market as a Q&A / claim.
   const jsonLd = {
     '@context': 'https://schema.org',
@@ -127,7 +177,7 @@ export default async function MarketPage({ params }: { params: Promise<{ slug: s
     name: market.title,
     text: market.description,
     dateCreated: market.created_at,
-    answerCount: 2,
+    answerCount: outcomes.length,
   }
 
   return (
@@ -145,12 +195,12 @@ export default async function MarketPage({ params }: { params: Promise<{ slug: s
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         {/* Main column */}
         <div className="space-y-6 lg:col-span-2">
-          <MarketHeader market={market} />
+          <MarketHeader market={market} outcomes={outcomes} isMulti={isMulti} />
 
           <div className="card p-4">
             <SectionTitle icon={<IconTrendUp size={14} />}>Probability history</SectionTitle>
             <Suspense fallback={<div className="skeleton h-48 rounded-md" />}>
-              <MarketPriceHistory marketId={market.id} />
+              <MarketPriceHistory marketId={market.id} options={isMulti ? options : null} />
             </Suspense>
           </div>
 
@@ -175,10 +225,10 @@ export default async function MarketPage({ params }: { params: Promise<{ slug: s
         {/* Sidebar */}
         <div className="space-y-4">
           <div className="lg:sticky lg:top-20 lg:space-y-4">
-            <BettingPanel market={market} />
+            <BettingPanel market={market} options={options} />
 
             {/* Real-time position & P&L (only renders when the user holds one) */}
-            <PositionSummary market={market} />
+            <PositionSummary market={market} options={options} />
 
             {/* Settlement / resolution rules */}
             <div className="card p-4">
@@ -200,7 +250,10 @@ export default async function MarketPage({ params }: { params: Promise<{ slug: s
             <div className="card p-4">
               <SectionTitle icon={<IconInfo size={14} />}>Contract specs</SectionTitle>
               <dl className="divide-y divide-hairline">
-                <SpecRow label="Type" value={market.resolution_type === 'binary' ? 'Binary (YES / NO)' : 'Multiple choice'} />
+                <SpecRow
+                  label="Type"
+                  value={isMulti ? `Multiple choice · ${outcomes.length} options` : 'Binary (YES / NO)'}
+                />
                 <SpecRow label="Total volume" value={formatUSD(market.total_volume_usd)} />
                 <SpecRow label="Liquidity" value={formatUSD(market.liquidity_pool_usd)} />
                 <SpecRow label="Total bets" value={market.total_bets.toLocaleString()} />
