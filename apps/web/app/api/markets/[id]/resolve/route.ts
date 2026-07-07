@@ -4,10 +4,18 @@ import { createAdminClient } from '@/lib/supabase/server'
 import { z } from 'zod'
 import { requireRole, RESOLVER_ROLES } from '@/lib/auth'
 
-const resolveSchema = z.object({
-  outcome: z.enum(['yes', 'no']),
-  resolution_notes: z.string().min(10).max(1000),
-})
+// A market resolves EITHER on a binary outcome (yes/no) OR, for
+// multiple_choice markets, on a winning option id. Exactly one must be set.
+const resolveSchema = z
+  .object({
+    outcome: z.enum(['yes', 'no']).optional(),
+    winning_option_id: z.string().uuid().optional(),
+    resolution_notes: z.string().min(10).max(1000),
+  })
+  .refine(
+    (v) => (v.outcome ? !v.winning_option_id : !!v.winning_option_id),
+    { message: 'Provide exactly one of `outcome` (binary) or `winning_option_id` (multiple choice).' },
+  )
 
 export async function POST(
   req: NextRequest,
@@ -29,15 +37,24 @@ export async function POST(
       )
     }
 
-    const { outcome, resolution_notes } = parsed.data
+    const { outcome, winning_option_id, resolution_notes } = parsed.data
     const adminClient = await createAdminClient()
 
-    const { data: result, error: resolveError } = await adminClient.rpc('resolve_market', {
-      p_market_id: marketId,
-      p_outcome: outcome,
-      p_resolver_id: user.id,
-      p_resolution_notes: resolution_notes,
-    })
+    // Route to the correct settlement RPC by resolution shape. Both mirror the
+    // same payout math (stake returned + shares x $1 to winners).
+    const { data: result, error: resolveError } = winning_option_id
+      ? await adminClient.rpc('resolve_market_options', {
+          p_market_id: marketId,
+          p_winning_option_id: winning_option_id,
+          p_resolver_id: user.id,
+          p_resolution_notes: resolution_notes,
+        })
+      : await adminClient.rpc('resolve_market', {
+          p_market_id: marketId,
+          p_outcome: outcome as 'yes' | 'no',
+          p_resolver_id: user.id,
+          p_resolution_notes: resolution_notes,
+        })
 
     if (resolveError) {
       console.error('Market resolution error:', resolveError)
@@ -50,7 +67,7 @@ export async function POST(
       action: 'market_resolved',
       entity_type: 'market',
       entity_id: marketId,
-      new_data: { outcome, resolution_notes },
+      new_data: { outcome, winning_option_id, resolution_notes },
     })
 
     return NextResponse.json({ success: true, data: result })

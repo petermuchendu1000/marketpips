@@ -4,6 +4,11 @@ import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { z } from 'zod'
 import type { Enums, Json } from '@/types/supabase'
 import { presetHeaders } from '@/lib/http/cache-headers'
+import {
+  validateOutcomeLabels,
+  MAX_LABEL_LEN,
+  MAX_OUTCOMES,
+} from '@/lib/markets/outcomes'
 
 // GET - list markets with filters
 export async function GET(req: NextRequest) {
@@ -84,10 +89,13 @@ const createMarketSchema = z.object({
     'entertainment', 'weather', 'governance', 'elections', 'business',
     'health', 'social', 'other'
   ]),
-  // Structure. The trading engine is binary (LMSR YES/NO); multiple_choice is
-  // accepted at the schema level for forward-compatibility but the creator UI
-  // only publishes binary today.
+  // Structure. Binary markets trade on the LMSR YES/NO engine; multiple_choice
+  // markets store N mutually-exclusive options (see `options` below) and trade
+  // on the multi-outcome LMSR (place_bet_option / resolve_market_options).
   resolution_type: z.enum(['binary', 'multiple_choice']).default('binary'),
+  // Option labels for multiple_choice markets (2..12). Ignored for binary.
+  // Validated in full via validateOutcomeLabels before persistence.
+  options: z.array(z.string().max(MAX_LABEL_LEN)).max(MAX_OUTCOMES).optional(),
   resolution_criteria: z.string().min(20).max(1000),
   // Credible authoritative source the market resolves against.
   resolution_source: z.string().url().max(500).optional(),
@@ -155,6 +163,18 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    // Multiple-choice markets must carry a valid option set. Validate up-front
+    // so we never create an option-less multiple_choice market (which would
+    // render as a dead binary ticket).
+    let optionLabels: string[] = []
+    if (data.resolution_type === 'multiple_choice') {
+      const validation = validateOutcomeLabels(data.options ?? [])
+      if (!validation.ok) {
+        return NextResponse.json({ error: validation.error }, { status: 400 })
+      }
+      optionLabels = validation.labels
+    }
+
     // Generate slug
     const slug = data.title
       .toLowerCase()
@@ -169,7 +189,9 @@ export async function POST(req: NextRequest) {
     const status = isAdmin ? 'active' : 'pending'
 
     // Opening probability -> seed yes_price/no_price (defaults to an even 50/50).
-    const { initial_probability, metadata, ...marketData } = data
+    // `options` is not a `markets` column; it is persisted separately below.
+    const { initial_probability, metadata, options: _options, ...marketData } = data
+    void _options
     const yesPrice = Math.round((initial_probability ?? 0.5) * 1e6) / 1e6
     const noPrice = Math.round((1 - yesPrice) * 1e6) / 1e6
 
@@ -195,6 +217,29 @@ export async function POST(req: NextRequest) {
       }
       console.error('Market creation error:', createError)
       return NextResponse.json({ error: 'Failed to create market' }, { status: 500 })
+    }
+
+    // Persist the option set for multiple_choice markets. Seed every option with
+    // an equal probability that sums to ~1 (LMSR re-prices from the first trade).
+    if (optionLabels.length > 0) {
+      const evenPrice = Math.round((1 / optionLabels.length) * 1e6) / 1e6
+      const optionRows = optionLabels.map((label, i) => ({
+        market_id: market.id,
+        label,
+        price: evenPrice,
+        display_order: i,
+      }))
+      const { error: optionsError } = await adminClient
+        .from('market_options')
+        .insert(optionRows)
+
+      if (optionsError) {
+        // Roll back the orphaned market so we never leave an option-less
+        // multiple_choice shell behind.
+        await adminClient.from('markets').delete().eq('id', market.id)
+        console.error('Market options creation error:', optionsError)
+        return NextResponse.json({ error: 'Failed to create market options' }, { status: 500 })
+      }
     }
 
     return NextResponse.json({ success: true, data: market }, { status: 201 })
