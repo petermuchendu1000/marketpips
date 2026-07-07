@@ -6,15 +6,28 @@ import { nanoid } from 'nanoid'
 
 const placeBetSchema = z.object({
   market_id: z.string().uuid(),
-  side: z.enum(['yes', 'no']),
+  // Binary markets pass `side`; multiple_choice markets pass `market_option_id`.
+  side: z.enum(['yes', 'no']).optional(),
+  market_option_id: z.string().uuid().optional(),
   amount_local: z.number().positive().min(0.01),
   currency: z.enum(['KES', 'UGX', 'TZS', 'RWF', 'ZMW', 'ETB', 'BIF', 'USD']),
   order_type: z.enum(['market', 'limit']).default('market'),
   limit_price: z.number().min(0.01).max(0.99).optional(),
-}).refine((d) => d.order_type !== 'limit' || d.limit_price != null, {
-  message: 'limit_price is required for limit orders',
-  path: ['limit_price'],
 })
+  .refine((d) => d.order_type !== 'limit' || d.limit_price != null, {
+    message: 'limit_price is required for limit orders',
+    path: ['limit_price'],
+  })
+  // Exactly one of side / market_option_id must be supplied.
+  .refine((d) => !!d.side !== !!d.market_option_id, {
+    message: 'Provide exactly one of side (binary) or market_option_id (multiple choice)',
+    path: ['side'],
+  })
+  // Option (multiple_choice) orders are market orders only.
+  .refine((d) => !d.market_option_id || d.order_type === 'market', {
+    message: 'Multiple-choice orders must be market orders',
+    path: ['order_type'],
+  })
 
 // Map place_bet SQLSTATE codes -> HTTP responses (single source of truth).
 const BET_ERRORS: Record<string, { status: number; error: string }> = {
@@ -24,7 +37,7 @@ const BET_ERRORS: Record<string, { status: number; error: string }> = {
   P0004: { status: 400, error: 'Minimum bet is 0.10 USD equivalent' },
   P0005: { status: 400, error: 'Wallet not found for this currency' },
   P0006: { status: 402, error: 'Insufficient balance' },
-  P0007: { status: 400, error: 'Limit orders require a limit price' },
+  P0007: { status: 400, error: 'Selected option was not found for this market' },
   P0008: { status: 422, error: 'Could not compute a valid trade size' },
 }
 
@@ -61,20 +74,31 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    const { market_id, side, amount_local, currency, order_type, limit_price } = parsed.data
+    const { market_id, side, market_option_id, amount_local, currency, order_type, limit_price } =
+      parsed.data
     const clientOrderId = `bet_${user.id.slice(0, 8)}_${nanoid(8)}`
 
-    // Call the atomic place_bet database function
-    const { data: result, error: betError } = await adminClient.rpc('place_bet', {
-      p_user_id: user.id,
-      p_market_id: market_id,
-      p_side: side,
-      p_amount_local: amount_local,
-      p_currency: currency,
-      p_order_type: order_type,
-      p_limit_price: limit_price || null,
-      p_client_order_id: clientOrderId,
-    })
+    // Route to the correct atomic RPC: option-based (multiple_choice) vs
+    // side-based (binary). Both mirror the same wallet/fee/accounting guardrails.
+    const { data: result, error: betError } = market_option_id
+      ? await adminClient.rpc('place_bet_option', {
+          p_user_id: user.id,
+          p_market_id: market_id,
+          p_option_id: market_option_id,
+          p_amount_local: amount_local,
+          p_currency: currency,
+          p_client_order_id: clientOrderId,
+        })
+      : await adminClient.rpc('place_bet', {
+          p_user_id: user.id,
+          p_market_id: market_id,
+          p_side: side!,
+          p_amount_local: amount_local,
+          p_currency: currency,
+          p_order_type: order_type,
+          p_limit_price: limit_price || null,
+          p_client_order_id: clientOrderId,
+        })
 
     if (betError) {
       // Map known SQLSTATE codes from place_bet to precise HTTP responses.

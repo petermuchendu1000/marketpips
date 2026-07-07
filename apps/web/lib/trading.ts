@@ -86,6 +86,53 @@ export interface PreviewArgs {
   creatorRewardRate?: number
 }
 
+/** Minimum option probability used for share sizing (mirrors place_bet_option). */
+export const MIN_OPTION_PRICE = 0.01
+
+export interface OptionBetPreview extends BetEconomics {
+  optionId: string
+  /** Shares acquired = net stake / pre-trade option price. */
+  shares: number
+  /** Pre-trade option price the fill is sized at (>= MIN_OPTION_PRICE). */
+  price: number
+  /** Max payout if this option wins ($1 per share). */
+  potentialPayoutUsd: number
+}
+
+export interface OptionPreviewArgs {
+  amountLocal: number
+  currency: CurrencyCode
+  optionId: string
+  /** Current option probability in [0,1]. */
+  optionPrice: number
+  rates?: RatesMap
+  platformFeeRate?: number
+  creatorRewardRate?: number
+}
+
+/**
+ * Bet preview for ONE option of a multiple_choice market, mirroring the
+ * authoritative `place_bet_option` RPC: convert to USD, take the platform fee,
+ * then size shares against the pre-trade option price (floored at 0.01), which
+ * is exactly how the RPC computes `v_shares := v_net_usd / v_price_before`.
+ * There is no LMSR inversion here because the RPC itself sizes at the pre-trade
+ * price — so this preview equals on-chain execution.
+ */
+export function previewOptionBet(args: OptionPreviewArgs): OptionBetPreview {
+  const { amountLocal, currency, optionId, optionPrice, rates, platformFeeRate, creatorRewardRate } = args
+  const amountUsd = toUsd(amountLocal, currency, rates)
+  const econ = computeBetEconomics(amountUsd, platformFeeRate, creatorRewardRate)
+  const price = Math.max(optionPrice, MIN_OPTION_PRICE)
+  const shares = price > 0 ? econ.netStakeUsd / price : 0
+  return {
+    ...econ,
+    optionId,
+    shares,
+    price,
+    potentialPayoutUsd: shares, // $1 per winning share
+  }
+}
+
 /**
  * Full bet preview mirroring place_bet: convert to USD, take fees, run the
  * net stake through the LMSR inversion for slippage-aware shares & price impact.
