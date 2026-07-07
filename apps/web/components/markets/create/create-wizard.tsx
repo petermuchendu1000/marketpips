@@ -70,6 +70,8 @@ export function CreateWizard({ user }: { user: User }) {
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
   const [initialProb, setInitialProb] = useState(50)
+  // Multiple-choice option labels (start with two empty rows).
+  const [options, setOptions] = useState<string[]>(['', ''])
   const [tags, setTags] = useState<string[]>([])
   const [tagDraft, setTagDraft] = useState('')
 
@@ -86,6 +88,7 @@ export function CreateWizard({ user }: { user: User }) {
   const [error, setError] = useState('')
 
   // ---- Validation ----------------------------------------------------------
+  const isMulti = structure === 'multiple_choice'
   const titleOk = title.trim().length >= 10 && title.trim().length <= 200
   const descOk = description.trim().length >= 20 && description.trim().length <= 2000
   const criteriaOk = criteria.trim().length >= 20 && criteria.trim().length <= 700
@@ -96,9 +99,20 @@ export function CreateWizard({ user }: { user: User }) {
   const resolveDate = resolvesAt ? new Date(resolvesAt) : null
   const resolveOk = !resolvesAt || (!!resolveDate && !!closeDate && resolveDate.getTime() >= closeDate.getTime())
 
+  // Multiple-choice options: 2..12 non-empty, <=80 chars, case-insensitively unique.
+  const cleanOptions = options.map((o) => o.trim()).filter((o) => o.length > 0)
+  const optionsUnique =
+    new Set(cleanOptions.map((o) => o.toLowerCase())).size === cleanOptions.length
+  const optionsOk =
+    !isMulti ||
+    (cleanOptions.length >= 2 &&
+      cleanOptions.length <= 12 &&
+      optionsUnique &&
+      cleanOptions.every((o) => o.length <= 80))
+
   const stepValid = [
-    structure === 'binary' && !!category,
-    titleOk && descOk,
+    (structure === 'binary' || structure === 'multiple_choice') && !!category,
+    titleOk && descOk && optionsOk,
     sourceOk && criteriaOk && closeOk && resolveOk,
     true,
   ]
@@ -136,15 +150,18 @@ export function CreateWizard({ user }: { user: User }) {
           title: title.trim(),
           description: description.trim(),
           category,
-          resolution_type: 'binary',
+          resolution_type: isMulti ? 'multiple_choice' : 'binary',
           resolution_criteria: composeCriteria(),
           resolution_source: sourceUrl.trim(),
           closes_at: new Date(closesAt).toISOString(),
           resolves_at: resolvesAt ? new Date(resolvesAt).toISOString() : undefined,
           tags,
-          initial_probability: initialProb / 100,
+          // Binary seeds an opening YES probability; multi seeds equal option prices server-side.
+          ...(isMulti
+            ? { options: cleanOptions }
+            : { initial_probability: initialProb / 100 }),
           metadata: {
-            structure: 'binary',
+            structure: isMulti ? 'multiple_choice' : 'binary',
             resolution: { void_handling: voidHandling, tie_handling: tieHandling },
           },
         }),
@@ -193,10 +210,8 @@ export function CreateWizard({ user }: { user: User }) {
                     title="Multi-outcome"
                     desc="Several possible outcomes, each with its own probability."
                     icon={<IconInfo size={20} />}
-                    selected={false}
-                    disabled
-                    badge="Coming soon"
-                    onClick={() => {}}
+                    selected={structure === 'multiple_choice'}
+                    onClick={() => setStructure('multiple_choice')}
                   />
                 </div>
 
@@ -259,28 +274,88 @@ export function CreateWizard({ user }: { user: User }) {
                     />
                   </Field>
 
-                  <div>
-                    <div className="mb-2 flex items-baseline justify-between">
-                      <span className="text-xs font-semibold uppercase tracking-wide text-text-muted">Opening probability</span>
-                      <span className="font-mono text-xs text-text-muted">Seeds the starting price</span>
+                  {!isMulti && (
+                    <div>
+                      <div className="mb-2 flex items-baseline justify-between">
+                        <span className="text-xs font-semibold uppercase tracking-wide text-text-muted">Opening probability</span>
+                        <span className="font-mono text-xs text-text-muted">Seeds the starting price</span>
+                      </div>
+                      <div className="mb-2 flex items-baseline justify-between">
+                        <span className="price-yes text-lg">YES {initialProb}%</span>
+                        <span className="price-no text-lg">NO {100 - initialProb}%</span>
+                      </div>
+                      <input
+                        type="range"
+                        min={1}
+                        max={99}
+                        value={initialProb}
+                        onChange={(e) => setInitialProb(Number(e.target.value))}
+                        aria-label="Opening YES probability"
+                        className="w-full accent-[color:var(--pip-500)]"
+                      />
+                      <div className="prob-bar mt-2">
+                        <div className="prob-bar-fill" style={{ width: `${initialProb}%` }} />
+                      </div>
                     </div>
-                    <div className="mb-2 flex items-baseline justify-between">
-                      <span className="price-yes text-lg">YES {initialProb}%</span>
-                      <span className="price-no text-lg">NO {100 - initialProb}%</span>
+                  )}
+
+                  {isMulti && (
+                    <div>
+                      <div className="mb-2 flex items-baseline justify-between">
+                        <span className="text-xs font-semibold uppercase tracking-wide text-text-muted">Outcomes</span>
+                        <span className="font-mono text-[11px] text-text-muted">{cleanOptions.length}/12 &middot; min 2</span>
+                      </div>
+                      <p className="mb-3 text-xs leading-relaxed text-text-muted">
+                        List every mutually-exclusive outcome. Each opens at an equal probability; prices move as people trade.
+                      </p>
+                      <div className="space-y-2">
+                        {options.map((opt, i) => (
+                          <div key={i} className="flex items-center gap-2">
+                            <span className="flex h-8 w-8 flex-none items-center justify-center rounded-sm bg-surface-2 font-mono text-xs text-text-muted">
+                              {i + 1}
+                            </span>
+                            <input
+                              className="input w-full"
+                              value={opt}
+                              maxLength={80}
+                              aria-label={`Outcome ${i + 1}`}
+                              onChange={(e) =>
+                                setOptions((prev) => prev.map((o, j) => (j === i ? e.target.value : o)))
+                              }
+                              placeholder={`Outcome ${i + 1}`}
+                            />
+                            <button
+                              type="button"
+                              onClick={() => setOptions((prev) => prev.filter((_, j) => j !== i))}
+                              disabled={options.length <= 2}
+                              aria-label={`Remove outcome ${i + 1}`}
+                              className="flex-none rounded-sm p-2 text-text-muted transition-colors hover:text-no disabled:cursor-not-allowed disabled:opacity-30"
+                            >
+                              <IconX size={14} />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                      {options.length < 12 && (
+                        <button
+                          type="button"
+                          onClick={() => setOptions((prev) => [...prev, ''])}
+                          className="btn btn-ghost btn-sm mt-3 gap-1"
+                        >
+                          <IconArrowRight size={14} /> Add outcome
+                        </button>
+                      )}
+                      {isMulti && !optionsOk && cleanOptions.length > 0 && (
+                        <FieldHint>
+                          {!optionsUnique
+                            ? 'Outcomes must be unique.'
+                            : cleanOptions.length < 2
+                              ? 'Add at least two outcomes.'
+                              : 'Add between 2 and 12 outcomes, each up to 80 characters.'}
+                        </FieldHint>
+                      )}
                     </div>
-                    <input
-                      type="range"
-                      min={1}
-                      max={99}
-                      value={initialProb}
-                      onChange={(e) => setInitialProb(Number(e.target.value))}
-                      aria-label="Opening YES probability"
-                      className="w-full accent-[color:var(--pip-500)]"
-                    />
-                    <div className="prob-bar mt-2">
-                      <div className="prob-bar-fill" style={{ width: `${initialProb}%` }} />
-                    </div>
-                  </div>
+                  )}
 
                   <Field id="mk-tags" label="Tags" hint={`${tags.length}/10`}>
                     {tags.length > 0 && (
@@ -413,11 +488,20 @@ export function CreateWizard({ user }: { user: User }) {
               <div>
                 <StepHead title="Review & publish" copy="Check every detail. You can jump back to any step to edit." />
                 <dl className="divide-y divide-hairline">
-                  <ReviewRow label="Structure" onEdit={() => goto(0)} value="Binary (YES / NO)" />
+                  <ReviewRow label="Structure" onEdit={() => goto(0)} value={isMulti ? 'Multi-outcome' : 'Binary (YES / NO)'} />
                   <ReviewRow label="Category" onEdit={() => goto(0)} value={category ? CATEGORY_LABELS[category].label : '—'} ok={!!category} />
                   <ReviewRow label="Question" onEdit={() => goto(1)} value={title || '—'} ok={titleOk} />
                   <ReviewRow label="Context" onEdit={() => goto(1)} value={description || '—'} ok={descOk} clamp />
-                  <ReviewRow label="Opening" onEdit={() => goto(1)} value={`YES ${initialProb}% · NO ${100 - initialProb}%`} />
+                  {isMulti ? (
+                    <ReviewRow
+                      label="Outcomes"
+                      onEdit={() => goto(1)}
+                      value={cleanOptions.length ? cleanOptions.join('  ·  ') : '—'}
+                      ok={optionsOk}
+                    />
+                  ) : (
+                    <ReviewRow label="Opening" onEdit={() => goto(1)} value={`YES ${initialProb}% · NO ${100 - initialProb}%`} />
+                  )}
                   <ReviewRow label="Tags" onEdit={() => goto(1)} value={tags.length ? tags.map((t) => `#${t}`).join('  ') : 'None'} />
                   <ReviewRow label="Source" onEdit={() => goto(2)} value={sourceUrl || '—'} ok={sourceOk} link={sourceOk ? sourceUrl : undefined} />
                   <ReviewRow label="Rules" onEdit={() => goto(2)} value={criteria || '—'} ok={criteriaOk} clamp />
