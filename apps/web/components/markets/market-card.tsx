@@ -6,11 +6,19 @@ import { CATEGORY_LABELS } from '@/types'
 import { splitHighlight } from '@/lib/search'
 import { IconClock, IconUser, IconTrendUp, CategoryIcon } from '@/components/ui/icons'
 
+export interface CardLeadingOption {
+  label: string
+  price: number
+}
+
 interface MarketCardProps {
   market: Market
   compact?: boolean
   /** When set, matching query tokens in the title are highlighted (search UI). */
   query?: string
+  /** For multiple_choice markets: the current front-runner + total option count. */
+  leadingOption?: CardLeadingOption
+  optionCount?: number
 }
 
 /** Render a title, highlighting query-token matches with a brand-tinted mark. */
@@ -46,10 +54,18 @@ function timeLeft(closes: string) {
   return `${m}m`
 }
 
-export function MarketCard({ market, compact = false, query }: MarketCardProps) {
+export function MarketCard({
+  market,
+  compact = false,
+  query,
+  leadingOption,
+  optionCount,
+}: MarketCardProps) {
   const cat = CATEGORY_LABELS[market.category] ?? { emoji: '', label: 'Other', color: '' }
   const yesPct = Math.round(market.yes_price * 100)
   const noPct = 100 - yesPct
+  const isMulti = market.resolution_type === 'multiple_choice' && !!leadingOption
+  const leadPct = leadingOption ? Math.round(leadingOption.price * 100) : 0
   const isClosingSoon = new Date(market.closes_at).getTime() - Date.now() < 86400000 * 2
 
   return (
@@ -81,22 +97,46 @@ export function MarketCard({ market, compact = false, query }: MarketCardProps) 
         <TitleContent title={market.title} query={query} />
       </h3>
 
-      {/* Probability bar + YES/NO chips */}
-      <div className="mb-3">
-        <div className="flex items-center justify-between mb-1.5">
-          <div className="flex items-center gap-1.5">
-            <span className="text-xs font-bold price-yes">{yesPct}%</span>
-            <span className="text-[11px]" style={{ color: 'var(--text-muted)' }}>Yes</span>
+      {/* Probability bar — leading option for multiple choice, YES/NO for binary */}
+      {isMulti ? (
+        <div className="mb-3">
+          <div className="flex items-center justify-between gap-2 mb-1.5">
+            <span className="min-w-0 flex items-center gap-1.5">
+              <span className="text-xs font-bold" style={{ color: 'var(--pip-text)' }}>{leadPct}%</span>
+              <span className="truncate text-[11px]" style={{ color: 'var(--text-secondary)' }}>
+                {leadingOption!.label}
+              </span>
+            </span>
+            {optionCount ? (
+              <span className="flex-none text-[11px]" style={{ color: 'var(--text-muted)' }}>
+                {optionCount} options
+              </span>
+            ) : null}
           </div>
-          <div className="flex items-center gap-1.5">
-            <span className="text-[11px]" style={{ color: 'var(--text-muted)' }}>No</span>
-            <span className="text-xs font-bold price-no">{noPct}%</span>
+          <div className="prob-bar">
+            <div
+              className="prob-bar-fill"
+              style={{ width: `${leadPct}%`, background: 'var(--pip-500)' }}
+            />
           </div>
         </div>
-        <div className="prob-bar">
-          <div className="prob-bar-fill" style={{ width: `${yesPct}%` }} />
+      ) : (
+        <div className="mb-3">
+          <div className="flex items-center justify-between mb-1.5">
+            <div className="flex items-center gap-1.5">
+              <span className="text-xs font-bold price-yes">{yesPct}%</span>
+              <span className="text-[11px]" style={{ color: 'var(--text-muted)' }}>Yes</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <span className="text-[11px]" style={{ color: 'var(--text-muted)' }}>No</span>
+              <span className="text-xs font-bold price-no">{noPct}%</span>
+            </div>
+          </div>
+          <div className="prob-bar">
+            <div className="prob-bar-fill" style={{ width: `${yesPct}%` }} />
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Bottom row: volume + bettors */}
       <div className="flex items-center justify-between">

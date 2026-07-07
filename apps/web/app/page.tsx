@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import { HeroSection } from '@/components/layout/hero-section'
 import { MarketCard } from '@/components/markets/market-card'
 import { MarketsTicker } from '@/components/markets/markets-ticker'
+import { getLeadingOptions, type LeadingOption } from '@/lib/markets/leading-options'
 import type { Market, MarketCategory } from '@/types'
 import {
   IconArrowRight, IconShield, IconCheck, IconTrendUp, IconWallet,
@@ -39,12 +40,26 @@ async function getData() {
 
   const totalVolume = (volume.data ?? []).reduce((s: number, m: { total_volume_usd: number | null }) => s + (m.total_volume_usd ?? 0), 0)
 
+  const featuredList = (featured ?? []) as Market[]
+  const trendingList = (trending ?? []) as Market[]
+  const recentList = (recent ?? []) as Market[]
+
+  // One batched lookup of leading options across everything we'll render, so
+  // multiple_choice cards show their front-runner instead of a YES/NO bar.
+  const allShown = [...featuredList, ...trendingList, ...recentList]
+  const multiIds = Array.from(
+    new Set(allShown.filter((m) => m.resolution_type === 'multiple_choice').map((m) => m.id)),
+  )
+  const { leadByMarket, countByMarket } = await getLeadingOptions(supabase, multiIds)
+
   return {
-    featured: (featured ?? []) as Market[],
-    trending: (trending ?? []) as Market[],
-    recent: (recent ?? []) as Market[],
+    featured: featuredList,
+    trending: trendingList,
+    recent: recentList,
     activeCount: active.count ?? 0,
     totalVolume,
+    leadByMarket,
+    countByMarket,
   }
 }
 
@@ -55,7 +70,14 @@ function fmtCompact(n: number) {
 }
 
 export default async function HomePage() {
-  const { featured, trending, recent, activeCount, totalVolume } = await getData()
+  const { featured, trending, recent, activeCount, totalVolume, leadByMarket, countByMarket } =
+    await getData()
+
+  // Card props for a market: front-runner + option count for multiple choice.
+  const cardExtras = (m: Market): { leadingOption?: LeadingOption; optionCount?: number } => ({
+    leadingOption: leadByMarket.get(m.id),
+    optionCount: countByMarket.get(m.id),
+  })
 
   const tickerMarkets = [...trending, ...recent]
     .filter((m, i, arr) => arr.findIndex(x => x.id === m.id) === i)
@@ -73,7 +95,13 @@ export default async function HomePage() {
 
   return (
     <div style={{ background: 'var(--bg)' }}>
-      <HeroSection featured={featured[0] ?? trending[0] ?? recent[0] ?? null} />
+      <HeroSection
+        featured={featured[0] ?? trending[0] ?? recent[0] ?? null}
+        {...(() => {
+          const hero = featured[0] ?? trending[0] ?? recent[0] ?? null
+          return hero ? cardExtras(hero) : {}
+        })()}
+      />
 
       {/* Live ticker */}
       {tickerMarkets.length > 0 && <MarketsTicker markets={tickerMarkets} />}
@@ -101,7 +129,7 @@ export default async function HomePage() {
         {featuredGrid.length > 0 && (
           <Section eyebrow="Editor's picks" title="Featured markets" href="/markets?sort=featured">
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {featuredGrid.map(m => <MarketCard key={m.id} market={m} />)}
+              {featuredGrid.map(m => <MarketCard key={m.id} market={m} {...cardExtras(m)} />)}
             </div>
           </Section>
         )}
@@ -112,7 +140,7 @@ export default async function HomePage() {
             <EmptyState />
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-              {trendingGrid.map(m => <MarketCard key={m.id} market={m} />)}
+              {trendingGrid.map(m => <MarketCard key={m.id} market={m} {...cardExtras(m)} />)}
             </div>
           )}
         </Section>
@@ -121,7 +149,7 @@ export default async function HomePage() {
         {recent.length > 0 && (
           <Section eyebrow="Newest" title="Just added" href="/markets?sort=newest">
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-              {recent.slice(0, 8).map(m => <MarketCard key={m.id} market={m} compact />)}
+              {recent.slice(0, 8).map(m => <MarketCard key={m.id} market={m} compact {...cardExtras(m)} />)}
             </div>
           </Section>
         )}

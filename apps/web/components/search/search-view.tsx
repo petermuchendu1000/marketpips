@@ -8,7 +8,10 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { Market } from '@/types'
 import { CATEGORY_LABELS } from '@/types'
 import { SEARCH_SORTS, SEARCH_STATUSES } from '@/lib/search'
-import { MarketCard, MarketCardSkeleton } from '@/components/markets/market-card'
+import { MarketCard, MarketCardSkeleton, type CardLeadingOption } from '@/components/markets/market-card'
+
+/** Search rows may carry the multiple_choice front-runner (see /api/search). */
+type MarketRow = Market & { leading_option?: CardLeadingOption; option_count?: number | null }
 import {
   IconSearch,
   IconX,
@@ -89,11 +92,11 @@ export function SearchView() {
   const [status, setStatus] = useState('active')
   const [sort, setSort] = useState('relevance')
 
-  const [markets, setMarkets] = useState<Market[]>([])
+  const [markets, setMarkets] = useState<MarketRow[]>([])
   const [total, setTotal] = useState(0)
   const [loading, setLoading] = useState(false)
 
-  const [trending, setTrending] = useState<Market[]>([])
+  const [trending, setTrending] = useState<MarketRow[]>([])
   const [recent, setRecent] = useState<string[]>([])
 
   const debouncedQuery = useDebounce(query, 280)
@@ -323,7 +326,12 @@ export function SearchView() {
               </h2>
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
                 {trending.map((m) => (
-                  <MarketCard key={m.id} market={m} />
+                  <MarketCard
+                    key={m.id}
+                    market={m}
+                    leadingOption={m.leading_option}
+                    optionCount={m.option_count ?? undefined}
+                  />
                 ))}
               </div>
             </section>
@@ -365,7 +373,13 @@ export function SearchView() {
         ) : (
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {markets.map((m) => (
-              <MarketCard key={m.id} market={m} query={debouncedQuery} />
+              <MarketCard
+                key={m.id}
+                market={m}
+                query={debouncedQuery}
+                leadingOption={m.leading_option}
+                optionCount={m.option_count ?? undefined}
+              />
             ))}
           </div>
         )

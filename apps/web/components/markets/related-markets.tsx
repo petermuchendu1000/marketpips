@@ -1,6 +1,7 @@
 // components/markets/related-markets.tsx
 import { createClient } from '@/lib/supabase/server'
 import { MarketCard } from './market-card'
+import { getLeadingOptions } from '@/lib/markets/leading-options'
 import type { Market, MarketCategory } from '@/types'
 
 interface RelatedMarketsProps {
@@ -25,12 +26,24 @@ export async function RelatedMarkets({ marketId, category }: RelatedMarketsProps
 
   if (!markets?.length) return null
 
+  const typed = markets as Market[]
+  const { leadByMarket, countByMarket } = await getLeadingOptions(
+    supabase,
+    typed.filter((m) => m.resolution_type === 'multiple_choice').map((m) => m.id),
+  )
+
   return (
     <section>
       <h2 className="text-lg font-semibold mb-4">Related Markets</h2>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {markets.map((market) => (
-          <MarketCard key={market.id} market={market as Market} compact />
+        {typed.map((market) => (
+          <MarketCard
+            key={market.id}
+            market={market}
+            compact
+            leadingOption={leadByMarket.get(market.id)}
+            optionCount={countByMarket.get(market.id)}
+          />
         ))}
       </div>
     </section>

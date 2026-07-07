@@ -23,6 +23,7 @@ import {
 } from '@/lib/search'
 import { CATEGORY_LABELS } from '@/types'
 import type { Market } from '@/types'
+import { getLeadingOptions } from '@/lib/markets/leading-options'
 import { IconPlus, IconSearch, IconArrowRight } from '@/components/ui/icons'
 
 export const dynamic = 'force-dynamic'
@@ -133,6 +134,14 @@ async function Results({ parsed }: { parsed: ReturnType<typeof parseSearchParams
   const total = typeof payload.total === 'number' ? payload.total : 0
   const pagination = buildPagination(total, parsed.page, PER_PAGE)
 
+  // For multiple_choice markets on this page, fetch their options in one batched
+  // query so each card can show its front-runner (Polymarket card pattern)
+  // instead of a meaningless YES/NO bar.
+  const { leadByMarket, countByMarket } = await getLeadingOptions(
+    supabase,
+    markets.filter((m) => m.resolution_type === 'multiple_choice').map((m) => m.id),
+  )
+
   const hasFilters = !!parsed.q || !!parsed.category || parsed.status !== 'active'
 
   if (error) {
@@ -166,7 +175,14 @@ async function Results({ parsed }: { parsed: ReturnType<typeof parseSearchParams
       ) : (
         <>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-            {markets.map((m) => <MarketCard key={m.id} market={m} />)}
+            {markets.map((m) => (
+              <MarketCard
+                key={m.id}
+                market={m}
+                leadingOption={leadByMarket.get(m.id)}
+                optionCount={countByMarket.get(m.id)}
+              />
+            ))}
           </div>
           <Pagination parsed={parsed} totalPages={pagination.total_pages} />
         </>

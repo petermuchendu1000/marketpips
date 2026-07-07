@@ -1,10 +1,13 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import { MarketCard, MarketCardSkeleton } from '@/components/markets/market-card'
+import { MarketCard, MarketCardSkeleton, type CardLeadingOption } from '@/components/markets/market-card'
 import { CategoryFilter } from '@/components/markets/category-filter'
 import type { Market } from '@/types'
 import { IconSearch, IconFilter, IconX } from '@/components/ui/icons'
+
+/** Search rows may carry the multiple_choice front-runner (see /api/search). */
+type MarketRow = Market & { leading_option?: CardLeadingOption; option_count?: number | null }
 
 const SORTS = [
   { value: 'volume',  label: 'Most Volume' },
@@ -14,7 +17,7 @@ const SORTS = [
 ]
 
 export function MarketsGrid({ initialMarkets = [] }: { initialMarkets?: Market[] }) {
-  const [markets, setMarkets] = useState<Market[]>(initialMarkets)
+  const [markets, setMarkets] = useState<MarketRow[]>(initialMarkets)
   const [category, setCategory] = useState('all')
   const [sort, setSort] = useState('volume')
   const [query, setQuery] = useState('')
@@ -92,7 +95,14 @@ export function MarketsGrid({ initialMarkets = [] }: { initialMarkets?: Market[]
       ) : (
         <>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-            {markets.map(m => <MarketCard key={m.id} market={m} />)}
+            {markets.map(m => (
+              <MarketCard
+                key={m.id}
+                market={m}
+                leadingOption={m.leading_option}
+                optionCount={m.option_count ?? undefined}
+              />
+            ))}
             {loading && Array.from({ length: 4 }).map((_, i) => <MarketCardSkeleton key={`sk-${i}`} />)}
           </div>
 

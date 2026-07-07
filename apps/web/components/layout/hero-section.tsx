@@ -44,11 +44,23 @@ function sparkPath(seed: string, end: number, w = 300, h = 44) {
   return { line, area }
 }
 
-function FeaturedMarketCard({ market }: { market: Market }) {
+interface FeaturedExtras {
+  leadingOption?: { label: string; price: number }
+  optionCount?: number
+}
+
+function FeaturedMarketCard({
+  market,
+  leadingOption,
+  optionCount,
+}: { market: Market } & FeaturedExtras) {
   const cat = CATEGORY_LABELS[market.category] ?? { label: 'Market' }
+  const isMulti = market.resolution_type === 'multiple_choice' && !!leadingOption
   const yesPct = Math.max(1, Math.min(99, Math.round(market.yes_price * 100)))
   const noPct = 100 - yesPct
-  const spark = sparkPath(market.id + market.slug, yesPct)
+  const leadPct = leadingOption ? Math.max(1, Math.min(99, Math.round(leadingOption.price * 100))) : 0
+  const headlinePct = isMulti ? leadPct : yesPct
+  const spark = sparkPath(market.id + market.slug, headlinePct)
   const vol = market.total_volume_usd.toLocaleString(undefined, { maximumFractionDigits: 0 })
 
   return (
@@ -81,27 +93,55 @@ function FeaturedMarketCard({ market }: { market: Market }) {
       {/* probability lead */}
       <div className="mt-4 flex items-baseline gap-2.5">
         <span className="font-mono text-[2.6rem] leading-none font-semibold tracking-[-0.03em]" style={{ color: 'var(--text)' }}>
-          {yesPct}<span className="text-[1.4rem]">%</span>
+          {headlinePct}<span className="text-[1.4rem]">%</span>
         </span>
-        <span className="text-sm" style={{ color: 'var(--text-3)' }}>chance&nbsp;·&nbsp;Yes</span>
+        <span className="min-w-0 truncate text-sm" style={{ color: 'var(--text-3)' }}>
+          {isMulti ? leadingOption!.label : 'chance\u00A0·\u00A0Yes'}
+        </span>
       </div>
 
       {/* probability bar */}
       <div className="mt-4">
-        <div className="prob-bar" role="img" aria-label={`Yes ${yesPct} percent, No ${noPct} percent`}>
-          <div className="prob-bar-fill" style={{ width: `${yesPct}%` }} />
+        <div
+          className="prob-bar"
+          role="img"
+          aria-label={
+            isMulti
+              ? `Leading option ${leadingOption!.label}, ${leadPct} percent`
+              : `Yes ${yesPct} percent, No ${noPct} percent`
+          }
+        >
+          <div
+            className="prob-bar-fill"
+            style={{ width: `${headlinePct}%`, ...(isMulti ? { background: 'var(--pip-500)' } : null) }}
+          />
         </div>
-        <div className="mt-2 flex items-center justify-between text-[12px]">
-          <span className="price-yes">Yes {yesPct}%</span>
-          <span className="price-no">No {noPct}%</span>
-        </div>
+        {isMulti ? (
+          <div className="mt-2 flex items-center justify-between text-[12px]">
+            <span className="truncate" style={{ color: 'var(--pip-text)' }}>{leadingOption!.label} {leadPct}%</span>
+            {optionCount ? <span style={{ color: 'var(--text-3)' }}>{optionCount} options</span> : null}
+          </div>
+        ) : (
+          <div className="mt-2 flex items-center justify-between text-[12px]">
+            <span className="price-yes">Yes {yesPct}%</span>
+            <span className="price-no">No {noPct}%</span>
+          </div>
+        )}
       </div>
 
-      {/* yes / no */}
-      <div className="mt-4 grid grid-cols-2 gap-2.5">
-        <span className="btn-yes text-center">Buy Yes</span>
-        <span className="btn-no text-center">Buy No</span>
-      </div>
+      {/* call to action */}
+      {isMulti ? (
+        <div className="mt-4">
+          <span className="btn btn-primary w-full text-center">
+            View {optionCount ?? 'all'} options <IconArrowRight size={14} />
+          </span>
+        </div>
+      ) : (
+        <div className="mt-4 grid grid-cols-2 gap-2.5">
+          <span className="btn-yes text-center">Buy Yes</span>
+          <span className="btn-no text-center">Buy No</span>
+        </div>
+      )}
 
       {/* sparkline */}
       <svg className="mt-5 w-full" height={44} viewBox="0 0 300 44" preserveAspectRatio="none" aria-hidden="true">
@@ -118,7 +158,11 @@ function FeaturedMarketCard({ market }: { market: Market }) {
   )
 }
 
-export function HeroSection({ featured }: { featured?: Market | null }) {
+export function HeroSection({
+  featured,
+  leadingOption,
+  optionCount,
+}: { featured?: Market | null } & FeaturedExtras) {
   return (
     <section className="relative overflow-hidden">
       {/* subtle brand wash — a single restrained Pip-Blue radial, no green glow */}
@@ -174,7 +218,7 @@ export function HeroSection({ featured }: { featured?: Market | null }) {
 
           {/* Right — live featured market */}
           {featured ? (
-            <FeaturedMarketCard market={featured} />
+            <FeaturedMarketCard market={featured} leadingOption={leadingOption} optionCount={optionCount} />
           ) : (
             <div className="card p-6" style={{ color: 'var(--text-3)' }}>
               <div className="flex items-center gap-2 text-[12px] font-medium">
