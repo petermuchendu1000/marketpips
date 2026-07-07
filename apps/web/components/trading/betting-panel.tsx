@@ -10,7 +10,7 @@
 //                       place_bet_option). Selecting an option is the analogue
 //                       of picking a side.
 // Pure "Pip" design system: tokens + custom icons, no emoji, no third-party set.
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/hooks/use-auth'
 import { useWallets } from '@/hooks/use-wallets'
@@ -71,6 +71,10 @@ export function BettingPanel({ market, options }: BettingPanelProps) {
     () => (isMulti ? outcomes[0]?.id ?? '' : ''),
   )
   const [amount, setAmount] = useState('')
+  // Whether the user has interacted with the amount field. Until they do, we
+  // seed a sensible default stake so the payout preview is visible immediately
+  // (no cold-start blank ticket).
+  const [touched, setTouched] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [receipt, setReceipt] = useState<{
@@ -153,6 +157,14 @@ export function BettingPanel({ market, options }: BettingPanelProps) {
     }
     return [currencyInfo?.minBet ?? 100, 500, 1000, 2000]
   }, [balance, currencyInfo])
+
+  // Seed the smallest preset as the default stake so the "to win" preview shows
+  // on first render. Only while the market is open and the user hasn't typed.
+  useEffect(() => {
+    if (!touched && !amount && isOpen && presets.length > 0) {
+      setAmount(String(presets[0]))
+    }
+  }, [touched, amount, isOpen, presets])
 
   const cents = (p: number) => `${Math.round(p * 100)}\u00A2`
 
@@ -379,6 +391,7 @@ export function BettingPanel({ market, options }: BettingPanelProps) {
                     key={v}
                     type="button"
                     onClick={() => {
+                      setTouched(true)
                       setAmount(String(v))
                       setError('')
                     }}
@@ -403,6 +416,7 @@ export function BettingPanel({ market, options }: BettingPanelProps) {
               placeholder="0"
               value={amount}
               onChange={(e) => {
+                setTouched(true)
                 setAmount(e.target.value)
                 setError('')
               }}
@@ -462,7 +476,20 @@ export function BettingPanel({ market, options }: BettingPanelProps) {
             </div>
           )}
 
-          {user ? (
+          {!user ? (
+            <button type="button" className="btn btn-primary btn-lg mt-4 w-full" onClick={() => router.push('/auth/login')}>
+              Sign in to trade <IconArrowRight size={15} />
+            </button>
+          ) : overBalance ? (
+            // Turn the objection into a funded wallet instead of a dead end.
+            <button
+              type="button"
+              className="btn btn-primary btn-lg mt-4 w-full"
+              onClick={() => window.dispatchEvent(new CustomEvent('marketpips:open-deposit'))}
+            >
+              <IconWallet size={15} /> Add funds to trade
+            </button>
+          ) : (
             <button
               type="button"
               className={`btn btn-lg mt-4 w-full ${
@@ -478,21 +505,17 @@ export function BettingPanel({ market, options }: BettingPanelProps) {
                   </svg>
                   Placing bet
                 </span>
-              ) : isMulti ? (
-                <>
-                  {selectedOutcome ? `Buy ${selectedOutcome.label}` : 'Choose an option'}
-                  {amountNum > 0 && ` · ${formatCurrency(amountNum, preferredCurrency)}`}
-                </>
               ) : (
                 <>
-                  Bet {side.toUpperCase()}
-                  {amountNum > 0 && ` · ${formatCurrency(amountNum, preferredCurrency)}`}
+                  {isMulti
+                    ? selectedOutcome
+                      ? `Buy ${selectedOutcome.label}`
+                      : 'Choose an option'
+                    : `Bet ${side.toUpperCase()}`}
+                  {/* Reward-forward: keep the payout on the action itself. */}
+                  {preview && payoutLocal > 0 && ` · to win ${formatCurrency(payoutLocal, preferredCurrency)}`}
                 </>
               )}
-            </button>
-          ) : (
-            <button type="button" className="btn btn-primary btn-lg mt-4 w-full" onClick={() => router.push('/auth/login')}>
-              Sign in to trade <IconArrowRight size={15} />
             </button>
           )}
 

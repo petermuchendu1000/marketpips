@@ -34,6 +34,14 @@ export function Navbar() {
   const balance = wallet?.available_balance ?? 0
   const currencyInfo = CURRENCIES[preferredCurrency]
 
+  // Let any surface (e.g. the betting panel's "Add funds" CTA) open the deposit
+  // sheet without prop-drilling, via a decoupled global event.
+  useEffect(() => {
+    const openDeposit = () => setDepositOpen(true)
+    window.addEventListener('marketpips:open-deposit', openDeposit)
+    return () => window.removeEventListener('marketpips:open-deposit', openDeposit)
+  }, [])
+
   useEffect(() => {
     const handler = (e: MouseEvent) => {
       if (menuRef.current && !menuRef.current.contains(e.target as Node)) {

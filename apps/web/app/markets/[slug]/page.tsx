@@ -8,6 +8,7 @@ import { MarketHeader } from '@/components/markets/market-header'
 import { PriceChart } from '@/components/markets/price-chart'
 import { OutcomesChart } from '@/components/markets/outcomes-chart'
 import { BettingPanel } from '@/components/trading/betting-panel'
+import { MobileTradeBar } from '@/components/trading/mobile-trade-bar'
 import { PositionSummary } from '@/components/trading/position-summary'
 import { MarketActivity } from '@/components/markets/market-activity'
 import { MarketComments } from '@/components/markets/market-comments'
@@ -186,7 +187,7 @@ export default async function MarketPage({ params }: { params: Promise<{ slug: s
   }
 
   return (
-    <div className="mx-auto max-w-7xl px-4 py-6">
+    <div className={`mx-auto max-w-7xl px-4 pt-6 ${market.status === 'active' ? 'pb-28 lg:pb-6' : 'pb-6'}`}>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
 
       {/* Breadcrumb */}
@@ -230,7 +231,12 @@ export default async function MarketPage({ params }: { params: Promise<{ slug: s
         {/* Sidebar */}
         <div className="space-y-4">
           <div className="lg:sticky lg:top-20 lg:space-y-4">
-            <BettingPanel market={market} options={options} />
+            {/* Desktop shows the inline sticky ticket. On mobile, when the
+                market is open, the sticky bottom bar + sheet takes over — hide
+                this instance so the ticket isn't duplicated below the fold. */}
+            <div className={market.status === 'active' ? 'hidden lg:block' : ''}>
+              <BettingPanel market={market} options={options} />
+            </div>
 
             {/* Real-time position & P&L (only renders when the user holds one) */}
             <PositionSummary market={market} options={options} />
@@ -276,6 +282,9 @@ export default async function MarketPage({ params }: { params: Promise<{ slug: s
       <div className="mt-10">
         <RelatedMarkets marketId={market.id} category={market.category} />
       </div>
+
+      {/* Mobile-only sticky trade bar + bottom sheet (thumb-zone conversion). */}
+      {market.status === 'active' && <MobileTradeBar market={market} options={options} />}
     </div>
   )
 }
