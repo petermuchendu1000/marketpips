@@ -32,7 +32,12 @@ const getMarket = cache(async (slug: string) => {
   const { data } = await supabase
     .from('markets')
     .select(
-      `*, creator:profiles!markets_creator_id_fkey(id, display_name, avatar_url, username), options:market_options(*)`,
+      // NOTE: migration 020 added markets.resolved_option_id -> market_options(id),
+      // which creates a SECOND relationship between these tables. PostgREST cannot
+      // auto-resolve `market_options(*)` when two FKs exist, so we disambiguate with
+      // the originating FK column hint. Without this, the embed errors and every
+      // market detail page 404s.
+      `*, creator:profiles!markets_creator_id_fkey(id, display_name, avatar_url, username), options:market_options!market_options_market_id_fkey(*)`,
     )
     .eq('slug', slug)
     .single()
