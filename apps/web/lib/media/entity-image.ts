@@ -46,17 +46,64 @@ export interface Monogram {
   fg: string
 }
 
+/** Convert an HSL triple (h 0–360, s/l 0–100) to sRGB channels in [0,1]. */
+function hslToRgb(h: number, s: number, l: number): [number, number, number] {
+  const hn = ((h % 360) + 360) % 360 / 360
+  const sn = Math.min(1, Math.max(0, s / 100))
+  const ln = Math.min(1, Math.max(0, l / 100))
+  if (sn === 0) return [ln, ln, ln]
+  const q = ln < 0.5 ? ln * (1 + sn) : ln + sn - ln * sn
+  const p = 2 * ln - q
+  const hue2rgb = (t: number): number => {
+    let tt = t
+    if (tt < 0) tt += 1
+    if (tt > 1) tt -= 1
+    if (tt < 1 / 6) return p + (q - p) * 6 * tt
+    if (tt < 1 / 2) return q
+    if (tt < 2 / 3) return p + (q - p) * (2 / 3 - tt) * 6
+    return p
+  }
+  return [hue2rgb(hn + 1 / 3), hue2rgb(hn), hue2rgb(hn - 1 / 3)]
+}
+
+/** WCAG 2.x relative luminance of an HSL colour. */
+function hslLuminance(h: number, s: number, l: number): number {
+  const lin = (c: number) => (c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4))
+  const [r, g, b] = hslToRgb(h, s, l)
+  return 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(b)
+}
+
+// Foreground is a fixed near-white tint of the hue; the background lightness is
+// then capped so the pair always clears WCAG AA (4.5:1) for the initials.
+const MONO_BG_SAT = 58
+const MONO_FG_SAT = 70
+const MONO_FG_LIGHT = 96
+
 /**
  * Deterministic monogram for a name. The hue is derived from the hash so the
- * same entity always renders the same colour, while saturation/lightness stay
- * in a controlled, on-brand, AA-contrast band.
+ * same entity always renders the same colour. Because HSL lightness ≠ perceived
+ * luminance (yellow/green read far brighter than blue at the same lightness), a
+ * fixed lightness cannot guarantee contrast — so we pick, per hue, the lightest
+ * background whose luminance still clears AA against the near-white initials.
+ * Result: vivid, on-brand tiles that are provably ≥4.5:1 for every hue.
  */
 export function monogram(name: string): Monogram {
   const h = hashString((name || '').trim().toLowerCase())
   const hue = h % 360
-  // Muted, premium palette (not neon); dark text sits on a soft tint.
-  const bg = `hsl(${hue} 58% 46%)`
-  const fg = `hsl(${hue} 70% 96%)`
+  const fgLum = hslLuminance(hue, MONO_FG_SAT, MONO_FG_LIGHT)
+  // Max background luminance for a 4.5:1 ratio, with a safety margin to survive
+  // integer-lightness rounding.
+  const cap = ((fgLum + 0.05) / 4.5 - 0.05) * 0.92
+  // Largest integer lightness whose background luminance stays under the cap.
+  let bgLight = 0
+  for (let l = 100; l >= 0; l--) {
+    if (hslLuminance(hue, MONO_BG_SAT, l) <= cap) {
+      bgLight = l
+      break
+    }
+  }
+  const bg = `hsl(${hue} ${MONO_BG_SAT}% ${bgLight}%)`
+  const fg = `hsl(${hue} ${MONO_FG_SAT}% ${MONO_FG_LIGHT}%)`
   return { initials: initialsFor(name), bg, fg }
 }
 
