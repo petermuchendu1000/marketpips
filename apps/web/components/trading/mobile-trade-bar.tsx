@@ -26,9 +26,12 @@ import { IconX, IconArrowRight } from '@/components/ui/icons'
 export function MobileTradeBar({
   market,
   options,
+  independent = false,
 }: {
   market: Market
   options?: MarketOption[]
+  /** Phase C: candidates trade as independent Yes/No lines. */
+  independent?: boolean
 }) {
   const [open, setOpen] = useState(false)
   // The side/option the user tapped in the bar — pre-selected in the sheet so
@@ -68,9 +71,12 @@ export function MobileTradeBar({
         marketId?: string
         optionId?: string
         openSheet?: boolean
+        side?: 'yes' | 'no'
       }
       if (detail?.marketId !== market.id || !detail.optionId) return
       setPendingOptionId(detail.optionId)
+      // Independent markets carry the tapped Yes/No side so the sheet opens on it.
+      if (detail.side) setPendingSide(detail.side)
       if (detail.openSheet) setOpen(true)
     }
     window.addEventListener('marketpips:select-option', onSelect as EventListener)
@@ -218,6 +224,7 @@ export function MobileTradeBar({
                   options={options}
                   initialSide={pendingSide}
                   initialOptionId={pendingOptionId}
+                  independent={independent}
                 />
               </div>
             </div>

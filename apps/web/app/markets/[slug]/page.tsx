@@ -14,7 +14,8 @@ import { PositionSummary } from '@/components/trading/position-summary'
 import { MarketActivity } from '@/components/markets/market-activity'
 import { MarketComments } from '@/components/markets/market-comments'
 import { RelatedMarkets } from '@/components/markets/related-markets'
-import { normalizeOutcomes, isMultiOutcome } from '@/lib/markets/outcomes'
+import { normalizeOutcomes, isMultiOutcome, isIndependentOptions } from '@/lib/markets/outcomes'
+import { isFeatureEnabled } from '@/lib/flags'
 import { formatUSD } from '@/lib/utils'
 import {
   IconTrendUp,
@@ -177,6 +178,15 @@ export default async function MarketPage({ params }: { params: Promise<{ slug: s
   const isMulti = isMultiOutcome(market, options)
   const outcomes = normalizeOutcomes(market, options)
 
+  // Phase C: does this market trade as N independent per-candidate Yes/No lines?
+  // Gated by BOTH the stored pricing mode ('independent') AND the feature-flag
+  // kill-switch (flags.independent_options) — deploy ≠ release. When off, the
+  // board falls back to the legacy pick-one candidate UI.
+  const independent =
+    isMulti &&
+    isIndependentOptions(market, options) &&
+    (await isFeatureEnabled(supabase, 'flags.independent_options'))
+
   // SEO: structured data for the market as a Q&A / claim.
   const jsonLd = {
     '@context': 'https://schema.org',
@@ -204,7 +214,7 @@ export default async function MarketPage({ params }: { params: Promise<{ slug: s
         <div className="space-y-6 lg:col-span-2">
           <MarketHeader market={market} outcomes={outcomes} isMulti={isMulti} />
 
-          {isMulti && <CandidateList market={market} options={options} />}
+          {isMulti && <CandidateList market={market} options={options} independent={independent} />}
 
           <div className="card p-4">
             <SectionTitle icon={<IconTrendUp size={14} />}>Probability history</SectionTitle>
@@ -238,7 +248,7 @@ export default async function MarketPage({ params }: { params: Promise<{ slug: s
                 market is open, the sticky bottom bar + sheet takes over — hide
                 this instance so the ticket isn't duplicated below the fold. */}
             <div className={market.status === 'active' ? 'hidden lg:block' : ''}>
-              <BettingPanel market={market} options={options} hideOptionList={isMulti} />
+              <BettingPanel market={market} options={options} hideOptionList={isMulti} independent={independent} />
             </div>
 
             {/* Real-time position & P&L (only renders when the user holds one) */}
@@ -287,7 +297,7 @@ export default async function MarketPage({ params }: { params: Promise<{ slug: s
       </div>
 
       {/* Mobile-only sticky trade bar + bottom sheet (thumb-zone conversion). */}
-      {market.status === 'active' && <MobileTradeBar market={market} options={options} />}
+      {market.status === 'active' && <MobileTradeBar market={market} options={options} independent={independent} />}
     </div>
   )
 }

@@ -175,6 +175,40 @@ export function previewOptionBinaryBet(args: OptionBinaryPreviewArgs): OptionBin
   return { ...base, optionId }
 }
 
+/** The trading-target fields of a POST /api/orders body. */
+export type OrderTarget =
+  | { side: 'yes' | 'no' }
+  | { market_option_id: string }
+  | { market_option_id: string; side: 'yes' | 'no' }
+
+export interface OrderTargetArgs {
+  /** Is this a multiple_choice market? */
+  isMulti: boolean
+  /** Independent per-candidate Yes/No mode (Phase C) — implies isMulti. */
+  independent: boolean
+  /** Selected candidate id (required for any multiple_choice order). */
+  optionId?: string | null
+  /** Chosen side (used by binary + independent; ignored by simplex). */
+  side: 'yes' | 'no'
+}
+
+/**
+ * Shape the trading-target fields of an order request, the single source of
+ * truth the ticket UI uses so it always matches the /api/orders zod schema +
+ * routing:
+ *   • binary market                → { side }
+ *   • simplex multiple_choice      → { market_option_id }
+ *   • independent multiple_choice  → { market_option_id, side }  (Phase C)
+ * Keeping this pure (and unit-tested) guarantees the client can never send an
+ * independent option order WITHOUT a side (which the API rejects with 400).
+ */
+export function orderTarget(args: OrderTargetArgs): OrderTarget {
+  const { isMulti, independent, optionId, side } = args
+  if (!isMulti) return { side }
+  if (!optionId) throw new Error('optionId is required for a multiple-choice order')
+  return independent ? { market_option_id: optionId, side } : { market_option_id: optionId }
+}
+
 /**
  * Full bet preview mirroring place_bet: convert to USD, take fees, run the
  * net stake through the LMSR inversion for slippage-aware shares & price impact.

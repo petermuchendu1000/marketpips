@@ -4,6 +4,7 @@ import {
   meetsMinBet,
   previewBet,
   previewOptionBinaryBet,
+  orderTarget,
   MIN_BET_USD,
   DEFAULT_PLATFORM_FEE_RATE,
   DEFAULT_CREATOR_REWARD_RATE,
@@ -140,5 +141,35 @@ describe('previewOptionBinaryBet — Phase C independent candidate line', () => 
     expect(p.side).toBe('no')
     expect(p.avgPrice).toBeGreaterThan(0.3)
     expect(p.priceAfter).toBeGreaterThan(p.avgPrice)
+  })
+})
+
+describe('orderTarget — Phase C ticket → /api/orders body shaping', () => {
+  it('binary market sends the side only (no option id)', () => {
+    expect(orderTarget({ isMulti: false, independent: false, side: 'yes' })).toEqual({ side: 'yes' })
+    expect(orderTarget({ isMulti: false, independent: false, optionId: 'ignored', side: 'no' })).toEqual({ side: 'no' })
+  })
+
+  it('simplex multiple_choice sends the option id only (no side)', () => {
+    expect(orderTarget({ isMulti: true, independent: false, optionId: 'A', side: 'yes' })).toEqual({
+      market_option_id: 'A',
+    })
+  })
+
+  it('independent multiple_choice sends BOTH option id and side (per-candidate Yes/No)', () => {
+    expect(orderTarget({ isMulti: true, independent: true, optionId: 'A', side: 'no' })).toEqual({
+      market_option_id: 'A',
+      side: 'no',
+    })
+  })
+
+  it('never emits an independent option order without a side (API rejects that with 400)', () => {
+    const body = orderTarget({ isMulti: true, independent: true, optionId: 'A', side: 'yes' })
+    expect('market_option_id' in body && 'side' in body).toBe(true)
+  })
+
+  it('throws if a multiple_choice order is missing its option id', () => {
+    expect(() => orderTarget({ isMulti: true, independent: true, side: 'yes' })).toThrow(/optionId/)
+    expect(() => orderTarget({ isMulti: true, independent: false, optionId: null, side: 'yes' })).toThrow(/optionId/)
   })
 })

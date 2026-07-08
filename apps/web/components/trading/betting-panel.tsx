@@ -18,7 +18,7 @@ import { useRouter } from 'next/navigation'
 import { useAuth } from '@/hooks/use-auth'
 import { useWallets } from '@/hooks/use-wallets'
 import { useRates } from '@/hooks/use-rates'
-import { previewBet, previewOptionBet, meetsMinBet, MIN_BET_USD } from '@/lib/trading'
+import { previewBet, previewOptionBet, previewOptionBinaryBet, orderTarget, meetsMinBet, MIN_BET_USD } from '@/lib/trading'
 import { normalizeOutcomes, isMultiOutcome, type Outcome } from '@/lib/markets/outcomes'
 import { formatCurrency, usdToLocal } from '@/lib/currency'
 import { CURRENCIES } from '@/types'
@@ -46,6 +46,14 @@ interface BettingPanelProps {
   initialOptionId?: string
   /** Hide the internal option list (when a CandidateList board owns selection). */
   hideOptionList?: boolean
+  /**
+   * Phase C: trade each candidate as its own independent binary Yes/No line
+   * (Polymarket/Kalshi). Gated upstream by pricing mode + feature flag. When
+   * true the ticket shows a per-candidate Yes/No side toggle, prices off the
+   * candidate's own book (previewOptionBinaryBet), and sends `side` with the
+   * option order so the API routes to place_bet_option_binary.
+   */
+  independent?: boolean
 }
 
 type Side = 'yes' | 'no'
@@ -65,7 +73,7 @@ const CLOSED_COPY: Partial<Record<Market['status'], { label: string; body: strin
 
 // Brand-led categorical palette retained for the header breakdown / chart.
 
-export function BettingPanel({ market, options, initialSide, initialOptionId, hideOptionList }: BettingPanelProps) {
+export function BettingPanel({ market, options, initialSide, initialOptionId, hideOptionList, independent = false }: BettingPanelProps) {
   const { user } = useAuth()
   const { wallets, preferredCurrency, refreshWallets } = useWallets()
   const { rates } = useRates()
@@ -73,6 +81,8 @@ export function BettingPanel({ market, options, initialSide, initialOptionId, hi
 
   // Canonical outcome set: [Yes,No] for binary, ranked options for multi.
   const isMulti = isMultiOutcome(market, options)
+  // Independent = a multi market where each candidate is its own Yes/No line.
+  const indepMulti = isMulti && independent
   const outcomes: Outcome[] = useMemo(
     () => normalizeOutcomes(market, options),
     [market, options],
@@ -110,9 +120,21 @@ export function BettingPanel({ market, options, initialSide, initialOptionId, hi
   const selectedOutcome = isMulti
     ? outcomes.find((o) => o.id === selectedOptionId) ?? outcomes[0]
     : outcomes.find((o) => o.id === side)
-  // Marginal price of the current selection (option price, or yes/no price).
+  // This candidate's independent Yes/No line prices (present only for indepMulti).
+  const selYesPrice = selectedOutcome?.yesPrice ?? selectedOutcome?.price ?? 0
+  const selNoPrice =
+    selectedOutcome?.noPrice ?? (selectedOutcome ? 1 - selectedOutcome.price : 0)
+
+  // Marginal price of the current selection:
+  //   • binary          → market yes/no price for the chosen side
+  //   • independent multi→ the candidate's OWN yes/no line for the chosen side
+  //   • simplex multi    → the option's shared-LMSR probability
   const currentPrice = isMulti
-    ? selectedOutcome?.price ?? 0
+    ? indepMulti
+      ? side === 'yes'
+        ? selYesPrice
+        : selNoPrice
+      : selectedOutcome?.price ?? 0
     : side === 'yes'
       ? market.yes_price
       : market.no_price
@@ -136,6 +158,24 @@ export function BettingPanel({ market, options, initialSide, initialOptionId, hi
     try {
       if (isMulti) {
         if (!selectedOutcome) return null
+        // Independent candidate → its own binary Yes/No LMSR line. This is
+        // exactly previewBet on the candidate's (yes,no) book, so the preview
+        // equals place_bet_option_binary's execution (slippage-aware).
+        if (indepMulti) {
+          return previewOptionBinaryBet({
+            amountLocal: amountNum,
+            currency: preferredCurrency,
+            optionId: selectedOutcome.id,
+            side,
+            optionYesPrice: selYesPrice,
+            optionNoPrice: selNoPrice,
+            liquidityPoolUsd: market.liquidity_pool_usd,
+            rates,
+            platformFeeRate: market.platform_fee_rate,
+            creatorRewardRate: market.creator_reward_rate,
+          })
+        }
+        // Simplex candidate → shared-LMSR pick-one option buy.
         return previewOptionBet({
           amountLocal: amountNum,
           currency: preferredCurrency,
@@ -160,7 +200,7 @@ export function BettingPanel({ market, options, initialSide, initialOptionId, hi
     } catch {
       return null
     }
-  }, [amountNum, preferredCurrency, side, isMulti, selectedOutcome, market, rates])
+  }, [amountNum, preferredCurrency, side, isMulti, indepMulti, selectedOutcome, selYesPrice, selNoPrice, market, rates])
 
   const previewAvgPrice =
     preview && 'avgPrice' in preview ? preview.avgPrice : preview?.price ?? currentPrice
@@ -197,10 +237,12 @@ export function BettingPanel({ market, options, initialSide, initialOptionId, hi
   useEffect(() => {
     if (!isMulti) return
     const onSelect = (e: Event) => {
-      const detail = (e as CustomEvent).detail as { marketId?: string; optionId?: string }
+      const detail = (e as CustomEvent).detail as { marketId?: string; optionId?: string; side?: 'yes' | 'no' }
       if (detail?.marketId !== market.id || !detail.optionId) return
       if (outcomes.some((o) => o.id === detail.optionId)) {
         setSelectedOptionId(detail.optionId)
+        // Independent markets: the board's Yes/No pill also carries the side.
+        if (detail.side) setSide(detail.side)
         setError('')
       }
     }
@@ -240,7 +282,10 @@ export function BettingPanel({ market, options, initialSide, initialOptionId, hi
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           market_id: market.id,
-          ...(isMulti ? { market_option_id: selectedOutcome!.id } : { side }),
+          // Independent multi sends BOTH the candidate and the Yes/No side so the
+          // API routes to place_bet_option_binary; simplex multi sends the option
+          // only; binary sends the side only. (Single source of truth: orderTarget.)
+          ...orderTarget({ isMulti, independent: indepMulti, optionId: selectedOutcome?.id, side }),
           amount_local: amountNum,
           currency: preferredCurrency,
           order_type: isMulti ? 'market' : orderType,
@@ -251,8 +296,12 @@ export function BettingPanel({ market, options, initialSide, initialOptionId, hi
       const rpc = data?.data ?? {}
       if (res.ok && (data.success || rpc.order_id)) {
         setReceipt({
-          label: isMulti ? selectedOutcome!.label : side.toUpperCase(),
-          tone: isMulti ? 'brand' : side,
+          label: isMulti
+            ? indepMulti
+              ? `${selectedOutcome!.label} · ${side.toUpperCase()}`
+              : selectedOutcome!.label
+            : side.toUpperCase(),
+          tone: isMulti ? (indepMulti ? side : 'brand') : side,
           shares: rpc.shares ?? preview?.shares ?? 0,
           avgPrice: rpc.avg_fill_price ?? rpc.new_price ?? previewAvgPrice,
           payoutUsd: rpc.potential_payout_usd ?? preview?.potentialPayoutUsd ?? 0,
@@ -393,6 +442,43 @@ export function BettingPanel({ market, options, initialSide, initialOptionId, hi
             {isMulti ? selectedOutcome?.label ?? 'Choose an option' : market.title}
           </span>
         </div>
+
+        {/* Independent candidate: Yes/No side toggle priced off THIS candidate's
+            own binary line (its yes/no need not sum with siblings). */}
+        {indepMulti && (
+          <div className="mb-3 grid grid-cols-2 gap-2">
+            <button
+              type="button"
+              onClick={() => { setSide('yes'); setError('') }}
+              aria-pressed={side === 'yes'}
+              disabled={!isOpen}
+              className="flex h-12 items-center justify-center gap-2 rounded-pill border font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-60"
+              style={{
+                background: side === 'yes' ? 'var(--yes)' : 'var(--surface-2)',
+                color: side === 'yes' ? '#fff' : 'var(--text-primary)',
+                borderColor: side === 'yes' ? 'var(--yes)' : 'var(--hairline)',
+              }}
+            >
+              <span className="text-sm font-bold uppercase tracking-wide">Yes</span>
+              <span className="font-mono text-sm font-semibold">{cents(selYesPrice)}</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => { setSide('no'); setError('') }}
+              aria-pressed={side === 'no'}
+              disabled={!isOpen}
+              className="flex h-12 items-center justify-center gap-2 rounded-pill border font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-60"
+              style={{
+                background: side === 'no' ? 'var(--no)' : 'var(--surface-2)',
+                color: side === 'no' ? '#fff' : 'var(--text-primary)',
+                borderColor: side === 'no' ? 'var(--no)' : 'var(--hairline)',
+              }}
+            >
+              <span className="text-sm font-bold uppercase tracking-wide">No</span>
+              <span className="font-mono text-sm font-semibold">{cents(selNoPrice)}</span>
+            </button>
+          </div>
+        )}
 
         {/* Side / option selector — rounded price pills (Kalshi) */}
         {isMulti ? (hideOptionList ? null : (
@@ -594,10 +680,10 @@ export function BettingPanel({ market, options, initialSide, initialOptionId, hi
               {preview && (
                 <>
                   <div className="flex items-center justify-between text-xs">
-                    <dt className="text-text-muted">{isMulti ? 'Fill price' : orderType === 'limit' ? 'Limit price' : 'Avg. fill'}</dt>
+                    <dt className="text-text-muted">{isMulti ? (indepMulti ? 'Avg. fill' : 'Fill price') : orderType === 'limit' ? 'Limit price' : 'Avg. fill'}</dt>
                     <dd className="font-mono text-text-secondary">{cents(orderType === 'limit' && limitPrice > 0 ? limitPrice : previewAvgPrice)}</dd>
                   </div>
-                  {!isMulti && orderType === 'market' && (
+                  {(!isMulti || indepMulti) && orderType === 'market' && (
                     <div className="flex items-center justify-between text-xs">
                       <dt className="text-text-muted">Price impact</dt>
                       <dd className="font-mono text-text-secondary">{slippagePts >= 0 ? '+' : ''}{slippagePts.toFixed(2)} pts</dd>
@@ -656,7 +742,7 @@ export function BettingPanel({ market, options, initialSide, initialOptionId, hi
                 onClick={handleBet}
                 disabled={!canSubmit}
                 className="mt-4 flex w-full items-center justify-center gap-1.5 rounded-pill px-4 py-3.5 text-base font-bold text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
-                style={{ background: isMulti ? 'var(--pip-500)' : sideTone }}
+                style={{ background: isMulti ? (indepMulti ? sideTone : 'var(--pip-500)') : sideTone }}
               >
                 {loading ? (
                   <span className="flex items-center gap-2">
@@ -667,7 +753,13 @@ export function BettingPanel({ market, options, initialSide, initialOptionId, hi
                   </span>
                 ) : (
                   <>
-                    {isMulti ? (selectedOutcome ? `Buy ${selectedOutcome.label}` : 'Choose an option') : `Buy ${side.toUpperCase()}`}
+                    {isMulti
+                      ? selectedOutcome
+                        ? indepMulti
+                          ? `Buy ${side === 'yes' ? 'Yes' : 'No'} · ${selectedOutcome.label}`
+                          : `Buy ${selectedOutcome.label}`
+                        : 'Choose an option'
+                      : `Buy ${side.toUpperCase()}`}
                     {preview && payoutLocal > 0 && ` · to win ${formatCurrency(payoutLocal, preferredCurrency)}`}
                   </>
                 )}

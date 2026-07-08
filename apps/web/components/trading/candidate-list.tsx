@@ -34,11 +34,17 @@ const SORTS: { key: SortKey; label: string }[] = [
   { key: 'az', label: 'A–Z' },
 ]
 
-/** Broadcast the selected candidate so the ticket / mobile sheet can react. */
-function emitSelect(marketId: string, optionId: string, openSheet: boolean) {
+/** Broadcast the selected candidate (+ optional Yes/No side) so the ticket /
+ *  mobile sheet can react. `side` is only carried for independent markets. */
+function emitSelect(
+  marketId: string,
+  optionId: string,
+  openSheet: boolean,
+  side?: 'yes' | 'no',
+) {
   window.dispatchEvent(
     new CustomEvent('marketpips:select-option', {
-      detail: { marketId, optionId, openSheet },
+      detail: { marketId, optionId, openSheet, ...(side ? { side } : {}) },
     }),
   )
 }
@@ -46,9 +52,12 @@ function emitSelect(marketId: string, optionId: string, openSheet: boolean) {
 export function CandidateList({
   market,
   options,
+  independent = false,
 }: {
   market: Market
   options?: MarketOption[]
+  /** Phase C: render each candidate as its own Yes/No line (Polymarket/Kalshi). */
+  independent?: boolean
 }) {
   const outcomes = useMemo(() => normalizeOutcomes(market, options), [market, options])
   const kindById = useMemo(() => {
@@ -101,9 +110,9 @@ export function CandidateList({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [outcomes])
 
-  const choose = (o: Outcome, openSheet: boolean) => {
+  const choose = (o: Outcome, openSheet: boolean, side?: 'yes' | 'no') => {
     setSelected(o.id)
-    emitSelect(market.id, o.id, openSheet)
+    emitSelect(market.id, o.id, openSheet, side)
   }
 
   // Keyboard: ↑/↓ move selection within the visible order (handled per-radio
@@ -250,6 +259,37 @@ export function CandidateList({
                   {pct}%
                 </span>
                 {isOpen ? (
+                  independent ? (
+                    // Phase C: each candidate is its own binary line — a Yes and
+                    // a No buy pill priced off the candidate's own book. Prices
+                    // do NOT sum across candidates (Polymarket/Kalshi behavior).
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          choose(o, true, 'yes')
+                        }}
+                        aria-label={`Buy Yes on ${o.label} at ${cents(o.yesPrice ?? o.price)}`}
+                        className="rounded-pill px-3 py-1.5 text-sm font-bold text-yes transition-colors hover:brightness-105"
+                        style={{ background: 'var(--yes-tint)' }}
+                      >
+                        Yes {cents(o.yesPrice ?? o.price)}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          choose(o, true, 'no')
+                        }}
+                        aria-label={`Buy No on ${o.label} at ${cents(o.noPrice ?? 1 - o.price)}`}
+                        className="rounded-pill px-3 py-1.5 text-sm font-bold text-no transition-colors hover:brightness-105"
+                        style={{ background: 'var(--no-tint)' }}
+                      >
+                        No {cents(o.noPrice ?? 1 - o.price)}
+                      </button>
+                    </div>
+                  ) : (
                   <button
                     type="button"
                     onClick={(e) => {
@@ -268,6 +308,7 @@ export function CandidateList({
                   >
                     Yes {cents(o.price)}
                   </button>
+                  )
                 ) : (
                   <span className="rounded-pill bg-surface-2 px-3 py-1.5 text-xs font-semibold text-text-muted">
                     {isWinner ? 'Won' : isLoser ? 'Lost' : 'Closed'}
@@ -282,8 +323,9 @@ export function CandidateList({
       {isOpen && (
         <p className="flex items-center gap-1.5 border-t border-hairline px-4 py-2.5 text-[11px] text-text-muted">
           <IconArrowRight size={12} className="flex-none" />
-          Select a candidate to load it in the order ticket. Prices are live LMSR
-          probabilities.
+          {independent
+            ? 'Each candidate trades as its own Yes/No line — tap Yes or No to load it in the order ticket. Prices are per-candidate and need not sum to 100%.'
+            : 'Select a candidate to load it in the order ticket. Prices are live LMSR probabilities.'}
         </p>
       )}
     </div>
