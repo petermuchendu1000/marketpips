@@ -8,6 +8,14 @@
 
 export type ResolutionType = 'binary' | 'multiple_choice'
 
+/**
+ * How a multiple_choice market prices its options (migration 023):
+ *   'simplex'      — one shared LMSR; option prices sum to 1 (legacy default).
+ *   'independent'  — each option is its own binary Yes/No line; a candidate's
+ *                    yes+no=1, but yes-prices do NOT sum to 1 (Polymarket/Kalshi).
+ */
+export type OptionsPricingMode = 'simplex' | 'independent'
+
 /** Fields we read off a `markets` row (all optional/defensive). */
 export interface MarketOutcomeSource {
   resolution_type?: ResolutionType | null
@@ -17,6 +25,7 @@ export interface MarketOutcomeSource {
   no_volume_usd?: number | null
   resolved_outcome?: 'yes' | 'no' | null
   resolved_option_id?: string | null
+  options_pricing_mode?: OptionsPricingMode | string | null
 }
 
 /** A `market_options` row. */
@@ -28,6 +37,9 @@ export interface MarketOptionRow {
   is_winner?: boolean | null
   display_order?: number | null
   image_url?: string | null
+  /** Independent per-candidate binary line (migration 023). */
+  yes_price?: number | null
+  no_price?: number | null
 }
 
 /** Normalized, UI-ready outcome. `price` is a probability in [0,1]. */
@@ -41,6 +53,14 @@ export interface Outcome {
   displayOrder: number
   /** Stored CDN avatar for the outcome; NULL → monogram fallback. */
   imageUrl: string | null
+  /**
+   * Independent per-candidate Yes/No line prices (migration 023). Present only
+   * for options of an `independent` multiple_choice market; NULL otherwise.
+   * When present, `yesPrice + noPrice === 1` for THIS candidate, and `price`
+   * mirrors `yesPrice` (the candidate's Yes probability).
+   */
+  yesPrice: number | null
+  noPrice: number | null
 }
 
 export const MIN_OUTCOMES = 2
@@ -50,6 +70,24 @@ export const MAX_LABEL_LEN = 80
 export function clamp01(n: number | null | undefined): number {
   const v = typeof n === 'number' && Number.isFinite(n) ? n : 0
   return v < 0 ? 0 : v > 1 ? 1 : v
+}
+
+/** The pricing mode of a market's options (defaults to legacy 'simplex'). */
+export function optionsPricingMode(market: MarketOutcomeSource): OptionsPricingMode {
+  return market.options_pricing_mode === 'independent' ? 'independent' : 'simplex'
+}
+
+/**
+ * Does this market use the independent per-candidate Yes/No model? True only
+ * for a multiple_choice market explicitly migrated to 'independent' mode. The
+ * feature flag (flags.independent_options) gates whether the UI/API ACT on
+ * this; this predicate is purely about the stored data shape.
+ */
+export function isIndependentOptions(
+  market: MarketOutcomeSource,
+  options?: MarketOptionRow[] | null,
+): boolean {
+  return optionsPricingMode(market) === 'independent' && isMultiOutcome(market, options)
 }
 
 /** Is this a multiple-choice market? */
@@ -73,23 +111,37 @@ export function normalizeOutcomes(
 ): Outcome[] {
   if (isMultiOutcome(market, options) && options && options.length > 0) {
     const resolved = market.resolved_option_id ?? null
+    const independent = optionsPricingMode(market) === 'independent'
     return [...options]
       .sort(
         (a, b) =>
           (a.display_order ?? 0) - (b.display_order ?? 0) ||
           a.label.localeCompare(b.label),
       )
-      .map((o, i) => ({
-        id: o.id,
-        key: o.id,
-        label: o.label,
-        price: clamp01(o.price ?? 0),
-        volumeUsd: Number(o.volume_usd ?? 0),
-        isWinner:
-          o.is_winner ?? (resolved ? o.id === resolved : null),
-        displayOrder: o.display_order ?? i,
-        imageUrl: o.image_url ?? null,
-      }))
+      .map((o, i) => {
+        // Independent markets: the candidate's own binary line drives display.
+        // `yes_price` is authoritative; fall back to `price`, then no = 1 - yes.
+        const yesPrice = independent
+          ? clamp01(o.yes_price ?? o.price ?? 0.5)
+          : null
+        const noPrice = independent
+          ? clamp01(o.no_price ?? (yesPrice != null ? 1 - yesPrice : 0.5))
+          : null
+        return {
+          id: o.id,
+          key: o.id,
+          label: o.label,
+          // For independent markets `price` == the candidate's Yes probability;
+          // for simplex it stays the shared-LMSR probability.
+          price: independent && yesPrice != null ? yesPrice : clamp01(o.price ?? 0),
+          volumeUsd: Number(o.volume_usd ?? 0),
+          isWinner: o.is_winner ?? (resolved ? o.id === resolved : null),
+          displayOrder: o.display_order ?? i,
+          imageUrl: o.image_url ?? null,
+          yesPrice,
+          noPrice,
+        }
+      })
   }
 
   // Binary synthesis
@@ -106,6 +158,8 @@ export function normalizeOutcomes(
       isWinner: resolved ? resolved === 'yes' : null,
       displayOrder: 0,
       imageUrl: null,
+      yesPrice: null,
+      noPrice: null,
     },
     {
       id: 'no',
@@ -116,6 +170,8 @@ export function normalizeOutcomes(
       isWinner: resolved ? resolved === 'no' : null,
       displayOrder: 1,
       imageUrl: null,
+      yesPrice: null,
+      noPrice: null,
     },
   ]
 }

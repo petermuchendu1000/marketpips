@@ -2,6 +2,8 @@ import { describe, it, expect } from 'vitest'
 import {
   normalizeOutcomes,
   isMultiOutcome,
+  isIndependentOptions,
+  optionsPricingMode,
   impliedProbabilities,
   favoriteOutcome,
   validateOutcomeLabels,
@@ -155,5 +157,77 @@ describe('validateOutcomeLabels', () => {
   it('rejects over-long labels', () => {
     const r = validateOutcomeLabels(['ok', 'x'.repeat(200)])
     expect(r.ok).toBe(false)
+  })
+})
+
+describe('Phase C — independent option pricing (migration 023)', () => {
+  const opts: MarketOptionRow[] = [
+    { id: 'a', label: 'Alice', price: 0.47, yes_price: 0.47, no_price: 0.53, display_order: 0 },
+    { id: 'b', label: 'Bob', price: 0.38, yes_price: 0.38, no_price: 0.62, display_order: 1 },
+    { id: 'c', label: 'Carol', price: 0.20, yes_price: 0.20, no_price: 0.80, display_order: 2 },
+  ]
+
+  it('optionsPricingMode defaults to simplex and reads independent', () => {
+    expect(optionsPricingMode({})).toBe('simplex')
+    expect(optionsPricingMode({ options_pricing_mode: 'simplex' })).toBe('simplex')
+    expect(optionsPricingMode({ options_pricing_mode: 'independent' })).toBe('independent')
+    // Unknown/garbage falls back to simplex (fail-safe).
+    expect(optionsPricingMode({ options_pricing_mode: 'weird' })).toBe('simplex')
+  })
+
+  it('isIndependentOptions requires BOTH independent mode and multi-outcome', () => {
+    const m: MarketOutcomeSource = { resolution_type: 'multiple_choice', options_pricing_mode: 'independent' }
+    expect(isIndependentOptions(m, opts)).toBe(true)
+    expect(isIndependentOptions({ resolution_type: 'multiple_choice' }, opts)).toBe(false) // simplex
+    expect(isIndependentOptions({ resolution_type: 'binary', options_pricing_mode: 'independent' }, [])).toBe(false)
+  })
+
+  it('exposes per-candidate yes/no lines; each candidate yes+no === 1', () => {
+    const m: MarketOutcomeSource = { resolution_type: 'multiple_choice', options_pricing_mode: 'independent' }
+    const outs = normalizeOutcomes(m, opts)
+    expect(outs).toHaveLength(3)
+    for (const o of outs) {
+      expect(o.yesPrice).not.toBeNull()
+      expect(o.noPrice).not.toBeNull()
+      expect((o.yesPrice as number) + (o.noPrice as number)).toBeCloseTo(1, 6)
+      // `price` mirrors the candidate Yes probability in independent mode.
+      expect(o.price).toBeCloseTo(o.yesPrice as number, 6)
+    }
+  })
+
+  it('INDEPENDENCE: yes-prices need NOT sum to 1 across candidates', () => {
+    const m: MarketOutcomeSource = { resolution_type: 'multiple_choice', options_pricing_mode: 'independent' }
+    const outs = normalizeOutcomes(m, opts)
+    const sumYes = outs.reduce((s, o) => s + (o.yesPrice as number), 0)
+    // 0.47 + 0.38 + 0.20 = 1.05 — the Polymarket/Kalshi behaviour, not a simplex.
+    expect(sumYes).toBeCloseTo(1.05, 6)
+    expect(sumYes).not.toBeCloseTo(1, 3)
+  })
+
+  it('derives no_price = 1 - yes when only yes_price is stored', () => {
+    const m: MarketOutcomeSource = { resolution_type: 'multiple_choice', options_pricing_mode: 'independent' }
+    const partial: MarketOptionRow[] = [
+      { id: 'a', label: 'A', yes_price: 0.6, display_order: 0 },
+      { id: 'b', label: 'B', yes_price: 0.3, display_order: 1 },
+    ]
+    const outs = normalizeOutcomes(m, partial)
+    expect(outs[0].noPrice).toBeCloseTo(0.4, 6)
+    expect(outs[1].noPrice).toBeCloseTo(0.7, 6)
+  })
+
+  it('simplex markets keep yesPrice/noPrice null (no behavioural change)', () => {
+    const m: MarketOutcomeSource = { resolution_type: 'multiple_choice' }
+    const outs = normalizeOutcomes(m, opts)
+    for (const o of outs) {
+      expect(o.yesPrice).toBeNull()
+      expect(o.noPrice).toBeNull()
+    }
+  })
+
+  it('binary markets are unaffected (yesPrice/noPrice null)', () => {
+    const outs = normalizeOutcomes({ resolution_type: 'binary', yes_price: 0.6, no_price: 0.4 })
+    expect(outs.map((o) => o.label)).toEqual(['Yes', 'No'])
+    expect(outs[0].yesPrice).toBeNull()
+    expect(outs[1].noPrice).toBeNull()
   })
 })
