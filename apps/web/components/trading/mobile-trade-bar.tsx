@@ -59,6 +59,24 @@ export function MobileTradeBar({
     setOpen(true)
   }
 
+  // The candidate board (CandidateList) drives selection via a window event.
+  // A tap on a row's "Yes" pill (openSheet) opens the sheet pre-selected; a
+  // plain row select just updates the pending option for the next open.
+  useEffect(() => {
+    const onSelect = (e: Event) => {
+      const detail = (e as CustomEvent).detail as {
+        marketId?: string
+        optionId?: string
+        openSheet?: boolean
+      }
+      if (detail?.marketId !== market.id || !detail.optionId) return
+      setPendingOptionId(detail.optionId)
+      if (detail.openSheet) setOpen(true)
+    }
+    window.addEventListener('marketpips:select-option', onSelect as EventListener)
+    return () => window.removeEventListener('marketpips:select-option', onSelect as EventListener)
+  }, [market.id])
+
   // Open/close side effects: body-scroll lock, focus management, Esc-to-close.
   useEffect(() => {
     if (!open) return

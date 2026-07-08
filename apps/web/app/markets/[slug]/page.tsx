@@ -8,6 +8,7 @@ import { MarketHeader } from '@/components/markets/market-header'
 import { PriceChart } from '@/components/markets/price-chart'
 import { OutcomesChart } from '@/components/markets/outcomes-chart'
 import { BettingPanel } from '@/components/trading/betting-panel'
+import { CandidateList } from '@/components/trading/candidate-list'
 import { MobileTradeBar } from '@/components/trading/mobile-trade-bar'
 import { PositionSummary } from '@/components/trading/position-summary'
 import { MarketActivity } from '@/components/markets/market-activity'
@@ -203,6 +204,8 @@ export default async function MarketPage({ params }: { params: Promise<{ slug: s
         <div className="space-y-6 lg:col-span-2">
           <MarketHeader market={market} outcomes={outcomes} isMulti={isMulti} />
 
+          {isMulti && <CandidateList market={market} options={options} />}
+
           <div className="card p-4">
             <SectionTitle icon={<IconTrendUp size={14} />}>Probability history</SectionTitle>
             <Suspense fallback={<div className="skeleton h-48 rounded-md" />}>
@@ -235,7 +238,7 @@ export default async function MarketPage({ params }: { params: Promise<{ slug: s
                 market is open, the sticky bottom bar + sheet takes over — hide
                 this instance so the ticket isn't duplicated below the fold. */}
             <div className={market.status === 'active' ? 'hidden lg:block' : ''}>
-              <BettingPanel market={market} options={options} />
+              <BettingPanel market={market} options={options} hideOptionList={isMulti} />
             </div>
 
             {/* Real-time position & P&L (only renders when the user holds one) */}

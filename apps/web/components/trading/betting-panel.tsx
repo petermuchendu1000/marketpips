@@ -44,6 +44,8 @@ interface BettingPanelProps {
   initialSide?: 'yes' | 'no'
   /** Pre-select an option on mount (multiple_choice). */
   initialOptionId?: string
+  /** Hide the internal option list (when a CandidateList board owns selection). */
+  hideOptionList?: boolean
 }
 
 type Side = 'yes' | 'no'
@@ -63,7 +65,7 @@ const CLOSED_COPY: Partial<Record<Market['status'], { label: string; body: strin
 
 // Brand-led categorical palette retained for the header breakdown / chart.
 
-export function BettingPanel({ market, options, initialSide, initialOptionId }: BettingPanelProps) {
+export function BettingPanel({ market, options, initialSide, initialOptionId, hideOptionList }: BettingPanelProps) {
   const { user } = useAuth()
   const { wallets, preferredCurrency, refreshWallets } = useWallets()
   const { rates } = useRates()
@@ -190,6 +192,21 @@ export function BettingPanel({ market, options, initialSide, initialOptionId }: 
       setAmount(String(presets[0]))
     }
   }, [touched, amount, entryMode, isOpen, presets])
+
+  // Sync selection from the CandidateList board (desktop sticky ticket).
+  useEffect(() => {
+    if (!isMulti) return
+    const onSelect = (e: Event) => {
+      const detail = (e as CustomEvent).detail as { marketId?: string; optionId?: string }
+      if (detail?.marketId !== market.id || !detail.optionId) return
+      if (outcomes.some((o) => o.id === detail.optionId)) {
+        setSelectedOptionId(detail.optionId)
+        setError('')
+      }
+    }
+    window.addEventListener('marketpips:select-option', onSelect as EventListener)
+    return () => window.removeEventListener('marketpips:select-option', onSelect as EventListener)
+  }, [isMulti, market.id, outcomes])
 
   const cents = (p: number) => `${Math.round(p * 100)}\u00A2`
 
@@ -378,7 +395,7 @@ export function BettingPanel({ market, options, initialSide, initialOptionId }: 
         </div>
 
         {/* Side / option selector — rounded price pills (Kalshi) */}
-        {isMulti ? (
+        {isMulti ? (hideOptionList ? null : (
           <fieldset disabled={!isOpen} className="space-y-2">
             <legend className="mb-2 block text-xs font-semibold uppercase tracking-wide text-text-muted">Choose an option</legend>
             {outcomes.map((o) => {
@@ -407,7 +424,7 @@ export function BettingPanel({ market, options, initialSide, initialOptionId }: 
               )
             })}
           </fieldset>
-        ) : (
+        )) : (
           <div className="grid grid-cols-2 gap-2">
             <button
               type="button"
