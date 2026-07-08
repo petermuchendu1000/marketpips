@@ -26,7 +26,9 @@ export async function RelatedMarkets({ marketId, category }: RelatedMarketsProps
 
   if (!markets?.length) return null
 
-  const typed = markets as Market[]
+  // Partial `creator` select (id/display_name/username only) → bridge via
+  // unknown, matching the convention in app/markets/[slug]/page.tsx.
+  const typed = markets as unknown as Market[]
   const { leadByMarket, countByMarket } = await getLeadingOptions(
     supabase,
     typed.filter((m) => m.resolution_type === 'multiple_choice').map((m) => m.id),

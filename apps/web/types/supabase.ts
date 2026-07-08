@@ -610,6 +610,10 @@ export type Database = {
           image_url: string | null
           entity_kind: string | null
           entity_ref: string | null
+          q_yes: number | null
+          q_no: number | null
+          yes_price: number | null
+          no_price: number | null
         }
         Insert: {
           id?: string
@@ -628,6 +632,10 @@ export type Database = {
           image_url?: string | null
           entity_kind?: string | null
           entity_ref?: string | null
+          q_yes?: number | null
+          q_no?: number | null
+          yes_price?: number | null
+          no_price?: number | null
         }
         Update: {
           id?: string
@@ -646,6 +654,10 @@ export type Database = {
           image_url?: string | null
           entity_kind?: string | null
           entity_ref?: string | null
+          q_yes?: number | null
+          q_no?: number | null
+          yes_price?: number | null
+          no_price?: number | null
         }
         Relationships: [
           {
@@ -704,6 +716,7 @@ export type Database = {
           created_at: string | null
           updated_at: string | null
           resolved_option_id: string | null
+          options_pricing_mode: string | null
         }
         Insert: {
           id?: string
@@ -751,6 +764,7 @@ export type Database = {
           created_at?: string | null
           updated_at?: string | null
           resolved_option_id?: string | null
+          options_pricing_mode?: string | null
         }
         Update: {
           id?: string
@@ -798,6 +812,7 @@ export type Database = {
           created_at?: string | null
           updated_at?: string | null
           resolved_option_id?: string | null
+          options_pricing_mode?: string | null
         }
         Relationships: [
           {
@@ -2376,6 +2391,31 @@ export type Database = {
           p_resolver_id: string
           p_resolution_notes?: string | null
         }
+        Returns: Json
+      }
+      place_bet_option_binary: {
+        Args: {
+          p_user_id: string
+          p_market_id: string
+          p_option_id: string
+          p_side: Database["public"]["Enums"]["order_side"]
+          p_amount_local: number
+          p_currency: Database["public"]["Enums"]["currency_code"]
+          p_client_order_id?: string | null
+        }
+        Returns: Json
+      }
+      resolve_market_options_binary: {
+        Args: {
+          p_market_id: string
+          p_winning_option_id: string
+          p_resolver_id: string
+          p_resolution_notes?: string | null
+        }
+        Returns: Json
+      }
+      set_market_pricing_independent: {
+        Args: { p_market_id: string }
         Returns: Json
       }
       admin_resolve_market_options: {

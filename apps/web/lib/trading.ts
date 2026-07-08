@@ -133,6 +133,48 @@ export function previewOptionBet(args: OptionPreviewArgs): OptionBetPreview {
   }
 }
 
+export interface OptionBinaryPreviewArgs {
+  amountLocal: number
+  currency: CurrencyCode
+  optionId: string
+  side: 'yes' | 'no'
+  /** This candidate's INDEPENDENT Yes probability in [0,1]. */
+  optionYesPrice: number
+  /** This candidate's INDEPENDENT No probability (defaults to 1 - yes). */
+  optionNoPrice?: number
+  /** Market liquidity pool (USD); b is derived as in place_bet_option_binary. */
+  liquidityPoolUsd: number
+  rates?: RatesMap
+  platformFeeRate?: number
+  creatorRewardRate?: number
+}
+
+export interface OptionBinaryBetPreview extends BetPreview {
+  optionId: string
+}
+
+/**
+ * Bet preview for ONE candidate line of an INDEPENDENT multi-outcome market,
+ * mirroring the authoritative `place_bet_option_binary` RPC. Because each
+ * candidate is its own binary Yes/No LMSR line, this is exactly `previewBet`
+ * applied to the candidate's own (yesPrice, noPrice) + the market's liquidity —
+ * so the tested LMSR inversion holds and preview == on-chain execution. The
+ * RPC only reprices THIS candidate, so no sibling prices are referenced here.
+ */
+export function previewOptionBinaryBet(args: OptionBinaryPreviewArgs): OptionBinaryBetPreview {
+  const {
+    amountLocal, currency, optionId, side, optionYesPrice, optionNoPrice,
+    liquidityPoolUsd, rates, platformFeeRate, creatorRewardRate,
+  } = args
+  const yesPrice = optionYesPrice
+  const noPrice = optionNoPrice ?? 1 - optionYesPrice
+  const base = previewBet({
+    amountLocal, currency, side, yesPrice, noPrice, liquidityPoolUsd,
+    rates, platformFeeRate, creatorRewardRate,
+  })
+  return { ...base, optionId }
+}
+
 /**
  * Full bet preview mirroring place_bet: convert to USD, take fees, run the
  * net stake through the LMSR inversion for slippage-aware shares & price impact.
