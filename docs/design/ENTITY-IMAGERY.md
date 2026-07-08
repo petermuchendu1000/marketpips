@@ -57,8 +57,25 @@ can optimize them where we do choose to render hosted images directly.
 - **Graceful**: monogram guarantees a good result at zero cost for the long
   tail of markets that will never have a curated image.
 
+## Status (2026-07)
+- ✅ **Layer 1 & 3 shipped** — monogram fallback + `EntityAvatar` everywhere.
+- ✅ **Layer 2 shipped (option imagery)** — migration `022_option_entity_media.sql`
+  adds `market_options.image_url / entity_kind / entity_ref` (+ market cover
+  entity fields). `scripts/backfill_entity_media.py` runs the resolver waterfall
+  (person→Wikipedia, company→DuckDuckGo/Google favicon/Wikipedia logo,
+  place→flagcdn), normalises to a square 256px WebP, uploads to the public
+  `entity-media` Supabase Storage bucket (immutable, content-hashed), and
+  persists the CDN URL. First backfill populated **32 of 107** live options
+  (all 12 politicians resolvable, the social/finance apps, and 3 country flags);
+  abstract options (issues, slogans, "None of the above", numeric ranges,
+  counties) stay on the monogram by design. `Outcome.imageUrl` now threads the
+  stored URL into the order ticket + option pills.
+
 ## Next steps to reach full parity
-1. `market_options.image_url` migration (additive).
-2. `lib/media/ingest.ts` + a cron/backfill route: run the waterfall, `sharp`
-   normalise, upload to Storage, persist URLs (Brandfetch first for companies).
-3. Wire the create-wizard to auto-suggest a logo from a typed company domain.
+1. Front-runner avatar on discovery **cards** (thread `image_url` through the
+   `leading_option` RPC payload → `CardLeadingOption`).
+2. Create-wizard: per-option avatar preview + "Auto-suggest from name/domain" +
+   manual URL/upload override; call the resolver at market-create time.
+3. Promote the Python backfill to an admin-triggered `app/api/admin/media/backfill`
+   route + nightly cron for new markets; add Brandfetch (connected) as the
+   highest-confidence company source ahead of favicon services.
