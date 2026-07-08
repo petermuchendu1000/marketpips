@@ -209,6 +209,12 @@ export interface MarketOption {
   is_winner: boolean | null
   is_active: boolean | null
   display_order: number
+  /** Stored CDN avatar (Supabase Storage). NULL → monogram fallback. */
+  image_url: string | null
+  /** Resolver hint: person|company|crypto|place|team|other. */
+  entity_kind: string | null
+  /** Entity key: domain (company) | wiki title (person) | symbol (crypto). */
+  entity_ref: string | null
   created_at: string
   updated_at: string | null
 }

@@ -27,6 +27,7 @@ export interface MarketOptionRow {
   volume_usd?: number | null
   is_winner?: boolean | null
   display_order?: number | null
+  image_url?: string | null
 }
 
 /** Normalized, UI-ready outcome. `price` is a probability in [0,1]. */
@@ -38,6 +39,8 @@ export interface Outcome {
   volumeUsd: number
   isWinner: boolean | null
   displayOrder: number
+  /** Stored CDN avatar for the outcome; NULL → monogram fallback. */
+  imageUrl: string | null
 }
 
 export const MIN_OUTCOMES = 2
@@ -85,6 +88,7 @@ export function normalizeOutcomes(
         isWinner:
           o.is_winner ?? (resolved ? o.id === resolved : null),
         displayOrder: o.display_order ?? i,
+        imageUrl: o.image_url ?? null,
       }))
   }
 
@@ -101,6 +105,7 @@ export function normalizeOutcomes(
       volumeUsd: Number(market.yes_volume_usd ?? 0),
       isWinner: resolved ? resolved === 'yes' : null,
       displayOrder: 0,
+      imageUrl: null,
     },
     {
       id: 'no',
@@ -110,6 +115,7 @@ export function normalizeOutcomes(
       volumeUsd: Number(market.no_volume_usd ?? 0),
       isWinner: resolved ? resolved === 'no' : null,
       displayOrder: 1,
+      imageUrl: null,
     },
   ]
 }

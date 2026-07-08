@@ -369,7 +369,7 @@ export function BettingPanel({ market, options, initialSide, initialOptionId }: 
         <div className="mb-3 mt-3 flex items-center gap-3">
           <EntityAvatar
             name={isMulti ? selectedOutcome?.label ?? market.title : market.title}
-            imageUrl={isMulti ? null : market.cover_image_url}
+            imageUrl={isMulti ? selectedOutcome?.imageUrl ?? null : market.cover_image_url}
             size={44}
           />
           <span className="truncate font-display text-xl text-text-primary" title={selectedOutcome?.label ?? market.title}>
@@ -396,7 +396,7 @@ export function BettingPanel({ market, options, initialSide, initialOptionId }: 
                   } disabled:cursor-not-allowed disabled:opacity-60`}
                 >
                   <span className="flex min-w-0 items-center gap-2.5">
-                    <EntityAvatar name={o.label} size={24} />
+                    <EntityAvatar name={o.label} imageUrl={o.imageUrl} size={24} />
                     <span className={`truncate text-sm font-semibold ${active ? 'text-pip-500' : 'text-text-primary'}`}>{o.label}</span>
                   </span>
                   <span className="flex flex-none items-center gap-2">

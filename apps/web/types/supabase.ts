@@ -607,6 +607,9 @@ export type Database = {
           total_invested_usd: number | null
           is_active: boolean | null
           updated_at: string | null
+          image_url: string | null
+          entity_kind: string | null
+          entity_ref: string | null
         }
         Insert: {
           id?: string
@@ -622,6 +625,9 @@ export type Database = {
           total_invested_usd?: number | null
           is_active?: boolean | null
           updated_at?: string | null
+          image_url?: string | null
+          entity_kind?: string | null
+          entity_ref?: string | null
         }
         Update: {
           id?: string
@@ -637,6 +643,9 @@ export type Database = {
           total_invested_usd?: number | null
           is_active?: boolean | null
           updated_at?: string | null
+          image_url?: string | null
+          entity_kind?: string | null
+          entity_ref?: string | null
         }
         Relationships: [
           {
