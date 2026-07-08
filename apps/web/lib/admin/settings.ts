@@ -45,6 +45,7 @@ export const SETTINGS_SCHEMA: SettingDef[] = [
   { key: 'flags.new_market_ui', label: 'New market UI (dark launch)', group: 'Feature flags', type: 'boolean', default: false, isPublic: true, help: 'Gradual rollout of the redesigned market page. Ships off; enable per environment.' },
   { key: 'flags.social_sharing', label: 'Social sharing (dark launch)', group: 'Feature flags', type: 'boolean', default: false, isPublic: true, help: 'Share buttons on markets. Ships off; enable when ready.' },
   { key: 'flags.independent_options', label: 'Independent option lines (dark launch)', group: 'Feature flags', type: 'boolean', default: false, isPublic: true, help: 'Polymarket/Kalshi-style per-candidate Yes/No pricing (each candidate an independent binary line). Ships off; only affects markets migrated to independent mode. Kill-switch for Phase C.' },
+  { key: 'flags.guided_bet_flow', label: 'Guided bet flow (dark launch)', group: 'Feature flags', type: 'boolean', default: false, isPublic: true, help: 'Beginner-first "Guided 2-Step" checkout (pick side → stake → confirm) that replaces the pro order ticket on the market page. Same LMSR economics; ships off, enable per environment.' },
   // Maintenance
   { key: 'maintenance.enabled', label: 'Maintenance mode', group: 'Maintenance', type: 'boolean', default: false, isPublic: true, help: 'Puts the platform into read-only / freeze mode.' },
   { key: 'maintenance.message', label: 'Maintenance banner message', group: 'Maintenance', type: 'text', default: '', isPublic: true },
