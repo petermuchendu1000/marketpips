@@ -78,6 +78,9 @@ export function CandidateList({
   const [sortMenu, setSortMenu] = useState(false)
   const [query, setQuery] = useState('')
   const [selected, setSelected] = useState<string>('')
+  // Which Yes/No side of the selected row is armed (independent markets only) —
+  // drives the soft pill highlight so the board mirrors the loaded ticket side.
+  const [selectedSide, setSelectedSide] = useState<'yes' | 'no'>('yes')
   const listRef = useRef<HTMLDivElement>(null)
 
   const showSearch = outcomes.length > 6
@@ -112,6 +115,7 @@ export function CandidateList({
 
   const choose = (o: Outcome, openSheet: boolean, side?: 'yes' | 'no') => {
     setSelected(o.id)
+    if (side) setSelectedSide(side)
     emitSelect(market.id, o.id, openSheet, side)
   }
 
@@ -190,6 +194,11 @@ export function CandidateList({
         </div>
       )}
 
+      {/* Column header — Kalshi "Chance" label above the probability column */}
+      <div className="flex items-center justify-end px-4 pb-1 pt-2 text-[11px] font-semibold uppercase tracking-wider text-text-muted">
+        Chance
+      </div>
+
       {/* Candidate rows */}
       <div
         ref={listRef}
@@ -209,6 +218,38 @@ export function CandidateList({
           const subtitle = subtitleById.get(o.id)
           const isWinner = o.isWinner === true
           const isLoser = resolved && o.isWinner === false
+          const yesCents = cents(o.yesPrice ?? o.price)
+          const noCents = cents(o.noPrice ?? 1 - o.price)
+
+          // Independent Yes/No buy pills — inline on wider widths, stacked
+          // full-width below the name on narrow screens (Kalshi mobile pattern).
+          const dualPills = (variant: 'inline' | 'stack') => (
+            <div
+              className={
+                variant === 'inline'
+                  ? 'hidden flex-none items-center gap-1.5 sm:flex'
+                  : 'mt-2 grid grid-cols-2 gap-2 sm:hidden'
+              }
+            >
+              <button
+                type="button"
+                onClick={(e) => { e.stopPropagation(); choose(o, true, 'yes') }}
+                aria-label={`Buy Yes on ${o.label} at ${yesCents}`}
+                className={`pill-side pill-yes ${active && selectedSide === 'yes' ? 'armed' : ''} ${variant === 'inline' ? 'min-w-[72px]' : 'w-full'}`}
+              >
+                Yes {yesCents}
+              </button>
+              <button
+                type="button"
+                onClick={(e) => { e.stopPropagation(); choose(o, true, 'no') }}
+                aria-label={`Buy No on ${o.label} at ${noCents}`}
+                className={`pill-side pill-no ${active && selectedSide === 'no' ? 'armed' : ''} ${variant === 'inline' ? 'min-w-[72px]' : 'w-full'}`}
+              >
+                No {noCents}
+              </button>
+            </div>
+          )
+
           return (
             <div
               key={o.id}
@@ -228,93 +269,61 @@ export function CandidateList({
                   moveSelection(-1)
                 }
               }}
-              className={`group flex cursor-pointer items-center gap-3 px-4 py-3 transition-colors ${
-                active ? 'bg-pip-100' : 'hover:bg-surface-2'
+              style={{ borderLeftColor: active ? 'var(--pip-400)' : 'transparent' }}
+              className={`group cursor-pointer border-l-2 px-4 py-2.5 transition-colors ${
+                active ? 'bg-surface-2' : 'hover:bg-surface-2'
               } ${isLoser ? 'opacity-55' : ''}`}
             >
-              <EntityAvatar
-                name={o.label}
-                imageUrl={o.imageUrl}
-                size={40}
-                shape={kind === 'person' ? 'circle' : 'squircle'}
-              />
-              <div className="min-w-0 flex-1">
-                <div className="flex items-center gap-1.5">
-                  <span className="truncate text-[15px] font-semibold text-text-primary">
-                    {o.label}
-                  </span>
-                  {isWinner && <IconTrophy size={14} className="flex-none text-yes" />}
+              <div className="flex items-center gap-2.5 sm:gap-3">
+                <EntityAvatar
+                  name={o.label}
+                  imageUrl={o.imageUrl}
+                  size={34}
+                  shape={kind === 'person' ? 'circle' : 'squircle'}
+                />
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-1.5">
+                    <span className="truncate text-[13.5px] font-semibold text-text-primary">
+                      {o.label}
+                    </span>
+                    {isWinner && <IconTrophy size={13} className="flex-none text-yes" />}
+                  </div>
+                  {subtitle && (
+                    <p className="truncate text-[11px] text-text-muted">{subtitle}</p>
+                  )}
                 </div>
-                {subtitle && (
-                  <p className="truncate text-xs text-text-muted">{subtitle}</p>
-                )}
+
+                {/* Bold standalone probability + buy affordance */}
+                <div className="flex flex-none items-center gap-2.5">
+                  <span
+                    className="text-[19px] font-bold leading-none tabular-nums text-text-primary"
+                    aria-label={`${pct} percent`}
+                  >
+                    {pct}%
+                  </span>
+                  {isOpen ? (
+                    independent ? (
+                      dualPills('inline')
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={(e) => { e.stopPropagation(); choose(o, true, 'yes') }}
+                        aria-label={`Buy Yes on ${o.label} at ${cents(o.price)}`}
+                        className={`pill-side pill-yes min-w-[72px] ${active ? 'armed' : ''}`}
+                      >
+                        Yes {cents(o.price)}
+                      </button>
+                    )
+                  ) : (
+                    <span className="rounded-pill bg-surface-2 px-3 py-1.5 text-xs font-semibold text-text-muted">
+                      {isWinner ? 'Won' : isLoser ? 'Lost' : 'Closed'}
+                    </span>
+                  )}
+                </div>
               </div>
 
-              {/* Standalone probability + Yes buy affordance */}
-              <div className="flex flex-none items-center gap-3">
-                <span
-                  className="font-display text-xl leading-none text-text-primary"
-                  aria-label={`${pct} percent`}
-                >
-                  {pct}%
-                </span>
-                {isOpen ? (
-                  independent ? (
-                    // Phase C: each candidate is its own binary line — a Yes and
-                    // a No buy pill priced off the candidate's own book. Prices
-                    // do NOT sum across candidates (Polymarket/Kalshi behavior).
-                    <div className="flex items-center gap-1.5">
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          choose(o, true, 'yes')
-                        }}
-                        aria-label={`Buy Yes on ${o.label} at ${cents(o.yesPrice ?? o.price)}`}
-                        className="rounded-pill px-3 py-1.5 text-sm font-bold text-yes transition-colors hover:brightness-105"
-                        style={{ background: 'var(--yes-tint)' }}
-                      >
-                        Yes {cents(o.yesPrice ?? o.price)}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          choose(o, true, 'no')
-                        }}
-                        aria-label={`Buy No on ${o.label} at ${cents(o.noPrice ?? 1 - o.price)}`}
-                        className="rounded-pill px-3 py-1.5 text-sm font-bold text-no transition-colors hover:brightness-105"
-                        style={{ background: 'var(--no-tint)' }}
-                      >
-                        No {cents(o.noPrice ?? 1 - o.price)}
-                      </button>
-                    </div>
-                  ) : (
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      choose(o, true)
-                    }}
-                    aria-label={`Buy Yes on ${o.label} at ${cents(o.price)}`}
-                    className={`flex items-center gap-1 rounded-pill px-3 py-1.5 text-sm font-bold transition-colors ${
-                      active
-                        ? 'text-white'
-                        : 'text-yes hover:brightness-105'
-                    }`}
-                    style={{
-                      background: active ? 'var(--yes)' : 'var(--yes-tint)',
-                    }}
-                  >
-                    Yes {cents(o.price)}
-                  </button>
-                  )
-                ) : (
-                  <span className="rounded-pill bg-surface-2 px-3 py-1.5 text-xs font-semibold text-text-muted">
-                    {isWinner ? 'Won' : isLoser ? 'Lost' : 'Closed'}
-                  </span>
-                )}
-              </div>
+              {/* Narrow screens: independent Yes/No pills stack full-width below. */}
+              {isOpen && independent && dualPills('stack')}
             </div>
           )
         })}
