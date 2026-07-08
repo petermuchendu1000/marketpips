@@ -46,6 +46,12 @@ export function MobileTradeBar({
   const isMulti = isMultiOutcome(market, options)
   const outcomes = normalizeOutcomes(market, options)
   const leader = favoriteOutcome(outcomes)
+  // The candidate currently loaded in the ticket (driven by the board's row
+  // selection via marketpips:select-option), falling back to the front-runner
+  // before the user has picked one. The sticky bar's primary action MUST mirror
+  // the highlighted row — not a static favorite — so tapping it trades the
+  // candidate the user actually selected.
+  const selected = outcomes.find((o) => o.id === pendingOptionId) ?? leader
   const cents = (p: number) => `${Math.round(p * 100)}\u00A2`
 
   const close = useCallback(() => {
@@ -128,15 +134,15 @@ export function MobileTradeBar({
         {isMulti ? (
           <button
             type="button"
-            onClick={() => openWithOption(leader?.id)}
+            onClick={() => openWithOption(selected?.id)}
             className="btn btn-primary btn-lg w-full"
             aria-haspopup="dialog"
             aria-expanded={open}
           >
-            {leader ? (
+            {selected ? (
               <span className="flex w-full items-center justify-center gap-1.5">
-                <span className="truncate">Buy {leader.label}</span>
-                <span className="flex-none font-mono opacity-80">{Math.round(leader.price * 100)}%</span>
+                <span className="truncate">Buy {selected.label}</span>
+                <span className="flex-none font-mono opacity-80">{Math.round(selected.price * 100)}%</span>
               </span>
             ) : (
               <>Trade <IconArrowRight size={15} /></>
