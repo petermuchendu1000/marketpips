@@ -23,6 +23,7 @@ import { normalizeOutcomes, isMultiOutcome, type Outcome } from '@/lib/markets/o
 import { formatCurrency, usdToLocal } from '@/lib/currency'
 import { CURRENCIES } from '@/types'
 import type { Market, MarketOption } from '@/types'
+import { EntityAvatar } from '@/components/ui/entity-avatar'
 import {
   IconWallet,
   IconInfo,
@@ -60,12 +61,7 @@ const CLOSED_COPY: Partial<Record<Market['status'], { label: string; body: strin
   cancelled: { label: 'Cancelled', body: 'This market was cancelled and stakes were refunded.' },
 }
 
-// Brand-led categorical palette (shared with the header breakdown / chart).
-const OUTCOME_PALETTE = [
-  'var(--pip-500)', 'var(--yes)', '#7c6cf0', '#e0973b',
-  '#3aa5c2', '#c2557a', '#5b8def', '#9a8c5c',
-  '#4bb37b', '#d06a4a', '#8a6cf0', '#b0983a',
-]
+// Brand-led categorical palette retained for the header breakdown / chart.
 
 export function BettingPanel({ market, options, initialSide, initialOptionId }: BettingPanelProps) {
   const { user } = useAuth()
@@ -367,14 +363,17 @@ export function BettingPanel({ market, options, initialSide, initialOptionId }: 
 
       <div className="p-4">
         {/* Market question + selected outcome */}
-        <p className="text-sm leading-snug text-text-secondary line-clamp-2">{market.title}</p>
+        {isMulti && (
+          <p className="text-sm leading-snug text-text-secondary line-clamp-2">{market.title}</p>
+        )}
         <div className="mb-3 mt-3 flex items-center gap-3">
-          {market.cover_image_url && (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={market.cover_image_url} alt="" className="h-11 w-11 flex-none rounded-lg object-cover" />
-          )}
-          <span className="truncate font-display text-xl text-text-primary" title={selectedOutcome?.label}>
-            {isMulti ? selectedOutcome?.label ?? 'Choose an option' : market.title.length > 40 ? 'Outcome' : market.title}
+          <EntityAvatar
+            name={isMulti ? selectedOutcome?.label ?? market.title : market.title}
+            imageUrl={isMulti ? null : market.cover_image_url}
+            size={44}
+          />
+          <span className="truncate font-display text-xl text-text-primary" title={selectedOutcome?.label ?? market.title}>
+            {isMulti ? selectedOutcome?.label ?? 'Choose an option' : market.title}
           </span>
         </div>
 
@@ -382,7 +381,7 @@ export function BettingPanel({ market, options, initialSide, initialOptionId }: 
         {isMulti ? (
           <fieldset disabled={!isOpen} className="space-y-2">
             <legend className="mb-2 block text-xs font-semibold uppercase tracking-wide text-text-muted">Choose an option</legend>
-            {outcomes.map((o, i) => {
+            {outcomes.map((o) => {
               const active = o.id === selectedOptionId
               const pct = Math.round(o.price * 100)
               return (
@@ -396,8 +395,8 @@ export function BettingPanel({ market, options, initialSide, initialOptionId }: 
                     active ? 'border-pip-400 bg-pip-100' : 'border-hairline bg-surface-2 hover:border-pip-300'
                   } disabled:cursor-not-allowed disabled:opacity-60`}
                 >
-                  <span className="flex min-w-0 items-center gap-2">
-                    <span className="h-2.5 w-2.5 flex-none rounded-[2px]" style={{ background: OUTCOME_PALETTE[i % OUTCOME_PALETTE.length] }} aria-hidden />
+                  <span className="flex min-w-0 items-center gap-2.5">
+                    <EntityAvatar name={o.label} size={24} />
                     <span className={`truncate text-sm font-semibold ${active ? 'text-pip-500' : 'text-text-primary'}`}>{o.label}</span>
                   </span>
                   <span className="flex flex-none items-center gap-2">

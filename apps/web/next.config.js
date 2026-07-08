@@ -21,6 +21,13 @@ const nextConfig = {
         protocol: 'https',
         hostname: '**.supabase.co',
       },
+      // Entity-image upgrade path (ingestion sources — normalised & stored):
+      { protocol: 'https', hostname: 'www.google.com' },
+      { protocol: 'https', hostname: 'cdn.brandfetch.io' },
+      { protocol: 'https', hostname: 'logo.clearbit.com' },
+      { protocol: 'https', hostname: 'img.logo.dev' },
+      { protocol: 'https', hostname: 'upload.wikimedia.org' },
+      { protocol: 'https', hostname: '**.wikipedia.org' },
     ],
   },
   env: {

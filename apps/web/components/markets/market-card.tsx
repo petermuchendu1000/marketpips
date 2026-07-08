@@ -5,6 +5,7 @@ import type { Market } from '@/types'
 import { CATEGORY_LABELS } from '@/types'
 import { splitHighlight } from '@/lib/search'
 import { IconClock, IconUser, IconTrendUp, CategoryIcon } from '@/components/ui/icons'
+import { EntityAvatar } from '@/components/ui/entity-avatar'
 
 export interface CardLeadingOption {
   label: string
@@ -87,15 +88,23 @@ export function MarketCard({
         </span>
       </div>
 
-      {/* Title */}
-      <h3
-        className={`font-semibold leading-snug mb-3 transition-colors group-hover:text-[var(--pip-text)] ${
-          compact ? 'text-sm line-clamp-2' : 'text-[15px] line-clamp-3'
-        }`}
-        style={{ color: 'var(--text-primary)' }}
-      >
-        <TitleContent title={market.title} query={query} />
-      </h3>
+      {/* Title with entity avatar */}
+      <div className="mb-3 flex items-start gap-2.5">
+        <EntityAvatar
+          name={market.title}
+          imageUrl={market.cover_image_url}
+          size={compact ? 28 : 36}
+          className="mt-0.5"
+        />
+        <h3
+          className={`font-semibold leading-snug transition-colors group-hover:text-[var(--pip-text)] ${
+            compact ? 'text-sm line-clamp-2' : 'text-[15px] line-clamp-3'
+          }`}
+          style={{ color: 'var(--text-primary)' }}
+        >
+          <TitleContent title={market.title} query={query} />
+        </h3>
+      </div>
 
       {/* Probability bar — leading option for multiple choice, YES/NO for binary */}
       {isMulti ? (
