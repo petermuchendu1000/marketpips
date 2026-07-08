@@ -9,7 +9,7 @@ import toast from 'react-hot-toast'
 import type { Market, MarketStatus } from '@/types'
 import { CATEGORY_LABELS } from '@/types'
 import type { Outcome } from '@/lib/markets/outcomes'
-import { CategoryIcon, IconShare, IconExternalLink, IconCheck } from '@/components/ui/icons'
+import { CategoryIcon, IconShare, IconExternalLink } from '@/components/ui/icons'
 
 interface MarketHeaderProps {
   market: Market
@@ -17,60 +17,6 @@ interface MarketHeaderProps {
   outcomes?: Outcome[]
   /** True for multiple_choice markets. */
   isMulti?: boolean
-}
-
-// Brand-led categorical palette (shared with the outcomes chart / donut).
-const OUTCOME_PALETTE = [
-  'var(--pip-500)', 'var(--yes)', '#7c6cf0', '#e0973b',
-  '#3aa5c2', '#c2557a', '#5b8def', '#9a8c5c',
-  '#4bb37b', '#d06a4a', '#8a6cf0', '#b0983a',
-]
-
-/** Ranked probability breakdown for multiple-choice markets. */
-function OutcomesBreakdown({ outcomes }: { outcomes: Outcome[] }) {
-  const ranked = [...outcomes].sort((a, b) => b.price - a.price)
-  const anyWinner = ranked.some((o) => o.isWinner === true)
-  // Kalshi-style compact breakdown: a color dot, the option label, and a bold
-  // standalone probability — NO bars. Just the ranked percentages.
-  return (
-    <ul className="mt-4 divide-y divide-hairline">
-      {ranked.map((o, i) => {
-        const pct = Math.round(o.price * 100)
-        const won = o.isWinner === true
-        const dimmed = anyWinner && !won
-        return (
-          <li key={o.id} className="flex items-center justify-between gap-3 py-2">
-            <span className="flex min-w-0 items-center gap-2.5">
-              <span
-                className="h-2.5 w-2.5 flex-none rounded-[2px]"
-                style={{ background: dimmed ? 'var(--hairline-strong)' : OUTCOME_PALETTE[i % OUTCOME_PALETTE.length] }}
-                aria-hidden
-              />
-              <span
-                className={`truncate text-[13.5px] font-medium ${
-                  dimmed ? 'text-text-muted' : 'text-text-primary'
-                }`}
-              >
-                {o.label}
-              </span>
-              {won && (
-                <span className="badge badge-green gap-1 flex-none">
-                  <IconCheck size={11} /> Winner
-                </span>
-              )}
-            </span>
-            <span
-              className={`flex-none text-base font-bold tabular-nums ${
-                dimmed ? 'text-text-muted' : 'text-text-primary'
-              }`}
-            >
-              {pct}%
-            </span>
-          </li>
-        )
-      })}
-    </ul>
-  )
 }
 
 /** Market state-machine badge mapping (single source of visual truth). */
@@ -133,9 +79,10 @@ export function MarketHeader({ market, outcomes, isMulti }: MarketHeaderProps) {
         <h1 className="font-display text-xl leading-snug text-text-primary">{market.title}</h1>
 
         {/* Live probability — ranked options for multiple choice, YES gauge for binary */}
-        {showMulti ? (
-          <OutcomesBreakdown outcomes={outcomes!} />
-        ) : (
+        {/* Binary markets show the YES gauge here. Multiple-choice markets show
+            nothing — the candidate board directly below is the single, canonical
+            place options + probabilities live (no duplicated header breakdown). */}
+        {!showMulti && (
           <div className="mt-4 flex items-center gap-4">
             <div className="flex-1">
               <div className="mb-1.5 flex items-end gap-2">
