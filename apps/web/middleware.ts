@@ -10,6 +10,7 @@ import {
   rateLimitHeaders,
 } from '@/lib/security/rate-limit'
 import { securityHeaders } from '@/lib/security/headers'
+import { safeRedirectPath } from '@/lib/security/sanitize'
 import { REQUEST_ID_HEADER, resolveRequestId } from '@/lib/observability/request-id'
 
 const ADMIN_PORTAL_ROLE_SET = new Set<string>(ADMIN_PORTAL_ROLES)
@@ -118,9 +119,14 @@ export async function middleware(request: NextRequest) {
     }
   }
 
-  // Redirect authenticated users away from auth pages
+  // Redirect authenticated users away from auth pages. Honor ?next (sanitized)
+  // instead of always going home, so a mid-bet sign-in / sign-up returns the
+  // user to the market they were on. This is the authoritative server-side
+  // redirect — it also covers the returning-already-authenticated and OAuth
+  // cases and the router.refresh() re-request race after a client sign-in.
   if (user && (pathname.startsWith('/auth/login') || pathname.startsWith('/auth/register'))) {
-    return NextResponse.redirect(new URL('/', request.url))
+    const dest = safeRedirectPath(request.nextUrl.searchParams.get('next'))
+    return NextResponse.redirect(new URL(dest, request.url))
   }
 
   // Security headers (CSP, HSTS, X-Frame-Options, etc.) — centralised set.
