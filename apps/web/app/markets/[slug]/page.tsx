@@ -8,6 +8,7 @@ import { MarketHeader } from '@/components/markets/market-header'
 import { PriceChart } from '@/components/markets/price-chart'
 import { OutcomesChart } from '@/components/markets/outcomes-chart'
 import { BettingPanel } from '@/components/trading/betting-panel'
+import { GuidedBetFlow } from '@/components/trading/guided-bet-flow'
 import { CandidateList } from '@/components/trading/candidate-list'
 import { MobileTradeBar } from '@/components/trading/mobile-trade-bar'
 import { PositionSummary } from '@/components/trading/position-summary'
@@ -187,6 +188,11 @@ export default async function MarketPage({ params }: { params: Promise<{ slug: s
     isIndependentOptions(market, options) &&
     (await isFeatureEnabled(supabase, 'flags.independent_options'))
 
+  // Beginner-first "Guided 2-Step" checkout (Option B), dark-launched behind a
+  // flag so deploy ≠ release. When on, it replaces the pro ticket on the market
+  // page + mobile sheet; same LMSR economics, first-timer-friendly UX.
+  const guidedBets = await isFeatureEnabled(supabase, 'flags.guided_bet_flow')
+
   // SEO: structured data for the market as a Q&A / claim.
   const jsonLd = {
     '@context': 'https://schema.org',
@@ -248,7 +254,11 @@ export default async function MarketPage({ params }: { params: Promise<{ slug: s
                 market is open, the sticky bottom bar + sheet takes over — hide
                 this instance so the ticket isn't duplicated below the fold. */}
             <div className={market.status === 'active' ? 'hidden lg:block' : ''}>
-              <BettingPanel market={market} options={options} hideOptionList={isMulti} independent={independent} />
+              {guidedBets ? (
+                <GuidedBetFlow market={market} options={options} hideOptionList={isMulti} independent={independent} />
+              ) : (
+                <BettingPanel market={market} options={options} hideOptionList={isMulti} independent={independent} />
+              )}
             </div>
 
             {/* Real-time position & P&L (only renders when the user holds one) */}
@@ -297,7 +307,7 @@ export default async function MarketPage({ params }: { params: Promise<{ slug: s
       </div>
 
       {/* Mobile-only sticky trade bar + bottom sheet (thumb-zone conversion). */}
-      {market.status === 'active' && <MobileTradeBar market={market} options={options} independent={independent} />}
+      {market.status === 'active' && <MobileTradeBar market={market} options={options} independent={independent} guided={guidedBets} />}
     </div>
   )
 }

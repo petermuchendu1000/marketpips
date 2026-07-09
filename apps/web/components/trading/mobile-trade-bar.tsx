@@ -15,6 +15,7 @@
 // duplicated trading logic. The desktop sidebar panel is unchanged.
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { BettingPanel } from './betting-panel'
+import { GuidedBetFlow } from './guided-bet-flow'
 import {
   normalizeOutcomes,
   isMultiOutcome,
@@ -27,11 +28,14 @@ export function MobileTradeBar({
   market,
   options,
   independent = false,
+  guided = false,
 }: {
   market: Market
   options?: MarketOption[]
   /** Phase C: candidates trade as independent Yes/No lines. */
   independent?: boolean
+  /** Option B: render the beginner-first guided flow inside the sheet. */
+  guided?: boolean
 }) {
   const [open, setOpen] = useState(false)
   // The side/option the user tapped in the bar — pre-selected in the sheet so
@@ -223,15 +227,25 @@ export function MobileTradeBar({
                 </div>
               </div>
 
-              {/* The single source-of-truth order ticket */}
+              {/* The single source-of-truth order ticket (guided or pro). */}
               <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-4">
-                <BettingPanel
-                  market={market}
-                  options={options}
-                  initialSide={pendingSide}
-                  initialOptionId={pendingOptionId}
-                  independent={independent}
-                />
+                {guided ? (
+                  <GuidedBetFlow
+                    market={market}
+                    options={options}
+                    initialSide={pendingSide}
+                    initialOptionId={pendingOptionId}
+                    independent={independent}
+                  />
+                ) : (
+                  <BettingPanel
+                    market={market}
+                    options={options}
+                    initialSide={pendingSide}
+                    initialOptionId={pendingOptionId}
+                    independent={independent}
+                  />
+                )}
               </div>
             </div>
           </div>
