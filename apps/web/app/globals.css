@@ -29,7 +29,9 @@
     --warn:#C98A1E;
 
     /* ---- Semantic surfaces (light default) ---- */
-    --bg:var(--ink-50); --surface:var(--paper); --surface-2:var(--ink-50);
+    /* Page is pure white; cards stay white and separate via hairline + --e1.
+       --surface-2 keeps the faint slate tint for chips / hovers / secondary fills. */
+    --bg:var(--paper); --surface:var(--paper); --surface-2:var(--ink-50);
     --elevated:var(--paper);
     --text:var(--ink-950); --text-2:var(--ink-600); --text-3:var(--ink-500);
     --hairline:var(--ink-200); --hairline-strong:var(--ink-300);
