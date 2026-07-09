@@ -102,6 +102,31 @@ function ProbGauge({ pct, label }: { pct: number; label: string }) {
   )
 }
 
+/**
+ * Bitcoin brand chip for the recurring Up/Down cards — a self-contained SVG
+ * (orange rounded square + white ₿), so it never depends on a system font
+ * shipping the ₿ glyph and renders identically everywhere.
+ */
+function BitcoinMark({ size, className }: { size: number; className?: string }) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 40 40"
+      className={`flex-none ${className ?? ''}`}
+      role="img"
+      aria-label="Bitcoin"
+    >
+      <rect width="40" height="40" rx="9" fill="#F7931A" />
+      {/* ₿ — bold B with the two vertical bars poking out top and bottom */}
+      <path
+        fill="#fff"
+        d="M17.9 9.5h2.2v2.6c.6 0 1.1.05 1.6.12V9.5h2.2v2.9c2.4.4 4 1.6 4 3.9 0 1.4-.7 2.4-1.9 2.9 1.6.5 2.6 1.5 2.6 3.4 0 2.7-2 4-4.7 4.3v2.9h-2.2v-2.8c-.5 0-1 .01-1.6 0v2.8h-2.2v-2.9h-3.6l.45-2.6h1.1c.6 0 .8-.15.8-.7v-7.8c0-.5-.2-.7-.8-.7h-1.1v-2.5h3.55V9.5Zm1.7 8.9h2.4c1.2 0 2-.5 2-1.7 0-1.15-.8-1.65-2-1.65h-2.4v3.35Zm0 6.2h2.9c1.3 0 2.2-.5 2.2-1.85s-.9-1.85-2.2-1.85h-2.9v3.7Z"
+      />
+    </svg>
+  )
+}
+
 export function MarketCard({
   market,
   compact = false,
@@ -146,15 +171,7 @@ export function MarketCard({
         {!isUpDown && (
           <EntityAvatar name={market.title} imageUrl={market.cover_image_url} size={avatarSize} className="mt-0.5" />
         )}
-        {isUpDown && (
-          <span
-            className="mt-0.5 flex flex-none items-center justify-center rounded-md font-bold text-white"
-            style={{ width: avatarSize, height: avatarSize, background: '#F7931A', fontSize: avatarSize * 0.5 }}
-            aria-hidden
-          >
-            ₿
-          </span>
-        )}
+        {isUpDown && <BitcoinMark size={avatarSize} className="mt-0.5" />}
         <h3
           className={`min-w-0 flex-1 font-semibold leading-snug ${compact ? 'text-sm line-clamp-2' : 'text-[15px] line-clamp-2'}`}
           style={{ color: 'var(--text-primary)' }}
@@ -233,14 +250,20 @@ export function MarketCard({
       >
         <div className="flex items-center gap-2 pt-2 text-[11px]" style={{ color: 'var(--text-muted)' }}>
           {isLive ? (
-            <>
-              <span className="flex items-center gap-1 font-semibold" style={{ color: 'var(--no)' }}>
-                <span className="inline-block h-1.5 w-1.5 rounded-full" style={{ background: 'var(--no)' }} />
-                LIVE
-              </span>
-              <span aria-hidden>·</span>
-              <span>{timeLeft(market.closes_at)} left</span>
-            </>
+            new Date(market.closes_at).getTime() <= Date.now() ? (
+              // Window closed but not yet settled by the engine — brief transient
+              // (the cron resolves within ~60s). Never show "Closed left".
+              <span className="font-semibold" style={{ color: 'var(--text-3)' }}>Settling…</span>
+            ) : (
+              <>
+                <span className="flex items-center gap-1 font-semibold" style={{ color: 'var(--no)' }}>
+                  <span className="inline-block h-1.5 w-1.5 rounded-full" style={{ background: 'var(--no)' }} />
+                  LIVE
+                </span>
+                <span aria-hidden>·</span>
+                <span>{timeLeft(market.closes_at)} left</span>
+              </>
+            )
           ) : (
             <>
               <span className="flex items-center gap-1">

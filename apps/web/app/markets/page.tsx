@@ -24,6 +24,7 @@ import {
 import { CATEGORY_LABELS } from '@/types'
 import type { Market } from '@/types'
 import { getCardOptions } from '@/lib/markets/card-options'
+import { getLiveBtcMarkets } from '@/lib/markets/btc-windows'
 import { IconPlus, IconSearch, IconArrowRight } from '@/components/ui/icons'
 
 export const dynamic = 'force-dynamic'
@@ -130,9 +131,23 @@ async function Results({ parsed }: { parsed: ReturnType<typeof parseSearchParams
   })
 
   const payload = (data ?? {}) as { data?: unknown[]; total?: number }
-  const markets = (Array.isArray(payload.data) ? payload.data : []) as Market[]
+  let markets = (Array.isArray(payload.data) ? payload.data : []) as Market[]
   const total = typeof payload.total === 'number' ? payload.total : 0
   const pagination = buildPagination(total, parsed.page, PER_PAGE)
+
+  // Pin the live "Bitcoin Up or Down" windows across the first rows of the
+  // default board (page 1, no query/category, active view). They're always at
+  // the top regardless of sort, in series order (5M · 15M · 30M · 1H). We de-dup
+  // any that the RPC already returned so a window never appears twice.
+  const isDefaultBoard =
+    parsed.page === 1 && !parsed.q && !parsed.category && parsed.status === 'active'
+  if (isDefaultBoard) {
+    const pinned = await getLiveBtcMarkets(supabase)
+    if (pinned.length > 0) {
+      const pinnedIds = new Set(pinned.map((m) => m.id))
+      markets = [...pinned, ...markets.filter((m) => !pinnedIds.has(m.id))]
+    }
+  }
 
   // For multiple_choice markets on this page, fetch their options in one batched
   // query so each card can show its front-runner (Polymarket card pattern)
