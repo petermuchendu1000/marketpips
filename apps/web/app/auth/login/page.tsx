@@ -9,6 +9,7 @@ import { AuthShell } from '@/components/auth/auth-shell'
 import { PasswordInput } from '@/components/auth/password-input'
 import { LogoMark, IconShield, IconArrowRight } from '@/components/ui/icons'
 import { safeRedirectPath } from '@/lib/security/sanitize'
+import { withNext } from '@/lib/auth-redirect'
 
 export default function LoginPage() {
   const router = useRouter()
@@ -118,10 +119,7 @@ export default function LoginPage() {
 
       <p className="mt-6 text-center text-sm text-text-muted">
         No account?{' '}
-        <Link
-          href={next ? `/auth/register?next=${encodeURIComponent(next)}` : '/auth/register'}
-          className="font-semibold text-pip-500 hover:underline"
-        >
+        <Link href={withNext('/auth/register', next)} className="font-semibold text-pip-500 hover:underline">
           Create one free
         </Link>
       </p>

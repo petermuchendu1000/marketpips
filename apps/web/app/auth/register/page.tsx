@@ -9,6 +9,7 @@ import { AuthShell } from '@/components/auth/auth-shell'
 import { PasswordInput } from '@/components/auth/password-input'
 import { LogoMark, IconShield, IconArrowRight, IconCheck } from '@/components/ui/icons'
 import { safeRedirectPath } from '@/lib/security/sanitize'
+import { withNext } from '@/lib/auth-redirect'
 
 const COUNTRIES = [
   { code: 'KE', name: 'Kenya', currency: 'KES' },
@@ -80,8 +81,7 @@ export default function RegisterPage() {
     // Thread the return path through email confirmation: the callback reads
     // ?next and redirects there after exchanging the code for a session.
     const safeNext = safeRedirectPath(next)
-    const callbackUrl = new URL('/auth/callback', window.location.origin)
-    if (safeNext !== '/') callbackUrl.searchParams.set('next', safeNext)
+    const callbackUrl = new URL(withNext('/auth/callback', next), window.location.origin)
 
     const { data, error } = await supabase.auth.signUp({
       email,
@@ -124,10 +124,7 @@ export default function RegisterPage() {
             We sent a confirmation link to <strong className="text-text-primary">{email}</strong>.
             Click it to activate your account.
           </p>
-          <Link
-            href={next ? `/auth/login?next=${encodeURIComponent(next)}` : '/auth/login'}
-            className="btn btn-secondary mt-6 w-full"
-          >
+          <Link href={withNext('/auth/login', next)} className="btn btn-secondary mt-6 w-full">
             Go to sign in
           </Link>
         </div>
@@ -278,10 +275,7 @@ export default function RegisterPage() {
 
       <p className="mt-5 text-center text-sm text-text-muted">
         Already have an account?{' '}
-        <Link
-          href={next ? `/auth/login?next=${encodeURIComponent(next)}` : '/auth/login'}
-          className="font-semibold text-pip-500 hover:underline"
-        >
+        <Link href={withNext('/auth/login', next)} className="font-semibold text-pip-500 hover:underline">
           Sign in
         </Link>
       </p>
