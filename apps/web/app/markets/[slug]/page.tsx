@@ -157,7 +157,13 @@ function SpecRow({ label, value }: { label: string; value: ReactNode }) {
   )
 }
 
-export default async function MarketPage({ params }: { params: Promise<{ slug: string }> }) {
+export default async function MarketPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ slug: string }>
+  searchParams: Promise<{ side?: string; option?: string }>
+}) {
   const { slug } = await params
   const market = await getMarket(slug)
   if (!market) notFound()
@@ -192,6 +198,19 @@ export default async function MarketPage({ params }: { params: Promise<{ slug: s
   // flag so deploy ≠ release. When on, it replaces the pro ticket on the market
   // page + mobile sheet; same LMSR economics, first-timer-friendly UX.
   const guidedBets = await isFeatureEnabled(supabase, 'flags.guided_bet_flow')
+
+  // Deep-link pre-arm — a Yes/No/Up/Down tap on a market card lands here with
+  // ?side=yes|no (& ?option=<id> for multi-outcome boards). We VALIDATE both
+  // against this market's real data before priming the ticket so a stale or
+  // hand-edited URL can never arm a phantom side/candidate: the side must be
+  // exactly 'yes'|'no', and the option id (if present) must belong to a real
+  // outcome of THIS market. Invalid values fall through to the component
+  // defaults (Yes / front-runner) — never an error.
+  const sp = await searchParams
+  const initialSide: 'yes' | 'no' | undefined =
+    sp.side === 'yes' || sp.side === 'no' ? sp.side : undefined
+  const initialOptionId: string | undefined =
+    sp.option && options.some((o) => o.id === sp.option) ? sp.option : undefined
 
   // SEO: structured data for the market as a Q&A / claim.
   const jsonLd = {
@@ -255,9 +274,23 @@ export default async function MarketPage({ params }: { params: Promise<{ slug: s
                 this instance so the ticket isn't duplicated below the fold. */}
             <div className={market.status === 'active' ? 'hidden lg:block' : ''}>
               {guidedBets ? (
-                <GuidedBetFlow market={market} options={options} hideOptionList={isMulti} independent={independent} />
+                <GuidedBetFlow
+                  market={market}
+                  options={options}
+                  hideOptionList={isMulti}
+                  independent={independent}
+                  initialSide={initialSide}
+                  initialOptionId={initialOptionId}
+                />
               ) : (
-                <BettingPanel market={market} options={options} hideOptionList={isMulti} independent={independent} />
+                <BettingPanel
+                  market={market}
+                  options={options}
+                  hideOptionList={isMulti}
+                  independent={independent}
+                  initialSide={initialSide}
+                  initialOptionId={initialOptionId}
+                />
               )}
             </div>
 
@@ -307,7 +340,16 @@ export default async function MarketPage({ params }: { params: Promise<{ slug: s
       </div>
 
       {/* Mobile-only sticky trade bar + bottom sheet (thumb-zone conversion). */}
-      {market.status === 'active' && <MobileTradeBar market={market} options={options} independent={independent} guided={guidedBets} />}
+      {market.status === 'active' && (
+        <MobileTradeBar
+          market={market}
+          options={options}
+          independent={independent}
+          guided={guidedBets}
+          initialSide={initialSide}
+          initialOptionId={initialOptionId}
+        />
+      )}
     </div>
   )
 }

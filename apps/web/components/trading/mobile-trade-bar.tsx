@@ -30,6 +30,8 @@ export function MobileTradeBar({
   options,
   independent = false,
   guided = false,
+  initialSide,
+  initialOptionId,
 }: {
   market: Market
   options?: MarketOption[]
@@ -37,12 +39,18 @@ export function MobileTradeBar({
   independent?: boolean
   /** Option B: render the beginner-first guided flow inside the sheet. */
   guided?: boolean
+  /** Deep-link pre-arm: the side tapped on a market card (?side=). */
+  initialSide?: 'yes' | 'no'
+  /** Deep-link pre-arm: the candidate tapped on a market card (?option=). */
+  initialOptionId?: string
 }) {
   const [open, setOpen] = useState(false)
   // The side/option the user tapped in the bar — pre-selected in the sheet so
   // the entry tap captures the real decision (not a hollow "Trade" gateway).
-  const [pendingSide, setPendingSide] = useState<'yes' | 'no'>('yes')
-  const [pendingOptionId, setPendingOptionId] = useState<string | undefined>(undefined)
+  // Seeded from the deep-link params so a Yes/No/Up/Down tap on a card carries
+  // the decision all the way into the mobile ticket.
+  const [pendingSide, setPendingSide] = useState<'yes' | 'no'>(initialSide ?? 'yes')
+  const [pendingOptionId, setPendingOptionId] = useState<string | undefined>(initialOptionId)
   // A stake restored from a bet that survived the sign-in / sign-up round-trip.
   // When present the sheet auto-opens on return so a phone user sees their
   // rebuilt ticket (and gets the funding prompt) instead of a bare bar.
