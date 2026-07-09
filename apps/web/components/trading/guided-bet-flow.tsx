@@ -19,7 +19,7 @@
 // Auth is DEFERRED: a logged-out user can build the whole bet and is only sent
 // to sign-in at the final confirm (with a return path), instead of hitting a
 // wall on first interaction. Dark-launched behind flags.guided_bet_flow.
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/hooks/use-auth'
 import { useWallets } from '@/hooks/use-wallets'
@@ -38,6 +38,7 @@ import {
   guidedStakeGate,
   type GuidedStep,
 } from '@/lib/guided-bet'
+import { serializePendingBet, parsePendingBet, PENDING_BET_KEY } from '@/lib/pending-bet'
 import { normalizeOutcomes, isMultiOutcome, type Outcome } from '@/lib/markets/outcomes'
 import { formatCurrency, usdToLocal } from '@/lib/currency'
 import { CURRENCIES } from '@/types'
@@ -180,6 +181,26 @@ export function GuidedBetFlow({
   const sliderMin = Math.max(1, Math.round(usdToLocal(MIN_BET_USD, preferredCurrency, rates)))
   const sliderMax = Math.max((presets[presets.length - 1] ?? 2000) * 2, balance > 0 ? Math.ceil(balance) : 2000)
 
+  // Rehydrate a bet that survived the sign-in / sign-up round-trip. A logged-out
+  // user builds the whole bet, taps Place bet, we stash it (see placeBet) and
+  // send them to auth; on return to this market we restore side/option/stake and
+  // drop them straight on Confirm — no lost work, no re-deciding. Runs once,
+  // client-only, scoped to THIS market, and clears the stash so it's single-use.
+  const restoredRef = useRef(false)
+  useEffect(() => {
+    if (restoredRef.current || typeof window === 'undefined') return
+    const raw = window.sessionStorage.getItem(PENDING_BET_KEY)
+    const pending = parsePendingBet(raw, { nowMs: Date.now(), marketId: market.id })
+    if (!pending) return
+    restoredRef.current = true
+    window.sessionStorage.removeItem(PENDING_BET_KEY)
+    setTouched(true) // keep the seeding effect from overwriting the restored stake
+    setSide(pending.side)
+    if (pending.optionId && isMulti) setSelectedOptionId(pending.optionId)
+    setAmount(String(pending.amount))
+    setStep('confirm')
+  }, [market.id, isMulti])
+
   // Seed the smallest preset so the payout preview shows immediately (endowed value).
   useEffect(() => {
     if (!touched && !amount && isOpen && presets.length > 0) setAmount(String(presets[0]))
@@ -232,7 +253,26 @@ export function GuidedBetFlow({
 
   const placeBet = async () => {
     if (!user) {
-      // Deferred auth: bet is built, now sign in and return to this market.
+      // Deferred auth: the bet is fully built. Stash it so sign-in / sign-up can
+      // rehydrate it on return (see the restore effect above), then send the
+      // user to auth with a path back to this exact market.
+      if (typeof window !== 'undefined') {
+        window.sessionStorage.setItem(
+          PENDING_BET_KEY,
+          serializePendingBet(
+            {
+              marketId: market.id,
+              slug: market.slug,
+              side,
+              optionId: isMulti ? selectedOutcome?.id : undefined,
+              amount: amountNum,
+              currency: preferredCurrency,
+              independent: indepMulti,
+            },
+            Date.now(),
+          ),
+        )
+      }
       const next = encodeURIComponent(`/markets/${market.slug}`)
       return router.push(`/auth/login?next=${next}`)
     }
