@@ -175,6 +175,11 @@ export function GuidedBetFlow({
     return guidedStakePresets(balance, minLocal)
   }, [balance, currencyInfo])
 
+  // Slider bounds for the stake control (min = market minimum, max = generous
+  // headroom above the largest chip / balance).
+  const sliderMin = Math.max(1, Math.round(usdToLocal(MIN_BET_USD, preferredCurrency, rates)))
+  const sliderMax = Math.max((presets[presets.length - 1] ?? 2000) * 2, balance > 0 ? Math.ceil(balance) : 2000)
+
   // Seed the smallest preset so the payout preview shows immediately (endowed value).
   useEffect(() => {
     if (!touched && !amount && isOpen && presets.length > 0) setAmount(String(presets[0]))
@@ -424,20 +429,26 @@ export function GuidedBetFlow({
           </div>
         )}
 
-        {/* Stake amount */}
-        <div className="mt-4">
-          <label htmlFor="guided-stake" className="mb-1.5 block text-xs font-medium text-text-secondary">
+        {/* Stake amount — big central figure + one-tap chips + fine slider */}
+        <div className="mt-5">
+          <label htmlFor="guided-stake" className="block text-center text-xs font-medium text-text-secondary">
             Your stake
           </label>
-          <input
-            id="guided-stake"
-            inputMode="decimal"
-            value={amount}
-            onChange={(e) => { setAmount(e.target.value.replace(/[^0-9.]/g, '')); setTouched(true); setError('') }}
-            placeholder={String(presets[0] ?? 100)}
-            className="w-full rounded-lg border border-hairline bg-surface px-3 py-2.5 font-display text-lg text-text-primary outline-none focus:border-pip-300"
-          />
-          <div className="mt-2 grid grid-cols-4 gap-2">
+          <div className="mt-1 flex items-baseline justify-center gap-1.5">
+            <span className="font-display text-base text-text-muted">{preferredCurrency}</span>
+            <input
+              id="guided-stake"
+              inputMode="decimal"
+              aria-label="Stake amount"
+              value={amount}
+              onChange={(e) => { setAmount(e.target.value.replace(/[^0-9.]/g, '')); setTouched(true); setError('') }}
+              placeholder={String(presets[0] ?? 100)}
+              size={Math.max(3, amount.length || 3)}
+              className="w-auto max-w-[9ch] border-0 bg-transparent p-0 text-center font-display text-4xl tracking-tight text-text-primary outline-none tabular-nums"
+            />
+          </div>
+
+          <div className="mt-4 grid grid-cols-4 gap-2">
             {presets.map((p) => (
               <button
                 key={p}
@@ -451,6 +462,17 @@ export function GuidedBetFlow({
               </button>
             ))}
           </div>
+
+          <input
+            type="range"
+            aria-label="Adjust stake"
+            min={sliderMin}
+            max={sliderMax}
+            step={sliderMin}
+            value={Math.min(Math.max(amountNum || sliderMin, sliderMin), sliderMax)}
+            onChange={(e) => { setAmount(e.target.value); setTouched(true); setError('') }}
+            className="mt-4 w-full accent-yes"
+          />
         </div>
 
         {payoutBlock}
