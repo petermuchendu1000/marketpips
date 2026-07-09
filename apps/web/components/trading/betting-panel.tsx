@@ -13,12 +13,13 @@
 //   • binary          → YES / NO pills, previewBet (Market or Limit order)
 //   • multiple_choice → option pills, previewOptionBet (Market only)
 // Pure "Pip" design system: tokens + custom icons, no emoji, no third-party set.
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/hooks/use-auth'
 import { useWallets } from '@/hooks/use-wallets'
 import { useRates } from '@/hooks/use-rates'
 import { previewBet, previewOptionBet, previewOptionBinaryBet, orderTarget, meetsMinBet, MIN_BET_USD } from '@/lib/trading'
+import { serializePendingBet, parsePendingBet, PENDING_BET_KEY } from '@/lib/pending-bet'
 import { normalizeOutcomes, isMultiOutcome, type Outcome } from '@/lib/markets/outcomes'
 import { formatCurrency, usdToLocal } from '@/lib/currency'
 import { CURRENCIES } from '@/types'
@@ -44,6 +45,13 @@ interface BettingPanelProps {
   initialSide?: 'yes' | 'no'
   /** Pre-select an option on mount (multiple_choice). */
   initialOptionId?: string
+  /**
+   * Pre-fill the stake on mount, as a string (e.g. from a bet that survived the
+   * sign-in / sign-up round-trip). The mobile sheet passes this from the stashed
+   * pending bet so the restored ticket is race-free even before localStorage
+   * is read. When set, the auto-seed of the first preset is suppressed.
+   */
+  initialAmount?: string
   /** Hide the internal option list (when a CandidateList board owns selection). */
   hideOptionList?: boolean
   /**
@@ -73,9 +81,9 @@ const CLOSED_COPY: Partial<Record<Market['status'], { label: string; body: strin
 
 // Brand-led categorical palette retained for the header breakdown / chart.
 
-export function BettingPanel({ market, options, initialSide, initialOptionId, hideOptionList, independent = false }: BettingPanelProps) {
+export function BettingPanel({ market, options, initialSide, initialOptionId, initialAmount, hideOptionList, independent = false }: BettingPanelProps) {
   const { user } = useAuth()
-  const { wallets, preferredCurrency, refreshWallets } = useWallets()
+  const { wallets, preferredCurrency, refreshWallets, isLoading: walletsLoading } = useWallets()
   const { rates } = useRates()
   const router = useRouter()
 
@@ -96,10 +104,12 @@ export function BettingPanel({ market, options, initialSide, initialOptionId, hi
   const [selectedOptionId, setSelectedOptionId] = useState<string>(
     () => (isMulti ? initialOptionId ?? outcomes[0]?.id ?? '' : ''),
   )
-  const [amount, setAmount] = useState('')
+  const [amount, setAmount] = useState(initialAmount ?? '')
   const [contracts, setContracts] = useState('')
   const [limitCents, setLimitCents] = useState('')
-  const [touched, setTouched] = useState(false)
+  // A pre-filled stake counts as a deliberate touch, so the first-preset auto-seed
+  // never clobbers a bet restored across the auth round-trip.
+  const [touched, setTouched] = useState(!!initialAmount)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [receipt, setReceipt] = useState<{
@@ -233,6 +243,53 @@ export function BettingPanel({ market, options, initialSide, initialOptionId, hi
     }
   }, [touched, amount, entryMode, isOpen, presets])
 
+  // ---- Auth round-trip continuity -------------------------------------------
+  // A logged-out user can build the whole ticket, tap the CTA, and get sent to
+  // sign-in / sign-up. We stash the bet (see goToAuth) and thread ?next back to
+  // this market. On return this effect rehydrates side / option / stake from the
+  // snapshot and flags that we owe the user a "fund & finish" nudge, so the work
+  // they did before authenticating is never lost. Runs once, client-only, scoped
+  // to THIS market. The mobile sheet is fed the same snapshot via initialAmount,
+  // so this is a no-op there (restoredRef already primed by the pre-fill).
+  const restoredRef = useRef(false)
+  const [resumePay, setResumePay] = useState(false)
+  useEffect(() => {
+    if (restoredRef.current || typeof window === 'undefined') return
+    if (initialAmount) {
+      // Mobile sheet already seeded the ticket from the snapshot; still owe the
+      // funding nudge once wallets resolve.
+      restoredRef.current = true
+      setResumePay(true)
+      return
+    }
+    const raw = window.localStorage.getItem(PENDING_BET_KEY)
+    const pending = parsePendingBet(raw, { nowMs: Date.now(), marketId: market.id })
+    if (!pending) return
+    restoredRef.current = true
+    setTouched(true) // keep the first-preset seed from overwriting the restored stake
+    setEntryMode('amount')
+    setSide(pending.side)
+    if (pending.optionId && isMulti) setSelectedOptionId(pending.optionId)
+    setAmount(String(pending.amount))
+    setResumePay(true)
+  }, [market.id, isMulti, initialAmount])
+
+  // After the round-trip, once wallets have loaded, prompt payment: if the
+  // restored stake exceeds the balance (the common case for a fresh sign-up),
+  // open the deposit sheet so the user can fund and complete the bet in one go.
+  // Otherwise the ticket is left ready on the CTA. Consumes the stash so the
+  // nudge fires once even with the desktop + mobile panels both mounted.
+  useEffect(() => {
+    if (!resumePay || !user || walletsLoading) return
+    if (typeof window !== 'undefined') {
+      window.localStorage.removeItem(PENDING_BET_KEY)
+      if (amountNum > 0 && balance < amountNum) {
+        window.dispatchEvent(new CustomEvent('marketpips:open-deposit'))
+      }
+    }
+    setResumePay(false)
+  }, [resumePay, user, walletsLoading, amountNum, balance])
+
   // Sync selection from the CandidateList board (desktop sticky ticket).
   useEffect(() => {
     if (!isMulti) return
@@ -262,8 +319,34 @@ export function BettingPanel({ market, options, initialSide, initialOptionId, hi
       : d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })
   }, [market.resolves_at, market.closes_at])
 
+  // Deferred auth: snapshot the fully-built bet into localStorage and send the
+  // user to sign-in / sign-up with a sanitized ?next back to THIS market. On
+  // return, the round-trip effect above rehydrates the ticket and prompts
+  // funding — so no stake, side, or option is ever lost at the auth gate.
+  const goToAuth = (route: '/auth/login' | '/auth/register') => {
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem(
+        PENDING_BET_KEY,
+        serializePendingBet(
+          {
+            marketId: market.id,
+            slug: market.slug,
+            side,
+            optionId: isMulti ? selectedOutcome?.id : undefined,
+            amount: amountNum,
+            currency: preferredCurrency,
+            independent: indepMulti,
+          },
+          Date.now(),
+        ),
+      )
+    }
+    const next = encodeURIComponent(`/markets/${market.slug}`)
+    router.push(`${route}?next=${next}`)
+  }
+
   const handleBet = async () => {
-    if (!user) return router.push('/auth/login')
+    if (!user) return goToAuth('/auth/login')
     if (isMulti && !selectedOutcome) return setError('Choose an option to continue.')
     if (amountNum <= 0) return setError('Enter an amount to continue.')
     if (limitInvalid) return setError('Enter a limit price between 1¢ and 99¢.')
@@ -729,7 +812,7 @@ export function BettingPanel({ market, options, initialSide, initialOptionId, hi
 
             {/* CTA */}
             {!user ? (
-              <button type="button" className="mt-4 w-full rounded-pill px-4 py-3.5 text-base font-bold text-white transition-opacity hover:opacity-90" style={{ background: 'var(--pip-500)' }} onClick={() => router.push('/auth/login')}>
+              <button type="button" className="mt-4 w-full rounded-pill px-4 py-3.5 text-base font-bold text-white transition-opacity hover:opacity-90" style={{ background: 'var(--pip-500)' }} onClick={() => goToAuth('/auth/register')}>
                 Sign up to trade
               </button>
             ) : overBalance ? (

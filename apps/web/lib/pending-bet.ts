@@ -7,7 +7,7 @@
 // module owns the DECISIONS for that hand-off:
 //
 //   • serializePendingBet — snapshot the built bet into a compact, versioned
-//                           string to stash in sessionStorage before redirect.
+//                           string to stash in localStorage before redirect.
 //   • parsePendingBet     — validate + freshness-check a stored snapshot on
 //                           return, optionally scoped to the current market, so
 //                           we only ever rehydrate a trustworthy, recent intent.
@@ -17,7 +17,7 @@
 // under vitest's `node` environment — exactly like lib/guided-bet + lib/trading.
 // ============================================================
 
-/** sessionStorage key the guided flow reads/writes for a deferred-auth bet. */
+/** localStorage key the guided flow reads/writes for a deferred-auth bet. */
 export const PENDING_BET_KEY = 'marketpips:pending-bet'
 
 /**
@@ -50,7 +50,7 @@ export interface PendingBet {
 export type PendingBetInput = Omit<PendingBet, 'v' | 'ts'>
 
 /**
- * Snapshot a built bet into a compact string for sessionStorage. `nowMs` is
+ * Snapshot a built bet into a compact string for localStorage. `nowMs` is
  * injected (not read from Date.now) so the function is pure and deterministic
  * under test.
  */

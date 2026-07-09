@@ -189,11 +189,11 @@ export function GuidedBetFlow({
   const restoredRef = useRef(false)
   useEffect(() => {
     if (restoredRef.current || typeof window === 'undefined') return
-    const raw = window.sessionStorage.getItem(PENDING_BET_KEY)
+    const raw = window.localStorage.getItem(PENDING_BET_KEY)
     const pending = parsePendingBet(raw, { nowMs: Date.now(), marketId: market.id })
     if (!pending) return
     restoredRef.current = true
-    window.sessionStorage.removeItem(PENDING_BET_KEY)
+    window.localStorage.removeItem(PENDING_BET_KEY)
     setTouched(true) // keep the seeding effect from overwriting the restored stake
     setSide(pending.side)
     if (pending.optionId && isMulti) setSelectedOptionId(pending.optionId)
@@ -257,7 +257,7 @@ export function GuidedBetFlow({
       // rehydrate it on return (see the restore effect above), then send the
       // user to auth with a path back to this exact market.
       if (typeof window !== 'undefined') {
-        window.sessionStorage.setItem(
+        window.localStorage.setItem(
           PENDING_BET_KEY,
           serializePendingBet(
             {

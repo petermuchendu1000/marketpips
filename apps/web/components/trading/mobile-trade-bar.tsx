@@ -21,6 +21,7 @@ import {
   isMultiOutcome,
   favoriteOutcome,
 } from '@/lib/markets/outcomes'
+import { parsePendingBet, PENDING_BET_KEY } from '@/lib/pending-bet'
 import type { Market, MarketOption } from '@/types'
 import { IconX, IconArrowRight } from '@/components/ui/icons'
 
@@ -42,6 +43,11 @@ export function MobileTradeBar({
   // the entry tap captures the real decision (not a hollow "Trade" gateway).
   const [pendingSide, setPendingSide] = useState<'yes' | 'no'>('yes')
   const [pendingOptionId, setPendingOptionId] = useState<string | undefined>(undefined)
+  // A stake restored from a bet that survived the sign-in / sign-up round-trip.
+  // When present the sheet auto-opens on return so a phone user sees their
+  // rebuilt ticket (and gets the funding prompt) instead of a bare bar.
+  const [resumedAmount, setResumedAmount] = useState<string | undefined>(undefined)
+  const resumedRef = useRef(false)
   const sheetRef = useRef<HTMLDivElement>(null)
   const lastFocused = useRef<HTMLElement | null>(null)
   const dragStartY = useRef<number | null>(null)
@@ -91,6 +97,26 @@ export function MobileTradeBar({
     }
     window.addEventListener('marketpips:select-option', onSelect as EventListener)
     return () => window.removeEventListener('marketpips:select-option', onSelect as EventListener)
+  }, [market.id])
+
+  // On return from the auth gate, rehydrate the stashed bet and auto-open the
+  // sheet so a phone user lands back on their rebuilt ticket. Mobile-only: on
+  // desktop the sticky sidebar ticket owns the restore, and opening this
+  // (hidden) sheet would needlessly lock body scroll.
+  useEffect(() => {
+    if (resumedRef.current || typeof window === 'undefined') return
+    const isMobile = window.matchMedia('(max-width: 1023.98px)').matches
+    if (!isMobile) return
+    const pending = parsePendingBet(window.localStorage.getItem(PENDING_BET_KEY), {
+      nowMs: Date.now(),
+      marketId: market.id,
+    })
+    if (!pending) return
+    resumedRef.current = true
+    setPendingSide(pending.side)
+    if (pending.optionId) setPendingOptionId(pending.optionId)
+    setResumedAmount(String(pending.amount))
+    setOpen(true)
   }, [market.id])
 
   // Open/close side effects: body-scroll lock, focus management, Esc-to-close.
@@ -243,6 +269,7 @@ export function MobileTradeBar({
                     options={options}
                     initialSide={pendingSide}
                     initialOptionId={pendingOptionId}
+                    initialAmount={resumedAmount}
                     independent={independent}
                   />
                 )}
