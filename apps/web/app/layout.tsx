@@ -6,6 +6,7 @@ import { getLocale, getMessages } from 'next-intl/server'
 import { Navbar } from '@/components/layout/navbar'
 import { SiteFooter } from '@/components/layout/site-footer'
 import { Providers } from '@/components/layout/providers'
+import { ThemeProvider } from '@/components/layout/theme-provider'
 import { WebVitals } from '@/components/perf/web-vitals'
 import { ServiceWorkerRegister } from '@/components/perf/service-worker-register'
 
@@ -87,23 +88,28 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   const messages = await getMessages()
 
   return (
-    <html lang={locale} className="dark" suppressHydrationWarning>
+    <html lang={locale} suppressHydrationWarning>
       <body className={`${hanken.variable} ${plexMono.variable} antialiased`}>
         {/* Skip-to-content: first focusable element, visible on keyboard focus (WCAG 2.4.1). */}
         <a href="#main-content" className="skip-link">
           Skip to main content
         </a>
-        <NextIntlClientProvider locale={locale} messages={messages}>
-          <Providers>
-            <Navbar />
-            <main id="main-content" tabIndex={-1}>
-              {children}
-            </main>
-            <SiteFooter />
-            <WebVitals />
-            <ServiceWorkerRegister />
-          </Providers>
-        </NextIntlClientProvider>
+        {/* ThemeProvider (next-themes) sets the `dark` class on <html> before
+            paint — defaultTheme="dark" keeps the institutional look for new
+            visitors while letting the navbar toggle switch to light. */}
+        <ThemeProvider>
+          <NextIntlClientProvider locale={locale} messages={messages}>
+            <Providers>
+              <Navbar />
+              <main id="main-content" tabIndex={-1}>
+                {children}
+              </main>
+              <SiteFooter />
+              <WebVitals />
+              <ServiceWorkerRegister />
+            </Providers>
+          </NextIntlClientProvider>
+        </ThemeProvider>
       </body>
     </html>
   )

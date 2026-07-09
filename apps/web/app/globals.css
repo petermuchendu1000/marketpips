@@ -10,6 +10,8 @@
    ============================================================ */
 @layer base {
   :root {
+    /* Native UI (scrollbars, form controls, autofill) tracks the theme. */
+    color-scheme: light;
     /* ---- Neutrals — Slate ---- */
     --ink-950:#0A0C10; --ink-900:#111419; --ink-800:#1A1F27; --ink-700:#2A303B;
     --ink-600:#3C4453; --ink-500:#5A6473; --ink-400:#808A99; --ink-300:#AAB2BF;
@@ -87,6 +89,7 @@
   }
 
   .dark {
+    color-scheme: dark;
     --bg:var(--ink-950); --surface:var(--ink-900); --surface-2:var(--ink-800);
     --elevated:var(--ink-800);
     --text:#F3F5F8; --text-2:var(--ink-300); --text-3:var(--ink-400);

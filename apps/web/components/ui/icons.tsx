@@ -160,3 +160,9 @@ export const IconBriefcase  = icon(<><rect x="3" y="7.5" width="18" height="12" 
 export const IconActivity   = icon(<><path d="M3 12h4l2.5-7 5 14L17 12h4"/></>)
 export const IconLink       = icon(<><path d="M10 13a4 4 0 005.7 0l2.6-2.6a4 4 0 00-5.7-5.7L11 6.3"/><path d="M14 11a4 4 0 00-5.7 0l-2.6 2.6a4 4 0 005.7 5.7L13 17.7"/></>)
 export const IconAlertTriangle = icon(<><path d="M12 4l9 15.5H3L12 4z"/><path d="M12 10v4M12 17.5v.01"/></>)
+
+// Theme glyphs — same 24px grid + 1.75 stroke as the rest of the set. The sun's
+// rays are a single stroked star so it reads crisply at 16–18px; the moon is a
+// clean waxing crescent (no notch artifacts) for the dark-mode affordance.
+export const IconSun  = icon(<><circle cx="12" cy="12" r="4"/><path d="M12 2.5v2.5M12 19v2.5M4.6 4.6l1.8 1.8M17.6 17.6l1.8 1.8M2.5 12H5M19 12h2.5M4.6 19.4l1.8-1.8M17.6 6.4l1.8-1.8"/></>)
+export const IconMoon = icon(<><path d="M20 14.5A8 8 0 019.5 4a1 1 0 00-1.3-1.2A9 9 0 1021.2 15.8 1 1 0 0020 14.5z"/></>)

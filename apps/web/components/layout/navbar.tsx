@@ -14,6 +14,7 @@ import {
   IconSettings, IconLogOut, IconLeaderboard, IconShield,
   IconMarkets, IconChevronDown, IconTrophy,
 } from '@/components/ui/icons'
+import { ThemeToggle } from '@/components/ui/theme-toggle'
 
 export function Navbar() {
   const pathname = usePathname()
@@ -131,6 +132,9 @@ export function Navbar() {
             >
               <IconSearch size={18} className="text-[var(--text-secondary)]" />
             </button>
+
+            {/* Light/dark switch — always available (guests + members). */}
+            <ThemeToggle />
 
             {!loading && (
               <>
