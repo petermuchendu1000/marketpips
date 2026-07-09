@@ -8,6 +8,7 @@ import { createClient } from '@/lib/supabase/client'
 import { AuthShell } from '@/components/auth/auth-shell'
 import { PasswordInput } from '@/components/auth/password-input'
 import { LogoMark, IconShield, IconArrowRight, IconCheck } from '@/components/ui/icons'
+import { safeRedirectPath } from '@/lib/security/sanitize'
 
 const COUNTRIES = [
   { code: 'KE', name: 'Kenya', currency: 'KES' },
@@ -57,6 +58,14 @@ export default function RegisterPage() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [done, setDone] = useState(false)
+  // Preserve the pre-auth destination (e.g. an in-progress bet's market) so the
+  // account flow returns there — through both the instant-session path and the
+  // email-confirmation callback — instead of the landing page.
+  const [next] = useState(() =>
+    typeof window !== 'undefined'
+      ? new URLSearchParams(window.location.search).get('next') ?? ''
+      : '',
+  )
 
   const strength = useMemo(() => scorePassword(password), [password])
   const canSubmit =
@@ -68,7 +77,13 @@ export default function RegisterPage() {
     setError('')
     setLoading(true)
 
-    const { error } = await supabase.auth.signUp({
+    // Thread the return path through email confirmation: the callback reads
+    // ?next and redirects there after exchanging the code for a session.
+    const safeNext = safeRedirectPath(next)
+    const callbackUrl = new URL('/auth/callback', window.location.origin)
+    if (safeNext !== '/') callbackUrl.searchParams.set('next', safeNext)
+
+    const { data, error } = await supabase.auth.signUp({
       email,
       password,
       options: {
@@ -78,13 +93,17 @@ export default function RegisterPage() {
           preferred_currency: COUNTRIES.find((c) => c.code === country)?.currency ?? 'KES',
           referral_code_used: refCode || null,
         },
-        emailRedirectTo: `${window.location.origin}/auth/callback`,
+        emailRedirectTo: callbackUrl.toString(),
       },
     })
 
     if (error) {
       setError(error.message)
       setLoading(false)
+    } else if (data.session) {
+      // Email confirmation disabled → session is live now; return immediately.
+      router.push(safeNext)
+      router.refresh()
     } else {
       setDone(true)
     }
@@ -105,7 +124,10 @@ export default function RegisterPage() {
             We sent a confirmation link to <strong className="text-text-primary">{email}</strong>.
             Click it to activate your account.
           </p>
-          <Link href="/auth/login" className="btn btn-secondary mt-6 w-full">
+          <Link
+            href={next ? `/auth/login?next=${encodeURIComponent(next)}` : '/auth/login'}
+            className="btn btn-secondary mt-6 w-full"
+          >
             Go to sign in
           </Link>
         </div>
@@ -256,7 +278,10 @@ export default function RegisterPage() {
 
       <p className="mt-5 text-center text-sm text-text-muted">
         Already have an account?{' '}
-        <Link href="/auth/login" className="font-semibold text-pip-500 hover:underline">
+        <Link
+          href={next ? `/auth/login?next=${encodeURIComponent(next)}` : '/auth/login'}
+          className="font-semibold text-pip-500 hover:underline"
+        >
           Sign in
         </Link>
       </p>

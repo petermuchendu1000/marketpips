@@ -2,11 +2,13 @@
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { NextRequest, NextResponse } from 'next/server'
+import { safeRedirectPath } from '@/lib/security/sanitize'
 
 export async function GET(request: NextRequest) {
   const { searchParams, origin } = new URL(request.url)
   const code = searchParams.get('code')
-  const next = searchParams.get('next') ?? '/'
+  // Sanitize the return path — never trust ?next for an open redirect.
+  const next = safeRedirectPath(searchParams.get('next'))
   const error = searchParams.get('error')
 
   if (error) {

@@ -8,6 +8,7 @@ import { createClient } from '@/lib/supabase/client'
 import { AuthShell } from '@/components/auth/auth-shell'
 import { PasswordInput } from '@/components/auth/password-input'
 import { LogoMark, IconShield, IconArrowRight } from '@/components/ui/icons'
+import { safeRedirectPath } from '@/lib/security/sanitize'
 
 export default function LoginPage() {
   const router = useRouter()
@@ -16,6 +17,14 @@ export default function LoginPage() {
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  // Where the user was headed before hitting the sign-in gate (e.g. a market
+  // they were betting on). Read once on mount; sanitized against open redirects
+  // at push time so we return them there instead of the landing page.
+  const [next] = useState(() =>
+    typeof window !== 'undefined'
+      ? new URLSearchParams(window.location.search).get('next') ?? ''
+      : '',
+  )
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -26,7 +35,7 @@ export default function LoginPage() {
       setError(error.message)
       setLoading(false)
     } else {
-      router.push('/')
+      router.push(safeRedirectPath(next))
       router.refresh()
     }
   }
@@ -109,7 +118,10 @@ export default function LoginPage() {
 
       <p className="mt-6 text-center text-sm text-text-muted">
         No account?{' '}
-        <Link href="/auth/register" className="font-semibold text-pip-500 hover:underline">
+        <Link
+          href={next ? `/auth/register?next=${encodeURIComponent(next)}` : '/auth/register'}
+          className="font-semibold text-pip-500 hover:underline"
+        >
           Create one free
         </Link>
       </p>
