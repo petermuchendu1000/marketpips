@@ -97,6 +97,10 @@ export function SearchView() {
   const [loading, setLoading] = useState(false)
 
   const [trending, setTrending] = useState<MarketRow[]>([])
+  // Starts true so the pre-query scaffold reserves the trending grid's height
+  // (6 skeletons) on the server-rendered paint — the real cards then swap in at
+  // the same size, so the late fetch causes no layout shift (CLS budget <=0.1).
+  const [trendingLoading, setTrendingLoading] = useState(true)
   const [recent, setRecent] = useState<string[]>([])
 
   const debouncedQuery = useDebounce(query, 280)
@@ -134,6 +138,7 @@ export function SearchView() {
       .then((r) => r.json())
       .then((j) => setTrending(Array.isArray(j.data) ? j.data : []))
       .catch(() => {})
+      .finally(() => setTrendingLoading(false))
     return () => controller.abort()
   }, [])
 
@@ -174,6 +179,15 @@ export function SearchView() {
 
   // Results fetch (debounced query + facets).
   useEffect(() => {
+    // When the pre-query scaffold owns the view (no query + "All" category),
+    // skip the empty-query fetch entirely. This keeps `loading` false so the
+    // scaffold never unmounts on a loading flip — the primary CLS guard.
+    if (debouncedQuery.trim().length === 0 && category === 'all') {
+      setLoading(false)
+      setMarkets([])
+      setTotal(0)
+      return
+    }
     const controller = new AbortController()
     const run = async () => {
       setLoading(true)
@@ -288,7 +302,7 @@ export function SearchView() {
       </div>
 
       {/* Pre-query scaffold: recent + trending */}
-      {showScaffold && !loading && (
+      {showScaffold && (
         <div className="mt-6 space-y-6">
           {recent.length > 0 && (
             <section>
@@ -319,20 +333,22 @@ export function SearchView() {
             </section>
           )}
 
-          {trending.length > 0 && (
+          {(trendingLoading || trending.length > 0) && (
             <section>
               <h2 className="mb-3 flex items-center gap-1.5 text-sm font-semibold" style={{ color: 'var(--text-secondary)' }}>
                 <IconFire size={14} /> Trending now
               </h2>
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                {trending.map((m) => (
-                  <MarketCard
-                    key={m.id}
-                    market={m}
-                    leadingOption={m.leading_option}
-                    optionCount={m.option_count ?? undefined}
-                  />
-                ))}
+                {trendingLoading
+                  ? Array.from({ length: 6 }).map((_, i) => <MarketCardSkeleton key={i} />)
+                  : trending.map((m) => (
+                      <MarketCard
+                        key={m.id}
+                        market={m}
+                        leadingOption={m.leading_option}
+                        optionCount={m.option_count ?? undefined}
+                      />
+                    ))}
               </div>
             </section>
           )}
