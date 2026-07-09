@@ -8,10 +8,11 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { Market } from '@/types'
 import { CATEGORY_LABELS } from '@/types'
 import { SEARCH_SORTS, SEARCH_STATUSES } from '@/lib/search'
-import { MarketCard, MarketCardSkeleton, type CardLeadingOption } from '@/components/markets/market-card'
+import { MarketCard, MarketCardSkeleton } from '@/components/markets/market-card'
+import type { CardOption } from '@/lib/markets/card-options'
 
-/** Search rows may carry the multiple_choice front-runner (see /api/search). */
-type MarketRow = Market & { leading_option?: CardLeadingOption; option_count?: number | null }
+/** Search rows may carry the multiple_choice top options (see /api/search). */
+type MarketRow = Market & { options?: CardOption[]; option_count?: number | null }
 import {
   IconSearch,
   IconX,
@@ -345,7 +346,7 @@ export function SearchView() {
                       <MarketCard
                         key={m.id}
                         market={m}
-                        leadingOption={m.leading_option}
+                        options={m.options}
                         optionCount={m.option_count ?? undefined}
                       />
                     ))}
@@ -393,7 +394,7 @@ export function SearchView() {
                 key={m.id}
                 market={m}
                 query={debouncedQuery}
-                leadingOption={m.leading_option}
+                options={m.options}
                 optionCount={m.option_count ?? undefined}
               />
             ))}

@@ -166,3 +166,7 @@ export const IconAlertTriangle = icon(<><path d="M12 4l9 15.5H3L12 4z"/><path d=
 // clean waxing crescent (no notch artifacts) for the dark-mode affordance.
 export const IconSun  = icon(<><circle cx="12" cy="12" r="4"/><path d="M12 2.5v2.5M12 19v2.5M4.6 4.6l1.8 1.8M17.6 17.6l1.8 1.8M2.5 12H5M19 12h2.5M4.6 19.4l1.8-1.8M17.6 6.4l1.8-1.8"/></>)
 export const IconMoon = icon(<><path d="M20 14.5A8 8 0 019.5 4a1 1 0 00-1.3-1.2A9 9 0 1021.2 15.8 1 1 0 0020 14.5z"/></>)
+
+// Bookmark (watchlist affordance on the market card footer) — same 24px grid
+// and 1.75 stroke as the rest of the set; a clean tag with the notched foot.
+export const IconBookmark = icon(<><path d="M6 4.5h12a1 1 0 011 1V20l-7-4-7 4V5.5a1 1 0 011-1z"/></>)

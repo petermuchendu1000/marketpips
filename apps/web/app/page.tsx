@@ -2,7 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import { HeroSection } from '@/components/layout/hero-section'
 import { MarketCard } from '@/components/markets/market-card'
 import { MarketsTicker } from '@/components/markets/markets-ticker'
-import { getLeadingOptions, type LeadingOption } from '@/lib/markets/leading-options'
+import { getCardOptions, type CardOption } from '@/lib/markets/card-options'
 import type { Market, MarketCategory } from '@/types'
 import {
   IconArrowRight, IconShield, IconCheck, IconTrendUp, IconWallet,
@@ -50,7 +50,7 @@ async function getData() {
   const multiIds = Array.from(
     new Set(allShown.filter((m) => m.resolution_type === 'multiple_choice').map((m) => m.id)),
   )
-  const { leadByMarket, countByMarket } = await getLeadingOptions(supabase, multiIds)
+  const { topByMarket, countByMarket } = await getCardOptions(supabase, multiIds)
 
   return {
     featured: featuredList,
@@ -58,7 +58,7 @@ async function getData() {
     recent: recentList,
     activeCount: active.count ?? 0,
     totalVolume,
-    leadByMarket,
+    topByMarket,
     countByMarket,
   }
 }
@@ -70,14 +70,17 @@ function fmtCompact(n: number) {
 }
 
 export default async function HomePage() {
-  const { featured, trending, recent, activeCount, totalVolume, leadByMarket, countByMarket } =
+  const { featured, trending, recent, activeCount, totalVolume, topByMarket, countByMarket } =
     await getData()
 
-  // Card props for a market: front-runner + option count for multiple choice.
-  const cardExtras = (m: Market): { leadingOption?: LeadingOption; optionCount?: number } => ({
-    leadingOption: leadByMarket.get(m.id),
-    optionCount: countByMarket.get(m.id),
-  })
+  // Card props for a market: top options (grid rows) + a single front-runner
+  // (the hero card) + option count, all for multiple_choice markets.
+  const cardExtras = (
+    m: Market,
+  ): { options?: CardOption[]; leadingOption?: CardOption; optionCount?: number } => {
+    const top = topByMarket.get(m.id)
+    return { options: top, leadingOption: top?.[0], optionCount: countByMarket.get(m.id) }
+  }
 
   const tickerMarkets = [...trending, ...recent]
     .filter((m, i, arr) => arr.findIndex(x => x.id === m.id) === i)
@@ -99,7 +102,10 @@ export default async function HomePage() {
         featured={featured[0] ?? trending[0] ?? recent[0] ?? null}
         {...(() => {
           const hero = featured[0] ?? trending[0] ?? recent[0] ?? null
-          return hero ? cardExtras(hero) : {}
+          if (!hero) return {}
+          // The bespoke hero card takes only the single front-runner.
+          const { leadingOption, optionCount } = cardExtras(hero)
+          return { leadingOption, optionCount }
         })()}
       />
 

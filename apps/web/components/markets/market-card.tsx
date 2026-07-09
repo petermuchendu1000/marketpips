@@ -1,12 +1,32 @@
 'use client'
 
+// components/markets/market-card.tsx
+// ------------------------------------------------------------
+// The canonical market card (Polymarket-style). Three shapes, one component:
+//
+//   • multiple_choice → candidate ROWS: "<avatar> Label   NN%   [Yes] [No]".
+//   • binary          → a semicircular probability GAUGE + two big buttons.
+//   • up/down (crypto)→ the binary shape with Up/Down labels + a LIVE badge
+//                       (metadata.card_kind === 'up_down'; see the BTC engine).
+//
+// Interaction model (matches Polymarket): the whole card is a link to the
+// market detail page via a full-bleed overlay <Link>; the Yes/No/Up/Down
+// controls sit above it and deep-link to the SAME detail page with the betting
+// ticket pre-armed to that side (and candidate) via ?side=&option=. Nested
+// anchors are invalid, so content is pointer-events-none and only the controls
+// opt back in with pointer-events-auto.
 import Link from 'next/link'
 import type { Market } from '@/types'
 import { CATEGORY_LABELS } from '@/types'
 import { splitHighlight } from '@/lib/search'
-import { IconClock, IconUser, IconTrendUp, CategoryIcon } from '@/components/ui/icons'
+import {
+  IconClock, IconUser, IconTrendUp, IconArrowUp, IconArrowDown,
+  IconBookmark, CategoryIcon,
+} from '@/components/ui/icons'
 import { EntityAvatar } from '@/components/ui/entity-avatar'
+import type { CardOption } from '@/lib/markets/card-options'
 
+/** @deprecated superseded by `options`; kept so older callers still compile. */
 export interface CardLeadingOption {
   label: string
   price: number
@@ -17,9 +37,12 @@ interface MarketCardProps {
   compact?: boolean
   /** When set, matching query tokens in the title are highlighted (search UI). */
   query?: string
-  /** For multiple_choice markets: the current front-runner + total option count. */
-  leadingOption?: CardLeadingOption
+  /** multiple_choice: the top candidates (highest probability first). */
+  options?: CardOption[]
+  /** Total option count (drives the "+N more" affordance). */
   optionCount?: number
+  /** @deprecated single front-runner fallback when `options` isn't supplied. */
+  leadingOption?: CardLeadingOption
 }
 
 /** Render a title, highlighting query-token matches with a brand-tinted mark. */
@@ -29,11 +52,7 @@ function TitleContent({ title, query }: { title: string; query?: string }) {
     <>
       {splitHighlight(title, query).map((seg, i) =>
         seg.match ? (
-          <mark
-            key={i}
-            className="rounded-[3px] px-0.5"
-            style={{ background: 'var(--pip-100)', color: 'inherit' }}
-          >
+          <mark key={i} className="rounded-[3px] px-0.5" style={{ background: 'var(--pip-100)', color: 'inherit' }}>
             {seg.text}
           </mark>
         ) : (
@@ -52,141 +71,221 @@ function timeLeft(closes: string) {
   if (d > 0) return `${d}d ${h}h`
   const m = Math.floor((ms % 3600000) / 60000)
   if (h > 0) return `${h}h ${m}m`
-  return `${m}m`
+  const s = Math.floor((ms % 60000) / 1000)
+  if (m > 0) return `${m}m ${s}s`
+  return `${s}s`
+}
+
+/** Semicircular probability gauge (binary / up-down header). */
+function ProbGauge({ pct, label }: { pct: number; label: string }) {
+  const clamped = Math.max(0, Math.min(100, Math.round(pct)))
+  const R = 26
+  const semi = Math.PI * R
+  const dash = (clamped / 100) * semi
+  return (
+    <div className="relative flex-none" style={{ width: 66, height: 40 }} aria-hidden>
+      <svg width="66" height="36" viewBox="0 0 66 36" fill="none">
+        <path d="M7 31 A26 26 0 0 1 59 31" stroke="var(--hairline)" strokeWidth={6} strokeLinecap="round" />
+        <path
+          d="M7 31 A26 26 0 0 1 59 31"
+          stroke="var(--yes)"
+          strokeWidth={6}
+          strokeLinecap="round"
+          strokeDasharray={`${dash} ${semi}`}
+        />
+      </svg>
+      <div className="absolute inset-x-0 top-[11px] text-center leading-none">
+        <div className="font-mono text-[15px] font-bold" style={{ color: 'var(--text)' }}>{clamped}%</div>
+        <div className="mt-0.5 text-[10px] font-semibold uppercase tracking-wide" style={{ color: 'var(--text-3)' }}>{label}</div>
+      </div>
+    </div>
+  )
 }
 
 export function MarketCard({
   market,
   compact = false,
   query,
-  leadingOption,
+  options,
   optionCount,
+  leadingOption,
 }: MarketCardProps) {
   const cat = CATEGORY_LABELS[market.category] ?? { emoji: '', label: 'Other', color: '' }
   const yesPct = Math.round(market.yes_price * 100)
-  const noPct = 100 - yesPct
-  const isMulti = market.resolution_type === 'multiple_choice' && !!leadingOption
-  const leadPct = leadingOption ? Math.round(leadingOption.price * 100) : 0
-  const isClosingSoon = new Date(market.closes_at).getTime() - Date.now() < 86400000 * 2
+  const isMulti = market.resolution_type === 'multiple_choice'
+
+  // up/down crypto windows carry card_kind + a Up/Down label pair in metadata.
+  const meta = (market.metadata ?? {}) as Record<string, unknown>
+  const isUpDown = meta.card_kind === 'up_down'
+  const yesLabel = isUpDown ? String(meta.yes_label ?? 'Up') : 'Yes'
+  const noLabel = isUpDown ? String(meta.no_label ?? 'Down') : 'No'
+  const isLive = isUpDown && market.status === 'active'
+
+  const detailHref = `/markets/${market.slug}`
+  const sideHref = (side: 'yes' | 'no', optionId?: string) =>
+    `${detailHref}?side=${side}${optionId ? `&option=${optionId}` : ''}`
+
+  // Candidate rows for multi markets (top options, with a single-option fallback).
+  const rows: CardOption[] =
+    options && options.length > 0
+      ? options
+      : leadingOption
+        ? [{ id: '', label: leadingOption.label, price: leadingOption.price, imageUrl: null }]
+        : []
+  const moreCount = (optionCount ?? rows.length) - rows.length
+
+  const avatarSize = compact ? 26 : 34
 
   return (
-    <Link href={`/markets/${market.slug}`} className="market-card group block" aria-label={market.title}>
-      {/* Top row: category + time */}
-      <div className="flex items-center justify-between mb-3">
-        <span className="badge badge-muted gap-1.5">
-          <CategoryIcon category={market.category} size={12} />
-          <span>{cat.label}</span>
-        </span>
-        <span
-          className={`flex items-center gap-1 text-[11px] font-medium ${
-            isClosingSoon ? 'text-amber-light' : ''
-          }`}
-          style={{ color: isClosingSoon ? 'var(--amber)' : 'var(--text-muted)' }}
-        >
-          <IconClock size={11} />
-          {timeLeft(market.closes_at)}
-        </span>
-      </div>
+    <div className="market-card group relative flex flex-col gap-3" data-kind={isUpDown ? 'up-down' : market.resolution_type}>
+      {/* Full-bleed overlay: click anywhere (outside the controls) → detail. */}
+      <Link href={detailHref} className="absolute inset-0 z-0 rounded-[inherit]" aria-label={market.title} />
 
-      {/* Title with entity avatar */}
-      <div className="mb-3 flex items-start gap-2.5">
-        <EntityAvatar
-          name={market.title}
-          imageUrl={market.cover_image_url}
-          size={compact ? 28 : 36}
-          className="mt-0.5"
-        />
+      {/* Header: avatar + title, with a gauge on binary/up-down markets. */}
+      <div className="pointer-events-none relative z-10 flex items-start gap-2.5">
+        {!isUpDown && (
+          <EntityAvatar name={market.title} imageUrl={market.cover_image_url} size={avatarSize} className="mt-0.5" />
+        )}
+        {isUpDown && (
+          <span
+            className="mt-0.5 flex flex-none items-center justify-center rounded-md font-bold text-white"
+            style={{ width: avatarSize, height: avatarSize, background: '#F7931A', fontSize: avatarSize * 0.5 }}
+            aria-hidden
+          >
+            ₿
+          </span>
+        )}
         <h3
-          className={`font-semibold leading-snug transition-colors group-hover:text-[var(--pip-text)] ${
-            compact ? 'text-sm line-clamp-2' : 'text-[15px] line-clamp-3'
-          }`}
+          className={`min-w-0 flex-1 font-semibold leading-snug ${compact ? 'text-sm line-clamp-2' : 'text-[15px] line-clamp-2'}`}
           style={{ color: 'var(--text-primary)' }}
         >
           <TitleContent title={market.title} query={query} />
         </h3>
+        {!isMulti && <ProbGauge pct={yesPct} label={yesLabel} />}
       </div>
 
-      {/* Probability bar — leading option for multiple choice, YES/NO for binary */}
+      {/* Body */}
       {isMulti ? (
-        <div className="mb-3">
-          <div className="flex items-center justify-between gap-2 mb-1.5">
-            <span className="min-w-0 flex items-center gap-1.5">
-              <span className="text-xs font-bold" style={{ color: 'var(--pip-text)' }}>{leadPct}%</span>
-              <span className="truncate text-[11px]" style={{ color: 'var(--text-secondary)' }}>
-                {leadingOption!.label}
-              </span>
-            </span>
-            {optionCount ? (
-              <span className="flex-none text-[11px]" style={{ color: 'var(--text-muted)' }}>
-                {optionCount} options
-              </span>
-            ) : null}
-          </div>
-          <div className="prob-bar">
-            <div
-              className="prob-bar-fill"
-              style={{ width: `${leadPct}%`, background: 'var(--pip-500)' }}
-            />
-          </div>
+        <div className="relative z-10 flex flex-col">
+          {rows.map((o, i) => {
+            const pct = Math.round(o.price * 100)
+            return (
+              <div
+                key={o.id || `${o.label}-${i}`}
+                className="flex items-center gap-2.5 py-2"
+                style={{ borderTop: i === 0 ? 'none' : '1px solid var(--hairline)' }}
+              >
+                <span className="pointer-events-none flex min-w-0 flex-1 items-center gap-2">
+                  <EntityAvatar name={o.label} imageUrl={o.imageUrl} size={22} shape="circle" />
+                  <span className="truncate text-[13px] font-medium" style={{ color: 'var(--text)' }}>{o.label}</span>
+                </span>
+                <span className="pointer-events-none font-mono text-[13px] font-bold tabular-nums" style={{ color: 'var(--text)' }}>
+                  {pct}%
+                </span>
+                <span className="flex flex-none gap-1.5">
+                  <Link
+                    href={sideHref('yes', o.id || undefined)}
+                    className="btn btn-yes btn-sm pointer-events-auto px-3"
+                    aria-label={`Buy Yes on ${o.label}`}
+                  >
+                    {yesLabel}
+                  </Link>
+                  <Link
+                    href={sideHref('no', o.id || undefined)}
+                    className="btn btn-no btn-sm pointer-events-auto px-3"
+                    aria-label={`Buy No on ${o.label}`}
+                  >
+                    {noLabel}
+                  </Link>
+                </span>
+              </div>
+            )
+          })}
+          {moreCount > 0 && (
+            <div className="pointer-events-none pt-1.5 text-[12px] font-medium" style={{ color: 'var(--text-3)' }}>
+              +{moreCount} more {moreCount === 1 ? 'option' : 'options'}
+            </div>
+          )}
         </div>
       ) : (
-        <div className="mb-3">
-          <div className="flex items-center justify-between mb-1.5">
-            <div className="flex items-center gap-1.5">
-              <span className="text-xs font-bold price-yes">{yesPct}%</span>
-              <span className="text-[11px]" style={{ color: 'var(--text-muted)' }}>Yes</span>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <span className="text-[11px]" style={{ color: 'var(--text-muted)' }}>No</span>
-              <span className="text-xs font-bold price-no">{noPct}%</span>
-            </div>
-          </div>
-          <div className="prob-bar">
-            <div className="prob-bar-fill" style={{ width: `${yesPct}%` }} />
-          </div>
+        <div className="relative z-10 grid grid-cols-2 gap-2">
+          <Link
+            href={sideHref('yes')}
+            className="btn btn-yes pointer-events-auto w-full justify-center gap-1.5 py-3 text-sm"
+            aria-label={`Buy ${yesLabel}`}
+          >
+            {isUpDown && <IconArrowUp size={16} />} {yesLabel}
+          </Link>
+          <Link
+            href={sideHref('no')}
+            className="btn btn-no pointer-events-auto w-full justify-center gap-1.5 py-3 text-sm"
+            aria-label={`Buy ${noLabel}`}
+          >
+            {isUpDown && <IconArrowDown size={16} />} {noLabel}
+          </Link>
         </div>
       )}
 
-      {/* Bottom row: volume + bettors */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <span className="flex items-center gap-1 text-[11px]" style={{ color: 'var(--text-muted)' }}>
-            <IconTrendUp size={11} />
-            ${market.total_volume_usd.toLocaleString(undefined, { maximumFractionDigits: 0 })}
-          </span>
-          <span className="flex items-center gap-1 text-[11px]" style={{ color: 'var(--text-muted)' }}>
+      {/* Footer: LIVE/vol/time on the left, bettors + bookmark on the right. */}
+      <div
+        className="pointer-events-none relative z-10 mt-auto flex items-center justify-between pt-1"
+        style={{ borderTop: '1px solid var(--hairline)' }}
+      >
+        <div className="flex items-center gap-2 pt-2 text-[11px]" style={{ color: 'var(--text-muted)' }}>
+          {isLive ? (
+            <>
+              <span className="flex items-center gap-1 font-semibold" style={{ color: 'var(--no)' }}>
+                <span className="inline-block h-1.5 w-1.5 rounded-full" style={{ background: 'var(--no)' }} />
+                LIVE
+              </span>
+              <span aria-hidden>·</span>
+              <span>{timeLeft(market.closes_at)} left</span>
+            </>
+          ) : (
+            <>
+              <span className="flex items-center gap-1">
+                <IconTrendUp size={11} />
+                ${market.total_volume_usd.toLocaleString(undefined, { maximumFractionDigits: 0 })} Vol.
+              </span>
+              <span aria-hidden>·</span>
+              <span className="flex items-center gap-1">
+                <IconClock size={11} />
+                {timeLeft(market.closes_at)}
+              </span>
+            </>
+          )}
+        </div>
+        <div className="flex items-center gap-2.5 pt-2" style={{ color: 'var(--text-muted)' }}>
+          <span className="flex items-center gap-1 text-[11px]">
             <IconUser size={11} />
             {market.unique_bettors.toLocaleString()}
           </span>
+          <IconBookmark size={14} />
         </div>
-
-        {/* Status badge */}
-        {market.status === 'resolved' ? (
-          <span className="badge badge-muted">Resolved</span>
-        ) : market.status === 'closed' ? (
-          <span className="badge badge-amber">Pending</span>
-        ) : market.is_featured ? (
-          <span className="badge" style={{ background: 'var(--pip-100)', color: 'var(--pip-text)' }}>Featured</span>
-        ) : null}
       </div>
-    </Link>
+    </div>
   )
 }
 
-// Skeleton loader
+// Skeleton loader — matches the card's header + body + footer rhythm so the
+// grid reserves the right height (no CLS when real cards swap in).
 export function MarketCardSkeleton() {
   return (
-    <div className="card p-4 space-y-3">
-      <div className="flex justify-between">
-        <div className="skeleton h-5 w-20 rounded-full" />
-        <div className="skeleton h-5 w-12 rounded-full" />
+    <div className="market-card flex flex-col gap-3">
+      <div className="flex items-start gap-2.5">
+        <div className="skeleton h-8 w-8 flex-none rounded-md" />
+        <div className="flex-1 space-y-1.5">
+          <div className="skeleton h-4 w-full rounded" />
+          <div className="skeleton h-4 w-2/3 rounded" />
+        </div>
       </div>
-      <div className="skeleton h-4 w-full rounded" />
-      <div className="skeleton h-4 w-3/4 rounded" />
-      <div className="skeleton h-2 w-full rounded-full mt-2" />
-      <div className="flex justify-between mt-2">
-        <div className="skeleton h-4 w-16 rounded" />
-        <div className="skeleton h-4 w-12 rounded" />
+      <div className="grid grid-cols-2 gap-2">
+        <div className="skeleton h-11 rounded-lg" />
+        <div className="skeleton h-11 rounded-lg" />
+      </div>
+      <div className="flex justify-between pt-2">
+        <div className="skeleton h-3 w-24 rounded" />
+        <div className="skeleton h-3 w-10 rounded" />
       </div>
     </div>
   )

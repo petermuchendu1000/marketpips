@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { parseSearchParams, buildPagination } from '@/lib/search'
-import { getLeadingOptions } from '@/lib/markets/leading-options'
+import { getCardOptions } from '@/lib/markets/card-options'
 
 // Search reflects live market data; never statically cache.
 export const dynamic = 'force-dynamic'
@@ -41,17 +41,18 @@ export async function GET(req: NextRequest) {
   const total = typeof payload.total === 'number' ? payload.total : 0
   const pagination = buildPagination(total, p.page, p.perPage)
 
-  // Attach each multiple_choice market's front-runner + option count so client
-  // grids can render the leading outcome instead of a meaningless YES/NO bar.
+  // Attach each multiple_choice market's TOP options + option count so client
+  // grids can render the Polymarket-style candidate rows (label · NN% · Yes/No)
+  // instead of a meaningless binary bar.
   const typedRows = rows as { id: string; resolution_type?: string | null }[]
-  const { leadByMarket, countByMarket } = await getLeadingOptions(
+  const { topByMarket, countByMarket } = await getCardOptions(
     supabase,
     typedRows.filter((m) => m.resolution_type === 'multiple_choice').map((m) => m.id),
   )
   const enriched = typedRows.map((m) => {
-    const lead = leadByMarket.get(m.id)
-    return lead
-      ? { ...m, leading_option: lead, option_count: countByMarket.get(m.id) ?? null }
+    const top = topByMarket.get(m.id)
+    return top && top.length
+      ? { ...m, options: top, option_count: countByMarket.get(m.id) ?? null }
       : m
   })
 

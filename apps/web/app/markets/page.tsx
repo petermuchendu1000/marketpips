@@ -23,7 +23,7 @@ import {
 } from '@/lib/search'
 import { CATEGORY_LABELS } from '@/types'
 import type { Market } from '@/types'
-import { getLeadingOptions } from '@/lib/markets/leading-options'
+import { getCardOptions } from '@/lib/markets/card-options'
 import { IconPlus, IconSearch, IconArrowRight } from '@/components/ui/icons'
 
 export const dynamic = 'force-dynamic'
@@ -137,7 +137,7 @@ async function Results({ parsed }: { parsed: ReturnType<typeof parseSearchParams
   // For multiple_choice markets on this page, fetch their options in one batched
   // query so each card can show its front-runner (Polymarket card pattern)
   // instead of a meaningless YES/NO bar.
-  const { leadByMarket, countByMarket } = await getLeadingOptions(
+  const { topByMarket, countByMarket } = await getCardOptions(
     supabase,
     markets.filter((m) => m.resolution_type === 'multiple_choice').map((m) => m.id),
   )
@@ -179,7 +179,7 @@ async function Results({ parsed }: { parsed: ReturnType<typeof parseSearchParams
               <MarketCard
                 key={m.id}
                 market={m}
-                leadingOption={leadByMarket.get(m.id)}
+                options={topByMarket.get(m.id)}
                 optionCount={countByMarket.get(m.id)}
               />
             ))}
