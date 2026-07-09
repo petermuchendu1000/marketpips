@@ -25,6 +25,11 @@ const config: Config = {
         pip: {
           100: '#E7EEFE', 300: '#A9C0FB', 400: '#5C82F2',
           500: '#2B50E4', 600: '#1E44C9',
+          // Theme-aware "pip as text" token. Maps to --pip-text: #2B50E4 in
+          // light, #8FB0FA in dark, so link/icon text on the page background
+          // clears WCAG AA (4.5:1) in BOTH themes (raw pip-500 is only 3.14:1
+          // on the dark ink-950 surface). Use text-pip-text for on-surface text.
+          text: 'var(--pip-text)',
         },
         brass: { 100: '#F7ECD4', 500: '#D9A036', 600: '#B57E22' },
         // Market semantics (desaturated). `green`/`red` kept as aliases so

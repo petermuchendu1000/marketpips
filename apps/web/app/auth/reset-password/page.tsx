@@ -171,7 +171,7 @@ function ResetPasswordInner() {
 
         <p className="mt-6 text-center text-sm text-text-muted">
           Remembered it?{' '}
-          <Link href="/auth/login" className="font-semibold text-pip-500 hover:underline">
+          <Link href="/auth/login" className="font-semibold text-pip-text hover:underline">
             Back to sign in
           </Link>
         </p>
@@ -204,7 +204,7 @@ function ResetPasswordInner() {
           <p className="text-xs text-text-muted">
             If an account exists for <span className="font-medium text-text-primary">{email}</span>, a reset link is on its way.
           </p>
-          <button type="button" onClick={() => setSent(false)} className="mt-1 text-xs font-medium text-pip-500 hover:underline">
+          <button type="button" onClick={() => setSent(false)} className="mt-1 text-xs font-medium text-pip-text hover:underline">
             Use a different email
           </button>
         </div>
@@ -249,7 +249,7 @@ function ResetPasswordInner() {
 
       <p className="mt-6 text-center text-sm text-text-muted">
         Remembered it?{' '}
-        <Link href="/auth/login" className="font-semibold text-pip-500 hover:underline">
+        <Link href="/auth/login" className="font-semibold text-pip-text hover:underline">
           Back to sign in
         </Link>
       </p>

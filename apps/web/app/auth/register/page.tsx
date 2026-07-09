@@ -245,7 +245,7 @@ export default function RegisterPage() {
           <button
             type="button"
             onClick={() => setShowRef(true)}
-            className="text-xs font-medium text-pip-500 hover:underline"
+            className="text-xs font-medium text-pip-text hover:underline"
           >
             Have a referral code?
           </button>
@@ -275,7 +275,7 @@ export default function RegisterPage() {
 
       <p className="mt-5 text-center text-sm text-text-muted">
         Already have an account?{' '}
-        <Link href={withNext('/auth/login', next)} className="font-semibold text-pip-500 hover:underline">
+        <Link href={withNext('/auth/login', next)} className="font-semibold text-pip-text hover:underline">
           Sign in
         </Link>
       </p>

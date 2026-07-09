@@ -78,7 +78,7 @@ export default function LoginPage() {
             <label htmlFor="password" className="text-xs font-semibold uppercase tracking-wide text-text-muted">
               Password
             </label>
-            <Link href="/auth/reset-password" className="text-xs font-medium text-pip-500 hover:underline">
+            <Link href="/auth/reset-password" className="text-xs font-medium text-pip-text hover:underline">
               Forgot?
             </Link>
           </div>
@@ -119,7 +119,7 @@ export default function LoginPage() {
 
       <p className="mt-6 text-center text-sm text-text-muted">
         No account?{' '}
-        <Link href={withNext('/auth/register', next)} className="font-semibold text-pip-500 hover:underline">
+        <Link href={withNext('/auth/register', next)} className="font-semibold text-pip-text hover:underline">
           Create one free
         </Link>
       </p>
