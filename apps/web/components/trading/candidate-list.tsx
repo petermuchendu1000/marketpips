@@ -17,6 +17,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { EntityAvatar } from '@/components/ui/entity-avatar'
 import { normalizeOutcomes, type Outcome } from '@/lib/markets/outcomes'
+import { formatVolume } from '@/lib/utils'
 import type { Market, MarketOption } from '@/types'
 import {
   IconSort,
@@ -288,9 +289,13 @@ export function CandidateList({
                     </span>
                     {isWinner && <IconTrophy size={13} className="flex-none text-yes" />}
                   </div>
-                  {subtitle && (
-                    <p className="truncate text-[11px] text-text-muted">{subtitle}</p>
-                  )}
+                  <div className="flex items-center gap-1.5 truncate text-[11px] text-text-muted">
+                    {subtitle && <span className="truncate">{subtitle}</span>}
+                    {subtitle && o.volumeUsd > 0 && <span aria-hidden className="text-hairline">·</span>}
+                    {o.volumeUsd > 0 && (
+                      <span className="flex-none tabular-nums">{formatVolume(o.volumeUsd)} Vol.</span>
+                    )}
+                  </div>
                 </div>
 
                 {/* Bold standalone probability + buy affordance */}
