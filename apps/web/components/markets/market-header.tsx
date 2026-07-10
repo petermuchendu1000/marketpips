@@ -1,15 +1,17 @@
 'use client'
 
 // components/markets/market-header.tsx
-// Market detail hero: identity, live probability and provenance. Pure "Pip"
-// system — custom icons only (no lucide), no emoji, design tokens throughout.
-import Image from 'next/image'
+// Market detail identity strip — Polymarket-parity layout on the "Pip" system:
+// square entity avatar · category breadcrumb · title · action cluster
+// (copy-link / share / bookmark). Custom icons only (no lucide), no emoji.
+import { useEffect, useState } from 'react'
 import { formatDistanceToNow, format } from 'date-fns'
 import toast from 'react-hot-toast'
 import type { Market, MarketStatus } from '@/types'
 import { CATEGORY_LABELS } from '@/types'
 import type { Outcome } from '@/lib/markets/outcomes'
-import { CategoryIcon, IconShare, IconExternalLink } from '@/components/ui/icons'
+import { EntityAvatar } from '@/components/ui/entity-avatar'
+import { CategoryIcon, IconShare, IconLink, IconBookmark, IconExternalLink } from '@/components/ui/icons'
 
 interface MarketHeaderProps {
   market: Market
@@ -36,13 +38,26 @@ export function MarketHeader({ market, outcomes, isMulti }: MarketHeaderProps) {
   const isResolved = market.status === 'resolved'
   const badge = STATUS_BADGE[market.status]
   const showMulti = !!isMulti && !!outcomes && outcomes.length > 0
+  const [saved, setSaved] = useState(false)
+
+  // Bookmark is a client-side preference (localStorage) — mirrors Polymarket's
+  // instant, no-auth-required save affordance.
+  useEffect(() => {
+    try {
+      const set = JSON.parse(localStorage.getItem('mp:saved') || '[]') as string[]
+      setSaved(set.includes(market.id))
+    } catch {
+      /* private mode / disabled storage — leave unsaved */
+    }
+  }, [market.id])
+
+  const marketUrl = () => `${window.location.origin}/markets/${market.slug}`
 
   const handleShare = async () => {
-    const url = `${window.location.origin}/markets/${market.slug}`
+    const url = marketUrl()
     try {
-      if (navigator.share) {
-        await navigator.share({ title: market.title, url })
-      } else {
+      if (navigator.share) await navigator.share({ title: market.title, url })
+      else {
         await navigator.clipboard.writeText(url)
         toast.success('Link copied')
       }
@@ -51,106 +66,150 @@ export function MarketHeader({ market, outcomes, isMulti }: MarketHeaderProps) {
     }
   }
 
+  const handleCopyLink = async () => {
+    try {
+      await navigator.clipboard.writeText(marketUrl())
+      toast.success('Link copied')
+    } catch {
+      toast.error('Could not copy link')
+    }
+  }
+
+  const toggleSave = () => {
+    try {
+      const set = new Set(JSON.parse(localStorage.getItem('mp:saved') || '[]') as string[])
+      if (set.has(market.id)) {
+        set.delete(market.id)
+        setSaved(false)
+        toast.success('Removed from saved')
+      } else {
+        set.add(market.id)
+        setSaved(true)
+        toast.success('Saved')
+      }
+      localStorage.setItem('mp:saved', JSON.stringify([...set]))
+    } catch {
+      toast.error('Could not update saved markets')
+    }
+  }
+
   return (
-    <section className="card overflow-hidden">
-      {market.cover_image_url && (
-        <div className="relative h-40 w-full">
-          <Image src={market.cover_image_url} alt="" fill className="object-cover" priority />
-          <div className="absolute inset-0 bg-gradient-to-t from-surface to-transparent" />
-        </div>
-      )}
+    <section className="card p-5">
+      <div className="flex items-start gap-4">
+        <EntityAvatar
+          name={market.title}
+          imageUrl={market.cover_image_url}
+          size={56}
+          className="shrink-0"
+        />
 
-      <div className="p-5">
-        {/* Category + status + tags */}
-        <div className="mb-3 flex flex-wrap items-center gap-2">
-          <span className="badge badge-muted gap-1.5">
+        <div className="min-w-0 flex-1">
+          {/* Category breadcrumb (Polymarket: "Economy · Fomc") */}
+          <div className="mb-1.5 flex items-center gap-1.5 text-xs text-text-muted">
             <CategoryIcon category={market.category} size={13} />
-            {category.label}
-          </span>
-          <span className={`badge ${badge.className}`}>{badge.label}</span>
-          {market.is_trending && <span className="badge badge-amber">Trending</span>}
-          {market.tags.slice(0, 3).map((tag) => (
-            <span key={tag} className="text-xs text-text-muted">
-              #{tag}
-            </span>
-          ))}
-        </div>
-
-        <h1 className="font-display text-xl leading-snug text-text-primary">{market.title}</h1>
-
-        {/* Live probability — ranked options for multiple choice, YES gauge for binary */}
-        {/* Binary markets show the YES gauge here. Multiple-choice markets show
-            nothing — the candidate board directly below is the single, canonical
-            place options + probabilities live (no duplicated header breakdown). */}
-        {!showMulti && (
-          <div className="mt-4 flex items-center gap-4">
-            <div className="flex-1">
-              <div className="mb-1.5 flex items-end gap-2">
-                <span
-                  className={`font-mono text-4xl font-bold ${
-                    isResolved && market.resolved_outcome !== 'yes' ? 'text-text-muted' : 'text-yes'
-                  }`}
-                >
-                  {yesPercent}%
-                </span>
-                <span className="mb-1.5 text-sm text-text-muted">chance YES</span>
-              </div>
-            </div>
-
-            {isResolved && market.resolved_outcome && (
-              <div
-                className={`flex flex-col items-center rounded-md px-4 py-2 text-white ${
-                  market.resolved_outcome === 'yes' ? 'bg-yes' : 'bg-no'
-                }`}
-              >
-                <span className="text-xs font-semibold uppercase tracking-wide opacity-90">Resolved</span>
-                <span className="font-display text-lg leading-tight">{market.resolved_outcome.toUpperCase()}</span>
-              </div>
-            )}
-          </div>
-        )}
-
-        <p className="mt-4 whitespace-pre-line text-sm leading-relaxed text-text-secondary">
-          {market.description}
-        </p>
-
-        {/* Provenance + actions */}
-        <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-hairline pt-4">
-          <div className="flex items-center gap-2 text-xs text-text-muted">
-            {market.creator && (
+            <span>{category.label}</span>
+            {market.tags[0] && (
               <>
-                <span>
-                  by{' '}
-                  <span className="font-medium text-text-secondary">
-                    {market.creator.display_name || market.creator.username || 'Anonymous'}
-                  </span>
-                </span>
                 <span aria-hidden>&middot;</span>
+                <span className="capitalize">{market.tags[0]}</span>
               </>
             )}
-            <span>
-              {isResolved && market.resolved_at
-                ? `Resolved ${formatDistanceToNow(new Date(market.resolved_at), { addSuffix: true })}`
-                : `Closes ${format(new Date(market.closes_at), 'MMM d, yyyy')}`}
-            </span>
           </div>
 
-          <div className="flex items-center gap-1">
-            {market.resolution_source && (
-              <a
-                href={market.resolution_source}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="btn btn-ghost btn-sm gap-1.5"
+          <div className="flex items-start justify-between gap-3">
+            <h1 className="font-display text-2xl leading-tight text-text-primary">{market.title}</h1>
+
+            {/* Action cluster — copy-link · share · bookmark */}
+            <div className="flex shrink-0 items-center gap-0.5">
+              <button
+                type="button"
+                onClick={handleCopyLink}
+                aria-label="Copy link"
+                title="Copy link"
+                className="btn btn-ghost btn-icon-sm"
               >
-                <IconExternalLink size={13} /> Source
-              </a>
+                <IconLink size={16} />
+              </button>
+              <button
+                type="button"
+                onClick={handleShare}
+                aria-label="Share"
+                title="Share"
+                className="btn btn-ghost btn-icon-sm"
+              >
+                <IconShare size={16} />
+              </button>
+              <button
+                type="button"
+                onClick={toggleSave}
+                aria-label={saved ? 'Remove from saved' : 'Save market'}
+                aria-pressed={saved}
+                title={saved ? 'Saved' : 'Save'}
+                className={`btn btn-ghost btn-icon-sm ${saved ? 'text-pip-500' : ''}`}
+              >
+                <IconBookmark size={16} />
+              </button>
+            </div>
+          </div>
+
+          {/* Status + compact live probability (binary) / resolved outcome */}
+          <div className="mt-3 flex flex-wrap items-center gap-3">
+            <span className={`badge ${badge.className}`}>{badge.label}</span>
+            {market.is_trending && <span className="badge badge-amber">Trending</span>}
+
+            {!showMulti && !isResolved && (
+              <span className="inline-flex items-baseline gap-1.5">
+                <span className="font-mono text-2xl font-bold text-yes">{yesPercent}%</span>
+                <span className="text-xs text-text-muted">chance</span>
+              </span>
             )}
-            <button type="button" onClick={handleShare} className="btn btn-ghost btn-sm gap-1.5">
-              <IconShare size={13} /> Share
-            </button>
+
+            {isResolved && market.resolved_outcome && (
+              <span
+                className={`badge ${market.resolved_outcome === 'yes' ? 'badge-green' : 'badge-red'}`}
+              >
+                Resolved: {market.resolved_outcome.toUpperCase()}
+              </span>
+            )}
           </div>
         </div>
+      </div>
+
+      <p className="mt-4 whitespace-pre-line text-sm leading-relaxed text-text-secondary">
+        {market.description}
+      </p>
+
+      {/* Provenance + resolution source */}
+      <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-hairline pt-4">
+        <div className="flex items-center gap-2 text-xs text-text-muted">
+          {market.creator && (
+            <>
+              <span>
+                by{' '}
+                <span className="font-medium text-text-secondary">
+                  {market.creator.display_name || market.creator.username || 'Anonymous'}
+                </span>
+              </span>
+              <span aria-hidden>&middot;</span>
+            </>
+          )}
+          <span>
+            {isResolved && market.resolved_at
+              ? `Resolved ${formatDistanceToNow(new Date(market.resolved_at), { addSuffix: true })}`
+              : `Closes ${format(new Date(market.closes_at), 'MMM d, yyyy')}`}
+          </span>
+        </div>
+
+        {market.resolution_source && (
+          <a
+            href={market.resolution_source}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="btn btn-ghost btn-sm gap-1.5"
+          >
+            <IconExternalLink size={13} /> Source
+          </a>
+        )}
       </div>
     </section>
   )

@@ -256,7 +256,7 @@ export function MarketCard({
               <span className="font-semibold" style={{ color: 'var(--text-3)' }}>Settling…</span>
             ) : (
               <>
-                <span className="flex items-center gap-1 font-semibold" style={{ color: 'var(--no)' }}>
+                <span className="flex items-center gap-1 font-semibold" style={{ color: 'var(--no-700)' }}>
                   <span className="inline-block h-1.5 w-1.5 rounded-full" style={{ background: 'var(--no)' }} />
                   LIVE
                 </span>
