@@ -12,7 +12,6 @@ import { GuidedBetFlow } from '@/components/trading/guided-bet-flow'
 import { CandidateList } from '@/components/trading/candidate-list'
 import { MobileTradeBar } from '@/components/trading/mobile-trade-bar'
 import { PositionSummary } from '@/components/trading/position-summary'
-import { MarketActivity } from '@/components/markets/market-activity'
 import { MarketComments } from '@/components/markets/market-comments'
 import { MarketRules } from '@/components/markets/market-rules'
 import { MarketFaq, buildMarketFaq } from '@/components/markets/market-faq'
@@ -23,7 +22,6 @@ import { formatUSD } from '@/lib/utils'
 import {
   IconTrendUp,
   IconInfo,
-  IconClock,
   IconChevronLeft,
 } from '@/components/ui/icons'
 import type { Market, MarketOption } from '@/types'
@@ -130,19 +128,6 @@ async function MarketPriceHistory({
       volume_usd: h.volume_usd,
       recorded_at: h.recorded_at,
     }))} />
-}
-
-async function MarketActivityFeed({ marketId }: { marketId: string }) {
-  const supabase = await createClient()
-  const { data: activity } = await supabase
-    .from('market_activity')
-    .select(
-      `*, user:profiles!market_activity_user_id_fkey(id, display_name, avatar_url, username)`,
-    )
-    .eq('market_id', marketId)
-    .order('created_at', { ascending: false })
-    .limit(20)
-  return <MarketActivity activity={activity || []} />
 }
 
 /** Consistent section heading with a token-styled icon chip. */
@@ -280,21 +265,7 @@ export default async function MarketPage({
             </Suspense>
           </div>
 
-          <div className="card p-4">
-            <SectionTitle icon={<IconClock size={14} />}>Recent activity</SectionTitle>
-            <Suspense
-              fallback={
-                <div className="space-y-3">
-                  {Array.from({ length: 5 }).map((_, i) => (
-                    <div key={i} className="skeleton h-10 rounded-sm" />
-                  ))}
-                </div>
-              }
-            >
-              <MarketActivityFeed marketId={market.id} />
-            </Suspense>
-          </div>
-
+          {/* Community — Comments / Top holders / Positions / Activity (tabs). */}
           <MarketComments marketId={market.id} />
 
           <MarketFaq items={faqItems} />
