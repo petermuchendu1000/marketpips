@@ -15,7 +15,8 @@ import { MobileTradeBar } from '@/components/trading/mobile-trade-bar'
 import { PositionSummary } from '@/components/trading/position-summary'
 import { MarketComments } from '@/components/markets/market-comments'
 import { MarketRules } from '@/components/markets/market-rules'
-import { MarketFaq, buildMarketFaq } from '@/components/markets/market-faq'
+import { MarketFaq } from '@/components/markets/market-faq'
+import { buildMarketFaq } from '@/lib/markets/faq'
 import { RelatedMarkets } from '@/components/markets/related-markets'
 import { normalizeOutcomes, isMultiOutcome, isIndependentOptions } from '@/lib/markets/outcomes'
 import { isFeatureEnabled } from '@/lib/flags'
@@ -270,6 +271,14 @@ export default async function MarketPage({
             </Suspense>
           </div>
 
+          {/* Settlement / resolution — Rules / Market context tabs (main column
+              for exact left-rail ordering: header → chart → rules → community). */}
+          <MarketRules
+            resolutionCriteria={market.resolution_criteria}
+            description={market.description}
+            resolutionSource={market.resolution_source}
+          />
+
           {/* Community — Comments / Top holders / Positions / Activity (tabs). */}
           <MarketComments marketId={market.id} />
 
@@ -314,13 +323,6 @@ export default async function MarketPage({
 
             {/* Real-time position & P&L (only renders when the user holds one) */}
             <PositionSummary market={market} options={options} />
-
-            {/* Settlement / resolution — Rules / Market context tabs */}
-            <MarketRules
-              resolutionCriteria={market.resolution_criteria}
-              description={market.description}
-              resolutionSource={market.resolution_source}
-            />
 
             {/* Contract specs */}
             <div className="card p-4">

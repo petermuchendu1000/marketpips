@@ -23,6 +23,7 @@ import { useRouter } from 'next/navigation'
 import { useAuth } from '@/hooks/use-auth'
 import { useWallets } from '@/hooks/use-wallets'
 import { useRates } from '@/hooks/use-rates'
+import { createClient } from '@/lib/supabase/client'
 import {
   previewBet,
   previewOptionBet,
@@ -73,6 +74,7 @@ export function PmTicket({
   const { wallets, preferredCurrency, refreshWallets, isLoading: walletsLoading } = useWallets()
   const { rates } = useRates()
   const router = useRouter()
+  const supabase = useMemo(() => createClient(), [])
 
   const isMulti = isMultiOutcome(market, options)
   const indepMulti = isMulti && independent
@@ -97,6 +99,12 @@ export function PmTicket({
     avgPrice: number
     payoutUsd: number
   } | null>(null)
+
+  // Sell tab: the user's current active holding in this market (buy-only engine,
+  // so closing is handed off to Positions). null = not yet loaded.
+  const [sellPosition, setSellPosition] = useState<
+    { shares: number; side: 'yes' | 'no' | null; currentValueUsd: number; label: string } | null | undefined
+  >(undefined)
 
   const wallet = wallets.find((w) => w.currency === preferredCurrency)
   const balance = wallet?.available_balance ?? 0
@@ -238,6 +246,38 @@ export function PmTicket({
     window.addEventListener('marketpips:select-option', onSelect as EventListener)
     return () => window.removeEventListener('marketpips:select-option', onSelect as EventListener)
   }, [isMulti, market.id, outcomes])
+
+  // Load the user's active holding when they open the Sell tab (once).
+  useEffect(() => {
+    if (action !== 'sell' || !user || sellPosition !== undefined) return
+    let cancelled = false
+    supabase
+      .from('positions')
+      .select('shares, side, current_value_usd, market_option_id')
+      .eq('market_id', market.id)
+      .eq('user_id', user.id)
+      .eq('is_active', true)
+      .order('current_value_usd', { ascending: false })
+      .limit(1)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (cancelled) return
+        if (!data || !data.shares) {
+          setSellPosition(null)
+          return
+        }
+        const opt = options?.find((o) => o.id === data.market_option_id)
+        setSellPosition({
+          shares: Number(data.shares),
+          side: (data.side as 'yes' | 'no' | null) ?? null,
+          currentValueUsd: Number(data.current_value_usd ?? 0),
+          label: opt?.label ?? (data.side ? (data.side === 'yes' ? 'Yes' : 'No') : market.title),
+        })
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [action, user, sellPosition, supabase, market.id, market.title, options])
 
   const cents = (p: number) => `${Math.round(p * 100)}¢`
 
@@ -445,13 +485,54 @@ export function PmTicket({
         </div>
 
         {action === 'sell' ? (
-          <p className="rounded-md border border-hairline bg-surface-2 p-4 text-center text-sm text-text-secondary">
-            Selling is managed from your{' '}
-            <a href="/portfolio" className="font-semibold text-pip-500 hover:underline">
-              Positions
-            </a>
-            , where you can close any holding at the live price.
-          </p>
+          <div className="text-sm">
+            {sellPosition === undefined ? (
+              <div className="space-y-2">
+                <div className="h-16 skeleton rounded-md" />
+              </div>
+            ) : !user ? (
+              <p className="rounded-md border border-hairline bg-surface-2 p-4 text-center text-text-secondary">
+                Log in to view and close your positions.
+              </p>
+            ) : sellPosition === null ? (
+              <p className="rounded-md border border-hairline bg-surface-2 p-4 text-center text-text-secondary">
+                You don’t hold a position in this market yet. Switch to{' '}
+                <button type="button" onClick={() => setAction('buy')} className="font-semibold text-pip-500 hover:underline">
+                  Buy
+                </button>{' '}
+                to open one.
+              </p>
+            ) : (
+              <div className="rounded-md border border-hairline bg-surface-2 p-4">
+                <div className="mb-3 flex items-center justify-between">
+                  <span className="text-text-muted">Your position</span>
+                  <span
+                    className={`font-semibold ${
+                      sellPosition.side === 'no' ? 'text-no' : sellPosition.side === 'yes' ? 'text-yes' : 'text-pip-500'
+                    }`}
+                  >
+                    {sellPosition.label}
+                  </span>
+                </div>
+                <div className="mb-1 flex items-center justify-between">
+                  <span className="text-text-muted">Shares</span>
+                  <span className="font-semibold tabular-nums text-text-primary">{sellPosition.shares.toFixed(2)}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-text-muted">Current value</span>
+                  <span className="font-semibold tabular-nums text-text-primary">
+                    {formatCurrency(usdToLocal(sellPosition.currentValueUsd, preferredCurrency, rates), preferredCurrency)}
+                  </span>
+                </div>
+                <a href="/portfolio" className="btn btn-primary mt-4 block w-full py-2.5 text-center">
+                  Close in Positions
+                </a>
+                <p className="mt-2 text-center text-[11px] leading-relaxed text-text-muted">
+                  Closing sells your shares back to the market maker at the live price.
+                </p>
+              </div>
+            )}
+          </div>
         ) : (
           <>
             {/* Yes/No ¢ pills (binary + independent multi). Simplex multi shows the
