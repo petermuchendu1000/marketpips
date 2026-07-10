@@ -33,10 +33,11 @@ interface OutcomesChartProps {
 
 type Timeframe = '24H' | '1W' | '1M' | 'ALL'
 
+const HOUR = 60 * 60 * 1000
 const TIMEFRAMES: { key: Timeframe; label: string; ms: number | null }[] = [
-  { key: '24H', label: '24H', ms: 24 * 60 * 60 * 1000 },
-  { key: '1W', label: '1W', ms: 7 * 24 * 60 * 60 * 1000 },
-  { key: '1M', label: '1M', ms: 30 * 24 * 60 * 60 * 1000 },
+  { key: '24H', label: '24H', ms: 24 * HOUR },
+  { key: '1W', label: '1W', ms: 7 * 24 * HOUR },
+  { key: '1M', label: '1M', ms: 30 * 24 * HOUR },
   { key: 'ALL', label: 'All', ms: null },
 ]
 
@@ -92,13 +93,12 @@ export function OutcomesChart({ options, data }: OutcomesChartProps) {
   }, [ranked])
 
   // Pivot per-option ticks into one row per timestamp: { time, [optionId]: price }.
-  const chartData = useMemo(() => {
-    const tf = TIMEFRAMES.find((t) => t.key === timeframe)
-    const cutoff = tf?.ms ? Date.now() - tf.ms : null
+  // Built once WITHOUT the timeframe filter, forward-filled so lines stay
+  // continuous across sparse ticks; the active timeframe is applied afterwards.
+  const allRows = useMemo(() => {
     const byTime = new Map<string, Record<string, number | string>>()
     for (const p of data) {
       if (!p.recordedAt) continue
-      if (cutoff && new Date(p.recordedAt).getTime() < cutoff) continue
       const row = byTime.get(p.recordedAt) ?? { time: p.recordedAt }
       row[p.optionId] = p.price
       byTime.set(p.recordedAt, row)
@@ -106,7 +106,6 @@ export function OutcomesChart({ options, data }: OutcomesChartProps) {
     const rows = Array.from(byTime.values()).sort(
       (a, b) => new Date(a.time as string).getTime() - new Date(b.time as string).getTime(),
     )
-    // Forward-fill each option so lines stay continuous across sparse ticks.
     const last: Record<string, number> = {}
     for (const row of rows) {
       for (const o of ranked) {
@@ -115,13 +114,35 @@ export function OutcomesChart({ options, data }: OutcomesChartProps) {
       }
     }
     return rows
-  }, [data, ranked, timeframe])
+  }, [data, ranked])
 
-  const hasData = chartData.length >= 2
+  // Never blank: when a market has no recorded history yet we seed a flat
+  // baseline at each option's live probability, so the plot always communicates
+  // the current standings (honest "no movement") — matching the binary chart.
+  const { chartData, isSeeded } = useMemo(() => {
+    if (allRows.length === 0) {
+      const now = Date.now()
+      const baseline = (t: number): Record<string, number | string> => {
+        const row: Record<string, number | string> = { time: new Date(t).toISOString() }
+        for (const o of ranked) row[o.id] = o.price
+        return row
+      }
+      return { chartData: [baseline(now - 24 * HOUR), baseline(now)], isSeeded: true }
+    }
+    const tf = TIMEFRAMES.find((t) => t.key === timeframe)
+    if (!tf?.ms) return { chartData: allRows, isSeeded: false }
+    const cutoff = Date.now() - tf.ms
+    const filtered = allRows.filter((r) => new Date(r.time as string).getTime() >= cutoff)
+    return { chartData: filtered.length >= 2 ? filtered : allRows.slice(-2), isSeeded: false }
+  }, [allRows, ranked, timeframe])
 
-  const summary = `Probability history for ${ranked.length} options. Current leader: ${
-    ranked[0]?.label ?? '—'
-  } at ${Math.round((ranked[0]?.price ?? 0) * 100)}%.`
+  const summary = isSeeded
+    ? `Probability standings for ${ranked.length} options. Current leader: ${
+        ranked[0]?.label ?? '—'
+      } at ${Math.round((ranked[0]?.price ?? 0) * 100)}%. No price movement recorded yet.`
+    : `Probability history for ${ranked.length} options. Current leader: ${
+        ranked[0]?.label ?? '—'
+      } at ${Math.round((ranked[0]?.price ?? 0) * 100)}%.`
 
   return (
     <div>
@@ -151,49 +172,47 @@ export function OutcomesChart({ options, data }: OutcomesChartProps) {
         </div>
       </div>
 
-      {!hasData ? (
-        <div className="flex h-48 items-center justify-center text-sm text-text-muted">
-          No price history yet
-        </div>
-      ) : (
-        <div className="h-48" role="img" aria-label={summary}>
-          <p className="sr-only">{summary}</p>
-          <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={chartData} margin={{ top: 5, right: 5, left: -25, bottom: 0 }}>
-              <XAxis
-                dataKey="time"
-                tickFormatter={(v) => format(new Date(v), 'MMM d')}
-                tick={{ fontSize: 10, fill: 'var(--text-muted)' }}
-                tickLine={false}
-                axisLine={false}
-                minTickGap={40}
+      <div className="h-48" role="img" aria-label={summary}>
+        <p className="sr-only">{summary}</p>
+        <ResponsiveContainer width="100%" height="100%">
+          <LineChart data={chartData} margin={{ top: 5, right: 5, left: -25, bottom: 0 }}>
+            <XAxis
+              dataKey="time"
+              tickFormatter={(v) => format(new Date(v), 'MMM d')}
+              tick={{ fontSize: 10, fill: 'var(--text-muted)' }}
+              tickLine={false}
+              axisLine={false}
+              minTickGap={40}
+            />
+            <YAxis
+              domain={[0, 1]}
+              tickFormatter={(v) => `${Math.round(v * 100)}%`}
+              tick={{ fontSize: 10, fill: 'var(--text-muted)' }}
+              tickLine={false}
+              axisLine={false}
+            />
+            <Tooltip content={<ChartTooltip />} />
+            <ReferenceLine y={0.5} stroke="var(--hairline)" strokeDasharray="3 3" />
+            {ranked.map((o) => (
+              <Line
+                key={o.id}
+                type="monotone"
+                dataKey={o.id}
+                name={o.label}
+                stroke={colorById.get(o.id)}
+                strokeWidth={2}
+                dot={false}
+                activeDot={{ r: 3 }}
+                isAnimationActive={false}
+                connectNulls
               />
-              <YAxis
-                domain={[0, 1]}
-                tickFormatter={(v) => `${Math.round(v * 100)}%`}
-                tick={{ fontSize: 10, fill: 'var(--text-muted)' }}
-                tickLine={false}
-                axisLine={false}
-              />
-              <Tooltip content={<ChartTooltip />} />
-              <ReferenceLine y={0.5} stroke="var(--hairline)" strokeDasharray="3 3" />
-              {ranked.map((o) => (
-                <Line
-                  key={o.id}
-                  type="monotone"
-                  dataKey={o.id}
-                  name={o.label}
-                  stroke={colorById.get(o.id)}
-                  strokeWidth={2}
-                  dot={false}
-                  activeDot={{ r: 3 }}
-                  isAnimationActive={false}
-                  connectNulls
-                />
-              ))}
-            </LineChart>
-          </ResponsiveContainer>
-        </div>
+            ))}
+          </LineChart>
+        </ResponsiveContainer>
+      </div>
+
+      {isSeeded && (
+        <p className="mt-1 text-center text-[11px] text-text-muted">Awaiting first trade — showing current probabilities</p>
       )}
 
       {/* Legend — ranked options with current probability. */}
