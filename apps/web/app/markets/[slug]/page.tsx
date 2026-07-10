@@ -82,9 +82,13 @@ export async function generateMetadata({
 async function MarketPriceHistory({
   marketId,
   options,
+  currentYes,
+  volumeUsd,
 }: {
   marketId: string
   options?: MarketOption[] | null
+  currentYes?: number
+  volumeUsd?: number
 }) {
   const supabase = await createClient()
 
@@ -117,12 +121,15 @@ async function MarketPriceHistory({
     .is('market_option_id', null)
     .order('recorded_at', { ascending: true })
     .limit(200)
-  return <PriceChart data={(history || []).map((h) => ({
-    yes_price: h.yes_price ?? 0,
-    no_price: h.no_price ?? 0,
-    volume_usd: h.volume_usd,
-    recorded_at: h.recorded_at,
-  }))} />
+  return <PriceChart
+    currentYes={currentYes}
+    volumeUsd={volumeUsd}
+    data={(history || []).map((h) => ({
+      yes_price: h.yes_price ?? 0,
+      no_price: h.no_price ?? 0,
+      volume_usd: h.volume_usd,
+      recorded_at: h.recorded_at,
+    }))} />
 }
 
 async function MarketActivityFeed({ marketId }: { marketId: string }) {
@@ -244,7 +251,12 @@ export default async function MarketPage({
           <div className="card p-4">
             <SectionTitle icon={<IconTrendUp size={14} />}>Probability history</SectionTitle>
             <Suspense fallback={<div className="skeleton h-48 rounded-md" />}>
-              <MarketPriceHistory marketId={market.id} options={isMulti ? options : null} />
+              <MarketPriceHistory
+                marketId={market.id}
+                options={isMulti ? options : null}
+                currentYes={market.yes_price}
+                volumeUsd={market.total_volume_usd}
+              />
             </Suspense>
           </div>
 
