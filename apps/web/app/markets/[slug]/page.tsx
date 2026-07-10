@@ -14,6 +14,8 @@ import { MobileTradeBar } from '@/components/trading/mobile-trade-bar'
 import { PositionSummary } from '@/components/trading/position-summary'
 import { MarketActivity } from '@/components/markets/market-activity'
 import { MarketComments } from '@/components/markets/market-comments'
+import { MarketRules } from '@/components/markets/market-rules'
+import { MarketFaq, buildMarketFaq } from '@/components/markets/market-faq'
 import { RelatedMarkets } from '@/components/markets/related-markets'
 import { normalizeOutcomes, isMultiOutcome, isIndependentOptions } from '@/lib/markets/outcomes'
 import { isFeatureEnabled } from '@/lib/flags'
@@ -21,10 +23,8 @@ import { formatUSD } from '@/lib/utils'
 import {
   IconTrendUp,
   IconInfo,
-  IconShield,
   IconClock,
   IconChevronLeft,
-  IconExternalLink,
 } from '@/components/ui/icons'
 import type { Market, MarketOption } from '@/types'
 
@@ -229,9 +229,29 @@ export default async function MarketPage({
     answerCount: outcomes.length,
   }
 
+  // Auto-generated FAQ (shared between the on-page accordion and JSON-LD) so the
+  // crawlable answers match exactly what a human reads.
+  const faqItems = buildMarketFaq({
+    title: market.title,
+    isMulti,
+    outcomeCount: outcomes.length,
+    closesLabel: closesAt.toLocaleDateString('en-GB', dateFmt),
+    feePct: `${(market.platform_fee_rate * 100).toFixed(1)}%`,
+  })
+  const faqJsonLd = {
+    '@context': 'https://schema.org',
+    '@type': 'FAQPage',
+    mainEntity: faqItems.map((f) => ({
+      '@type': 'Question',
+      name: f.q,
+      acceptedAnswer: { '@type': 'Answer', text: f.a },
+    })),
+  }
+
   return (
     <div className={`mx-auto max-w-7xl px-4 pt-6 ${market.status === 'active' ? 'pb-28 lg:pb-6' : 'pb-6'}`}>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(faqJsonLd) }} />
 
       {/* Breadcrumb */}
       <Link
@@ -276,6 +296,8 @@ export default async function MarketPage({
           </div>
 
           <MarketComments marketId={market.id} />
+
+          <MarketFaq items={faqItems} />
         </div>
 
         {/* Sidebar */}
@@ -309,21 +331,12 @@ export default async function MarketPage({
             {/* Real-time position & P&L (only renders when the user holds one) */}
             <PositionSummary market={market} options={options} />
 
-            {/* Settlement / resolution rules */}
-            <div className="card p-4">
-              <SectionTitle icon={<IconShield size={14} />}>Resolution rules</SectionTitle>
-              <p className="text-sm leading-relaxed text-text-secondary">{market.resolution_criteria}</p>
-              {market.resolution_source && (
-                <a
-                  href={market.resolution_source}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="mt-3 inline-flex items-center gap-1.5 text-xs font-medium text-pip-500 hover:underline"
-                >
-                  <IconExternalLink size={13} /> Resolution source
-                </a>
-              )}
-            </div>
+            {/* Settlement / resolution — Rules / Market context tabs */}
+            <MarketRules
+              resolutionCriteria={market.resolution_criteria}
+              description={market.description}
+              resolutionSource={market.resolution_source}
+            />
 
             {/* Contract specs */}
             <div className="card p-4">
