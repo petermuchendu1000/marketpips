@@ -13,6 +13,7 @@ import { CandidateList } from '@/components/trading/candidate-list'
 import { MobileTradeBar } from '@/components/trading/mobile-trade-bar'
 import { PositionSummary } from '@/components/trading/position-summary'
 import { MarketActivity } from '@/components/markets/market-activity'
+import { MarketRules } from '@/components/markets/market-rules'
 import { MarketComments } from '@/components/markets/market-comments'
 import { RelatedMarkets } from '@/components/markets/related-markets'
 import { normalizeOutcomes, isMultiOutcome, isIndependentOptions } from '@/lib/markets/outcomes'
@@ -21,10 +22,8 @@ import { formatUSD } from '@/lib/utils'
 import {
   IconTrendUp,
   IconInfo,
-  IconShield,
   IconClock,
   IconChevronLeft,
-  IconExternalLink,
 } from '@/components/ui/icons'
 import type { Market, MarketOption } from '@/types'
 
@@ -260,6 +259,8 @@ export default async function MarketPage({
             </Suspense>
           </div>
 
+          <MarketRules market={market} />
+
           <div className="card p-4">
             <SectionTitle icon={<IconClock size={14} />}>Recent activity</SectionTitle>
             <Suspense
@@ -308,22 +309,6 @@ export default async function MarketPage({
 
             {/* Real-time position & P&L (only renders when the user holds one) */}
             <PositionSummary market={market} options={options} />
-
-            {/* Settlement / resolution rules */}
-            <div className="card p-4">
-              <SectionTitle icon={<IconShield size={14} />}>Resolution rules</SectionTitle>
-              <p className="text-sm leading-relaxed text-text-secondary">{market.resolution_criteria}</p>
-              {market.resolution_source && (
-                <a
-                  href={market.resolution_source}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="mt-3 inline-flex items-center gap-1.5 text-xs font-medium text-pip-500 hover:underline"
-                >
-                  <IconExternalLink size={13} /> Resolution source
-                </a>
-              )}
-            </div>
 
             {/* Contract specs */}
             <div className="card p-4">
