@@ -16,6 +16,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { BettingPanel } from './betting-panel'
 import { GuidedBetFlow } from './guided-bet-flow'
+import { PmTicket } from './pm-ticket'
 import {
   normalizeOutcomes,
   isMultiOutcome,
@@ -30,6 +31,7 @@ export function MobileTradeBar({
   options,
   independent = false,
   guided = false,
+  pmTicket = false,
   initialSide,
   initialOptionId,
 }: {
@@ -39,6 +41,8 @@ export function MobileTradeBar({
   independent?: boolean
   /** Option B: render the beginner-first guided flow inside the sheet. */
   guided?: boolean
+  /** Polymarket-style compact ticket (dark launch); precedence over guided. */
+  pmTicket?: boolean
   /** Deep-link pre-arm: the side tapped on a market card (?side=). */
   initialSide?: 'yes' | 'no'
   /** Deep-link pre-arm: the candidate tapped on a market card (?option=). */
@@ -261,9 +265,18 @@ export function MobileTradeBar({
                 </div>
               </div>
 
-              {/* The single source-of-truth order ticket (guided or pro). */}
+              {/* The single source-of-truth order ticket (PM ticket / guided / pro). */}
               <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-4">
-                {guided ? (
+                {pmTicket ? (
+                  <PmTicket
+                    market={market}
+                    options={options}
+                    initialSide={pendingSide}
+                    initialOptionId={pendingOptionId}
+                    initialAmount={resumedAmount}
+                    independent={independent}
+                  />
+                ) : guided ? (
                   <GuidedBetFlow
                     market={market}
                     options={options}

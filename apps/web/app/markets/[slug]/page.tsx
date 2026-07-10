@@ -9,6 +9,7 @@ import { PriceChart } from '@/components/markets/price-chart'
 import { OutcomesChart } from '@/components/markets/outcomes-chart'
 import { BettingPanel } from '@/components/trading/betting-panel'
 import { GuidedBetFlow } from '@/components/trading/guided-bet-flow'
+import { PmTicket } from '@/components/trading/pm-ticket'
 import { CandidateList } from '@/components/trading/candidate-list'
 import { MobileTradeBar } from '@/components/trading/mobile-trade-bar'
 import { PositionSummary } from '@/components/trading/position-summary'
@@ -191,6 +192,10 @@ export default async function MarketPage({
   // page + mobile sheet; same LMSR economics, first-timer-friendly UX.
   const guidedBets = await isFeatureEnabled(supabase, 'flags.guided_bet_flow')
 
+  // Polymarket-style compact order ticket (dark launch). Takes precedence over
+  // the guided flow when enabled; both share the same LMSR economics + API.
+  const pmTicket = await isFeatureEnabled(supabase, 'flags.pm_ticket')
+
   // Deep-link pre-arm — a Yes/No/Up/Down tap on a market card lands here with
   // ?side=yes|no (& ?option=<id> for multi-outcome boards). We VALIDATE both
   // against this market's real data before priming the ticket so a stale or
@@ -278,7 +283,15 @@ export default async function MarketPage({
                 market is open, the sticky bottom bar + sheet takes over — hide
                 this instance so the ticket isn't duplicated below the fold. */}
             <div className={market.status === 'active' ? 'hidden lg:block' : ''}>
-              {guidedBets ? (
+              {pmTicket ? (
+                <PmTicket
+                  market={market}
+                  options={options}
+                  independent={independent}
+                  initialSide={initialSide}
+                  initialOptionId={initialOptionId}
+                />
+              ) : guidedBets ? (
                 <GuidedBetFlow
                   market={market}
                   options={options}
@@ -342,6 +355,7 @@ export default async function MarketPage({
           options={options}
           independent={independent}
           guided={guidedBets}
+          pmTicket={pmTicket}
           initialSide={initialSide}
           initialOptionId={initialOptionId}
         />
