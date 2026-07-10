@@ -288,8 +288,14 @@ export function CandidateList({
                     </span>
                     {isWinner && <IconTrophy size={13} className="flex-none text-yes" />}
                   </div>
-                  {subtitle && (
+                  {subtitle ? (
                     <p className="truncate text-[11px] text-text-muted">{subtitle}</p>
+                  ) : (
+                    o.volumeUsd > 0 && (
+                      <p className="truncate text-[11px] text-text-muted tabular-nums">
+                        ${o.volumeUsd.toLocaleString(undefined, { maximumFractionDigits: 0 })} Vol.
+                      </p>
+                    )
                   )}
                 </div>
 

@@ -31,13 +31,16 @@ interface OutcomesChartProps {
   data: OutcomePricePoint[]
 }
 
-type Timeframe = '24H' | '1W' | '1M' | 'ALL'
+type Timeframe = '1H' | '6H' | '1D' | '1W' | '1M' | 'ALL'
 
+const HOUR = 60 * 60 * 1000
 const TIMEFRAMES: { key: Timeframe; label: string; ms: number | null }[] = [
-  { key: '24H', label: '24H', ms: 24 * 60 * 60 * 1000 },
-  { key: '1W', label: '1W', ms: 7 * 24 * 60 * 60 * 1000 },
-  { key: '1M', label: '1M', ms: 30 * 24 * 60 * 60 * 1000 },
-  { key: 'ALL', label: 'All', ms: null },
+  { key: '1H', label: '1H', ms: HOUR },
+  { key: '6H', label: '6H', ms: 6 * HOUR },
+  { key: '1D', label: '1D', ms: 24 * HOUR },
+  { key: '1W', label: '1W', ms: 7 * 24 * HOUR },
+  { key: '1M', label: '1M', ms: 30 * 24 * HOUR },
+  { key: 'ALL', label: 'ALL', ms: null },
 ]
 
 // Brand-led categorical palette (shared with the allocation donut).
@@ -114,10 +117,23 @@ export function OutcomesChart({ options, data }: OutcomesChartProps) {
         else if (o.id in last) row[o.id] = last[o.id]
       }
     }
+
+    // Never blank: when there is no real history, seed a flat baseline at each
+    // option's live probability so every line is visible (Polymarket parity).
+    if (rows.length < 2) {
+      const now = Date.now()
+      const seedRow = (t: number) => {
+        const r: Record<string, number | string> = { time: new Date(t).toISOString() }
+        for (const o of ranked) r[o.id] = o.price
+        return r
+      }
+      return [seedRow(now - 24 * HOUR), seedRow(now)]
+    }
     return rows
   }, [data, ranked, timeframe])
 
-  const hasData = chartData.length >= 2
+  const isSeeded = chartData.length === 2 &&
+    !data.some((p) => p.recordedAt)
 
   const summary = `Probability history for ${ranked.length} options. Current leader: ${
     ranked[0]?.label ?? '—'
@@ -151,15 +167,16 @@ export function OutcomesChart({ options, data }: OutcomesChartProps) {
         </div>
       </div>
 
-      {!hasData ? (
-        <div className="flex h-48 items-center justify-center text-sm text-text-muted">
-          No price history yet
-        </div>
-      ) : (
-        <div className="h-48" role="img" aria-label={summary}>
-          <p className="sr-only">{summary}</p>
-          <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={chartData} margin={{ top: 5, right: 5, left: -25, bottom: 0 }}>
+      <div className="relative h-56" role="img" aria-label={summary}>
+        <p className="sr-only">{summary}</p>
+        <span
+          aria-hidden
+          className="pointer-events-none absolute right-3 top-2 select-none font-display text-sm font-semibold text-text-muted opacity-30"
+        >
+          MarketPips
+        </span>
+        <ResponsiveContainer width="100%" height="100%">
+          <LineChart data={chartData} margin={{ top: 8, right: 0, left: 0, bottom: 0 }}>
               <XAxis
                 dataKey="time"
                 tickFormatter={(v) => format(new Date(v), 'MMM d')}
@@ -169,11 +186,14 @@ export function OutcomesChart({ options, data }: OutcomesChartProps) {
                 minTickGap={40}
               />
               <YAxis
+                orientation="right"
                 domain={[0, 1]}
+                ticks={[0, 0.25, 0.5, 0.75, 1]}
                 tickFormatter={(v) => `${Math.round(v * 100)}%`}
                 tick={{ fontSize: 10, fill: 'var(--text-muted)' }}
                 tickLine={false}
                 axisLine={false}
+                width={34}
               />
               <Tooltip content={<ChartTooltip />} />
               <ReferenceLine y={0.5} stroke="var(--hairline)" strokeDasharray="3 3" />
@@ -194,6 +214,11 @@ export function OutcomesChart({ options, data }: OutcomesChartProps) {
             </LineChart>
           </ResponsiveContainer>
         </div>
+
+      {isSeeded && (
+        <p className="mt-1.5 text-center text-[11px] text-text-muted">
+          Flat baseline at the current estimate · awaiting first trade
+        </p>
       )}
 
       {/* Legend — ranked options with current probability. */}
