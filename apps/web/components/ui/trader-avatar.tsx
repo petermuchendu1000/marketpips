@@ -12,6 +12,7 @@
 // Kept separate from EntityAvatar (markets/logos) on purpose: entities want
 // monogram+brand-colour squares; people want circular identity gradients.
 import { useState } from 'react'
+import { traderGradient } from '@/lib/trader'
 
 interface TraderAvatarProps {
   /** Stable user id — seeds the deterministic gradient. */
@@ -25,29 +26,6 @@ interface TraderAvatarProps {
   /** Show the corner verification pip. */
   verified?: boolean
   className?: string
-}
-
-// Deterministic 32-bit hash (FNV-1a-ish) over the id string.
-function hash(str: string): number {
-  let h = 0x811c9dc5
-  for (let i = 0; i < str.length; i++) {
-    h ^= str.charCodeAt(i)
-    h = Math.imul(h, 0x01000193)
-  }
-  return h >>> 0
-}
-
-// Two harmonious hues + an angle, all derived from the id.
-function gradientFor(id: string): string {
-  const h = hash(id)
-  const hueA = h % 360
-  const hueB = (hueA + 40 + ((h >> 8) % 120)) % 360
-  const angle = (h >> 16) % 360
-  const c1 = `hsl(${hueA} 82% 62%)`
-  const c2 = `hsl(${hueB} 78% 52%)`
-  const c3 = `hsl(${(hueB + 30) % 360} 74% 44%)`
-  // Off-center radial gives the Polymarket "orb" look; linear layer adds depth.
-  return `radial-gradient(circle at 30% 25%, ${c1} 0%, ${c2} 55%, ${c3} 100%), linear-gradient(${angle}deg, ${c1}, ${c3})`
 }
 
 export function TraderAvatar({
@@ -87,7 +65,7 @@ export function TraderAvatar({
           aria-label={name || 'Trader avatar'}
           className="flex h-full w-full items-center justify-center rounded-full font-bold leading-none text-white"
           style={{
-            backgroundImage: gradientFor(id),
+            backgroundImage: traderGradient(id),
             fontSize: Math.max(9, Math.round(size * 0.42)),
             textShadow: '0 1px 2px rgba(0,0,0,.25)',
           }}

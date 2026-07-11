@@ -1,0 +1,365 @@
+'use client'
+
+// components/profile/trader-portfolio.tsx
+// ------------------------------------------------------------
+// Trader profile portfolio (Polymarket parity): Positions / Activity tabs, an
+// Active | Closed segmented control, a search field, and a sortable table.
+//   Active  columns: Market · Avg · Current · Value (+ unrealized P&L %)
+//   Closed  columns: Result · Market · Total traded · Amount won (+ realized)
+// Data comes from the read-only trader_positions RPC (public aggregates only).
+import { useEffect, useMemo, useRef, useState, useCallback } from 'react'
+import Link from 'next/link'
+import { createClient } from '@/lib/supabase/client'
+import { formatUSD } from '@/lib/utils'
+
+interface PositionRow {
+  position_id: string
+  market_id: string
+  market_slug: string
+  market_title: string
+  category: string
+  option_label: string | null
+  side: 'yes' | 'no'
+  shares: number
+  avg_entry_price: number
+  current_price: number
+  current_value_usd: number
+  total_invested_usd: number
+  unrealized_pnl_usd: number
+  realized_pnl_usd: number
+  total_payout_usd: number
+  is_active: boolean
+  is_won: boolean
+  updated_at: string
+}
+
+type Status = 'active' | 'closed'
+type Sort = 'value' | 'pnl'
+
+const cents = (p: number) => `${Math.round(Number(p) * 100)}¢`
+const shares = (n: number) => Number(n).toLocaleString(undefined, { maximumFractionDigits: 1 })
+
+function OutcomeChip({ side, price }: { side: 'yes' | 'no'; price: number }) {
+  return (
+    <span
+      className="inline-flex items-center gap-1 rounded-pill px-1.5 py-px text-[11px] font-semibold"
+      style={{
+        background: side === 'no' ? 'var(--no-tint)' : 'var(--yes-tint)',
+        color: side === 'no' ? 'var(--no-700)' : 'var(--yes-700)',
+      }}
+    >
+      {side === 'no' ? 'No' : 'Yes'} {cents(price)}
+    </span>
+  )
+}
+
+function MarketCell({ row }: { row: PositionRow }) {
+  const entry = row.avg_entry_price
+  return (
+    <div className="min-w-0">
+      <Link
+        href={`/markets/${row.market_slug}`}
+        className="line-clamp-1 text-sm font-medium text-text-primary hover:text-pip-text hover:underline"
+      >
+        {row.market_title}
+      </Link>
+      <div className="mt-1 flex items-center gap-2 text-xs text-text-muted">
+        {row.option_label && <span className="truncate font-medium text-text-secondary">{row.option_label}</span>}
+        <OutcomeChip side={row.side} price={entry} />
+        <span className="tabular-nums">{shares(row.shares)} shares</span>
+      </div>
+    </div>
+  )
+}
+
+function Pnl({ value, base }: { value: number; base: number }) {
+  const pct = base > 0 ? (value / base) * 100 : 0
+  const pos = value >= 0
+  return (
+    <span className={`tabular-nums text-xs ${pos ? 'text-yes' : 'text-no'}`}>
+      {pos ? '+' : '−'}{formatUSD(Math.abs(value))} ({pos ? '' : '−'}{Math.abs(pct).toFixed(2)}%)
+    </span>
+  )
+}
+
+interface ActivityRow {
+  id: string
+  action: string
+  amount_usd: number | null
+  side: 'yes' | 'no' | null
+  price: number | null
+  created_at: string | null
+  market?: { title: string | null; slug: string | null } | null
+}
+
+function ActivityPanel({ userId }: { userId: string }) {
+  const supabase = useMemo(() => createClient(), [])
+  const [rows, setRows] = useState<ActivityRow[] | null>(null)
+  useEffect(() => {
+    let alive = true
+    supabase
+      .from('market_activity')
+      .select('id, action, amount_usd, side, price, created_at, market:markets!market_activity_market_id_fkey(title, slug)')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false })
+      .limit(50)
+      .then(({ data }) => { if (alive) setRows(((data as unknown) as ActivityRow[]) || []) })
+    return () => { alive = false }
+  }, [supabase, userId])
+
+  if (rows === null) return <PortfolioSkeleton />
+  if (rows.length === 0) return <p className="py-10 text-center text-sm text-text-muted">No recent activity.</p>
+  return (
+    <ul className="divide-y divide-hairline">
+      {rows.map((a) => {
+        const verb = a.action?.replace(/_/g, ' ') || 'trade'
+        return (
+          <li key={a.id} className="flex items-center justify-between gap-3 py-3 text-sm">
+            <div className="min-w-0">
+              <span className="font-medium capitalize text-text-primary">{verb}</span>{' '}
+              {a.market?.slug ? (
+                <Link href={`/markets/${a.market.slug}`} className="text-text-secondary hover:text-pip-text hover:underline">
+                  {a.market.title}
+                </Link>
+              ) : (
+                <span className="text-text-secondary">{a.market?.title}</span>
+              )}
+            </div>
+            <span className="flex-none tabular-nums text-text-muted">
+              {a.amount_usd != null ? formatUSD(a.amount_usd) : ''}
+              {a.created_at ? ` · ${new Date(a.created_at).toLocaleDateString()}` : ''}
+            </span>
+          </li>
+        )
+      })}
+    </ul>
+  )
+}
+
+export function TraderPortfolio({ userId }: { userId: string }) {
+  const supabase = useMemo(() => createClient(), [])
+  const [view, setView] = useState<'positions' | 'activity'>('positions')
+  const [status, setStatus] = useState<Status>('active')
+  const [sort, setSort] = useState<Sort>('value')
+  const [query, setQuery] = useState('')
+  const [rows, setRows] = useState<PositionRow[] | null>(null)
+  const debounce = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const [debounced, setDebounced] = useState('')
+
+  useEffect(() => {
+    if (debounce.current) clearTimeout(debounce.current)
+    debounce.current = setTimeout(() => setDebounced(query.trim()), 250)
+    return () => { if (debounce.current) clearTimeout(debounce.current) }
+  }, [query])
+
+  const load = useCallback(() => {
+    let alive = true
+    setRows(null)
+    supabase
+      .rpc('trader_positions' as never, {
+        p_user_id: userId,
+        p_status: status,
+        p_search: debounced || null,
+        p_limit: 100,
+      } as never)
+      .then(({ data }) => {
+        if (alive) setRows(((data as unknown) as PositionRow[]) || [])
+      })
+    return () => { alive = false }
+  }, [supabase, userId, status, debounced])
+
+  useEffect(() => { const c = load(); return c }, [load])
+
+  const sorted = useMemo(() => {
+    if (!rows) return null
+    const copy = [...rows]
+    copy.sort((a, b) =>
+      sort === 'value'
+        ? b.current_value_usd - a.current_value_usd
+        : (b.realized_pnl_usd + b.unrealized_pnl_usd) - (a.realized_pnl_usd + a.unrealized_pnl_usd),
+    )
+    return copy
+  }, [rows, sort])
+
+  return (
+    <div>
+      {/* Tabs */}
+      <div role="tablist" aria-label="Portfolio view" className="mb-4 flex items-center gap-5 border-b border-hairline">
+        {(['positions', 'activity'] as const).map((v) => (
+          <button
+            key={v}
+            role="tab"
+            aria-selected={view === v}
+            onClick={() => setView(v)}
+            className={`-mb-px border-b-2 pb-2.5 text-sm capitalize transition-colors ${
+              view === v
+                ? 'border-pip-500 font-semibold text-text-primary'
+                : 'border-transparent font-medium text-text-muted hover:text-text-secondary'
+            }`}
+          >
+            {v}
+          </button>
+        ))}
+      </div>
+
+      {view === 'activity' ? (
+        <ActivityPanel userId={userId} />
+      ) : (
+        <PositionsPanel
+          status={status}
+          setStatus={setStatus}
+          sort={sort}
+          setSort={setSort}
+          query={query}
+          setQuery={setQuery}
+          sorted={sorted}
+          debounced={debounced}
+        />
+      )}
+    </div>
+  )
+}
+
+interface PositionsPanelProps {
+  status: Status
+  setStatus: (s: Status) => void
+  sort: Sort
+  setSort: (fn: (s: Sort) => Sort) => void
+  query: string
+  setQuery: (s: string) => void
+  sorted: PositionRow[] | null
+  debounced: string
+}
+
+function PositionsPanel({ status, setStatus, sort, setSort, query, setQuery, sorted, debounced }: PositionsPanelProps) {
+  return (
+    <div>
+      {/* Controls: Active|Closed · search · sort */}
+      <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div role="tablist" aria-label="Position status" className="inline-flex rounded-md bg-surface-2 p-0.5">
+          {(['active', 'closed'] as Status[]).map((s) => (
+            <button
+              key={s}
+              role="tab"
+              aria-selected={status === s}
+              onClick={() => setStatus(s)}
+              className={`rounded-[6px] px-3 py-1.5 text-sm font-semibold capitalize transition-colors ${
+                status === s ? 'bg-surface text-text-primary shadow-e1' : 'text-text-muted hover:text-text-secondary'
+              }`}
+            >
+              {s}
+            </button>
+          ))}
+        </div>
+        <div className="flex items-center gap-2">
+          <label htmlFor="pos-search" className="sr-only">Search positions</label>
+          <input
+            id="pos-search"
+            type="search"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Search positions…"
+            className="input h-9 w-full text-sm sm:w-56"
+          />
+          <button
+            type="button"
+            onClick={() => setSort((s) => (s === 'value' ? 'pnl' : 'value'))}
+            className="btn btn-secondary btn-sm flex-none whitespace-nowrap"
+            aria-label={`Sort by ${sort === 'value' ? 'value' : 'profit and loss'}`}
+          >
+            {sort === 'value' ? 'Value' : 'Profit/Loss'}
+          </button>
+        </div>
+      </div>
+
+      {/* Table */}
+      {sorted === null ? (
+        <PortfolioSkeleton />
+      ) : sorted.length === 0 ? (
+        <p className="py-10 text-center text-sm text-text-muted">
+          {debounced
+            ? 'No positions match your search.'
+            : status === 'active'
+              ? 'No open positions.'
+              : 'No settled positions yet.'}
+        </p>
+      ) : (
+        <div className="table-wrapper -mx-1 overflow-x-auto">
+          <table className="w-full min-w-[520px] border-collapse text-sm">
+            <thead>
+              <tr className="border-b border-hairline text-left text-[11px] font-medium uppercase tracking-wide text-text-muted">
+                {status === 'active' ? (
+                  <>
+                    <th className="py-2 pl-1 pr-3 font-medium">Market</th>
+                    <th className="px-3 py-2 text-right font-medium">Avg</th>
+                    <th className="px-3 py-2 text-right font-medium">Current</th>
+                    <th className="py-2 pl-3 pr-1 text-right font-medium">Value</th>
+                  </>
+                ) : (
+                  <>
+                    <th className="py-2 pl-1 pr-3 font-medium">Result</th>
+                    <th className="px-3 py-2 font-medium">Market</th>
+                    <th className="px-3 py-2 text-right font-medium">Total traded</th>
+                    <th className="py-2 pl-3 pr-1 text-right font-medium">Amount won</th>
+                  </>
+                )}
+              </tr>
+            </thead>
+            <tbody>
+              {sorted.map((r) => (
+                <tr key={r.position_id} className="border-b border-hairline align-middle">
+                  {status === 'active' ? (
+                    <>
+                      <td className="py-3 pl-1 pr-3"><MarketCell row={r} /></td>
+                      <td className="px-3 py-3 text-right tabular-nums text-text-secondary">{cents(r.avg_entry_price)}</td>
+                      <td className="px-3 py-3 text-right tabular-nums text-text-primary">{cents(r.current_price)}</td>
+                      <td className="py-3 pl-3 pr-1 text-right">
+                        <div className="font-semibold tabular-nums text-text-primary">{formatUSD(r.current_value_usd)}</div>
+                        <Pnl value={r.unrealized_pnl_usd} base={r.total_invested_usd} />
+                      </td>
+                    </>
+                  ) : (
+                    <>
+                      <td className="py-3 pl-1 pr-3">
+                        <span
+                          className="inline-flex items-center gap-1 rounded-pill px-2 py-0.5 text-xs font-semibold"
+                          style={{
+                            background: r.is_won ? 'var(--yes-tint)' : 'var(--no-tint)',
+                            color: r.is_won ? 'var(--yes-700)' : 'var(--no-700)',
+                          }}
+                        >
+                          {r.is_won ? 'Won' : 'Lost'}
+                        </span>
+                      </td>
+                      <td className="px-3 py-3"><MarketCell row={r} /></td>
+                      <td className="px-3 py-3 text-right tabular-nums text-text-secondary">{formatUSD(r.total_invested_usd)}</td>
+                      <td className="py-3 pl-3 pr-1 text-right">
+                        <div className="font-semibold tabular-nums text-text-primary">{formatUSD(r.total_payout_usd)}</div>
+                        <Pnl value={r.realized_pnl_usd} base={r.total_invested_usd} />
+                      </td>
+                    </>
+                  )}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  )
+}
+
+function PortfolioSkeleton() {
+  return (
+    <div className="space-y-3">
+      {[0, 1, 2, 3, 4].map((i) => (
+        <div key={i} className="flex items-center gap-3">
+          <div className="skeleton h-4 flex-1 rounded" />
+          <div className="skeleton h-4 w-12 rounded" />
+          <div className="skeleton h-4 w-12 rounded" />
+          <div className="skeleton h-4 w-16 rounded" />
+        </div>
+      ))}
+    </div>
+  )
+}

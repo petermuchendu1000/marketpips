@@ -15,6 +15,7 @@ import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { useAuth } from '@/hooks/use-auth'
 import { formatVolume, formatUSD } from '@/lib/utils'
+import { traderName, joinedMonthYear } from '@/lib/trader'
 import { TraderAvatar } from '@/components/ui/trader-avatar'
 import type { MarketOption } from '@/types'
 
@@ -39,16 +40,6 @@ interface CardStats {
   positions_value: number
   profit_loss_usd: number
   volume_usd: number
-}
-
-function traderName(r: { display_name: string | null; username: string | null }, id: string) {
-  return r.display_name || (r.username ? `@${r.username}` : `Trader ${id.slice(0, 4)}`)
-}
-
-function joinedLabel(iso: string | null): string {
-  if (!iso) return ''
-  const d = new Date(iso)
-  return `Joined ${d.toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}`
 }
 
 // ---- Peek (hover/focus card) ---------------------------------------------
@@ -85,7 +76,9 @@ function HolderPeek({ userId, fallbackName }: { userId: string; fallbackName: st
         <TraderAvatar id={userId} name={name} imageUrl={stats?.avatar_url} size={36} />
         <div className="min-w-0">
           <p className="truncate text-sm font-semibold text-text-primary">{name}</p>
-          <p className="text-xs text-text-muted">{stats ? joinedLabel(stats.joined_at) : 'Loading…'}</p>
+          <p className="text-xs text-text-muted">
+            {stats ? (joinedMonthYear(stats.joined_at) ? `Joined ${joinedMonthYear(stats.joined_at)}` : '') : 'Loading…'}
+          </p>
         </div>
       </div>
       <div className="grid grid-cols-3 gap-2 border-t border-hairline pt-2.5 text-center">
