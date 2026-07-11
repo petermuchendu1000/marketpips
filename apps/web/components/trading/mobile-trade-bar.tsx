@@ -166,10 +166,11 @@ export function MobileTradeBar({
 
   return (
     <>
-      {/* Sticky thumb-zone bar */}
+      {/* Sticky thumb-zone bar — sits directly ABOVE the mobile BottomNav
+          (56px + safe-area) so the two fixed bars never overlap. */}
       <div
-        className="fixed inset-x-0 bottom-0 z-40 border-t border-hairline bg-[color:var(--surface-1)]/95 px-4 pt-3 backdrop-blur lg:hidden"
-        style={{ paddingBottom: 'calc(0.75rem + env(safe-area-inset-bottom))' }}
+        className="fixed inset-x-0 z-40 border-t border-hairline bg-[color:var(--surface-1)]/95 px-4 py-3 backdrop-blur lg:hidden"
+        style={{ bottom: 'calc(3.5rem + env(safe-area-inset-bottom))' }}
       >
         {/* Direct-action buttons: the entry tap IS the decision (Buy YES/NO or
             the multiple_choice front-runner), opening the sheet pre-selected. */}

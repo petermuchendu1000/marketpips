@@ -4,6 +4,7 @@ import './globals.css'
 import { NextIntlClientProvider } from 'next-intl'
 import { getLocale, getMessages } from 'next-intl/server'
 import { Navbar } from '@/components/layout/navbar'
+import { BottomNav } from '@/components/layout/bottom-nav'
 import { SiteFooter } from '@/components/layout/site-footer'
 import { Providers } from '@/components/layout/providers'
 import { ThemeProvider } from '@/components/layout/theme-provider'
@@ -105,6 +106,15 @@ export default async function RootLayout({ children }: { children: React.ReactNo
                 {children}
               </main>
               <SiteFooter />
+              {/* Mobile bottom navigation (Home · Search · Breaking · More).
+                  Fixed to the bottom on <lg; the spacer below reserves scroll
+                  room so page/footer content is never hidden behind it. */}
+              <BottomNav />
+              <div
+                aria-hidden
+                className="lg:hidden"
+                style={{ height: 'calc(3.5rem + env(safe-area-inset-bottom))' }}
+              />
               <WebVitals />
               <ServiceWorkerRegister />
             </Providers>
