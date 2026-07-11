@@ -2,45 +2,54 @@
 
 // components/markets/btc-live-chart.tsx
 // ---------------------------------------------------------------------------
-// Real-time BTC/USD price chart for the recurring "Bitcoin Up or Down" windows
-// (Polymarket parity — see polymarket.com/crypto/hourly). It shows the three
-// things a trader needs while a window is live:
-//   • Price to beat  — the window's reference (open) price, drawn as a dashed
-//     strike line the price must stay above (Up) or below (Down).
-//   • Live BTC price — streamed tick-by-tick, with the move since open.
-//   • Up/Down lean   — derived from live price vs the strike, so the chart reads
-//     at a glance the way Polymarket's does.
+// Real-time BTC/USD chart for the recurring "Bitcoin Up or Down" windows —
+// a close clone of Polymarket's hourly BTC market chart
+// (polymarket.com/event/btc-updown-*). It renders:
+//   • "Price to beat" (the window reference/open price) + a Live pill.
+//   • The live BTC price + move since open and the Up/Down lean.
+//   • An orange price line (Bitcoin brand) with an area fill, a dashed "Target"
+//     strike line, a right-hand price axis and a time axis, and a dot on the
+//     latest point — exactly the anatomy of Polymarket's chart.
+//   • Series chips (5M · 15M · 30M · 1H) that jump between the live windows.
 //
-// FEED: Coinbase's public, key-less WebSocket ticker (wss://ws-feed.exchange
-// .coinbase.com). WebSockets aren't subject to CORS, so this works from the
-// browser in any region, and Coinbase is the same source the server-side
-// oracle prefers (lib/markets/btc-price.ts) — so the chart and settlement agree.
-// We best-effort seed recent history from Coinbase's REST candles; if that's
-// blocked we simply begin at the strike and accumulate live ticks.
+// FEED (robust, key-less, free): a REST spot poll (api.coinbase.com, CORS-open)
+// runs as the always-on baseline so the line is NEVER empty, and Coinbase's
+// public WebSocket ticker (wss://ws-feed.exchange.coinbase.com) layers on
+// smoother sub-second ticks when it connects. Recent history is best-effort
+// seeded from Coinbase candles. Coinbase is the same source the server oracle
+// settles against, so the chart and settlement agree.
 import { useEffect, useMemo, useRef, useState } from 'react'
+import Link from 'next/link'
 import {
   AreaChart, Area, XAxis, YAxis, Tooltip,
-  ResponsiveContainer, ReferenceLine, CartesianGrid,
+  ResponsiveContainer, ReferenceLine, ReferenceDot,
 } from 'recharts'
 import { format } from 'date-fns'
+import { createClient } from '@/lib/supabase/client'
 import { IconArrowUp, IconArrowDown } from '@/components/ui/icons'
 
+const BTC_ORANGE = '#F7931A'
+
 interface BtcLiveChartProps {
-  /** Window reference (open) price — the "price to beat". */
+  marketId: string
   referencePrice: number
-  /** Window close time (ISO). */
   closesAt: string
-  /** Window duration in seconds (open = close − windowSeconds). */
   windowSeconds: number
   upLabel?: string
   downLabel?: string
-  /** Market status; live streaming stops once the window is no longer active. */
   status?: string
 }
 
 interface Pt {
   t: number
   price: number
+}
+
+interface Sibling {
+  slug: string
+  label: string
+  closes_at: string
+  window_seconds: number
 }
 
 const usd = (n: number, dp = 0) =>
@@ -51,12 +60,13 @@ function Tip({ active, payload, label }: { active?: boolean; payload?: { value: 
   return (
     <div className="rounded-md border border-hairline px-3 py-2 text-sm shadow-lg" style={{ background: 'var(--surface)' }}>
       <p className="mb-0.5 text-xs text-text-muted">{label ? format(new Date(Number(label)), 'HH:mm:ss') : ''}</p>
-      <p className="font-mono font-semibold text-text-primary">{usd(payload[0]?.value ?? 0, 2)}</p>
+      <p className="font-mono font-semibold" style={{ color: BTC_ORANGE }}>{usd(payload[0]?.value ?? 0, 2)}</p>
     </div>
   )
 }
 
 export function BtcLiveChart({
+  marketId,
   referencePrice,
   closesAt,
   windowSeconds,
@@ -71,216 +81,265 @@ export function BtcLiveChart({
   const [live, setLive] = useState<number>(referencePrice)
   const [connected, setConnected] = useState(false)
   const [now, setNow] = useState<number>(() => Date.now())
+  const [siblings, setSiblings] = useState<Sibling[]>([])
   const lastPush = useRef<number>(0)
 
-  const windowOver = status !== 'active' || now >= closeMs
+  const windowClosed = status !== 'active' || now >= closeMs
 
-  // 1s clock for the countdown + to freeze the series when the window ends.
+  // 1s clock (countdown + freezes the series at the close boundary).
   useEffect(() => {
     const id = setInterval(() => setNow(Date.now()), 1000)
     return () => clearInterval(id)
   }, [])
 
-  // Best-effort history seed from Coinbase 1-minute candles (newest first).
+  // Sibling live windows for the 5M · 15M · 30M · 1H chips.
+  useEffect(() => {
+    const supabase = createClient()
+    supabase
+      .from('markets')
+      .select('slug, closes_at, metadata')
+      .eq('status', 'active')
+      .contains('metadata', { card_kind: 'up_down' })
+      .order('featured_order', { ascending: true })
+      .then(({ data }) => {
+        if (!data) return
+        setSiblings(
+          data.map((m) => {
+            const meta = (m.metadata ?? {}) as Record<string, unknown>
+            return {
+              slug: m.slug as string,
+              label: String(meta.window_label ?? ''),
+              closes_at: m.closes_at as string,
+              window_seconds: Number(meta.window_seconds ?? 0),
+            }
+          }),
+        )
+      })
+  }, [marketId])
+
+  const pushPrice = useMemo(() => {
+    return (price: number, force = false) => {
+      if (!Number.isFinite(price) || price <= 0) return
+      setLive(price)
+      const t = Date.now()
+      if (!force && t - lastPush.current < 700) return
+      lastPush.current = t
+      setPoints((prev) => {
+        const capped = Math.min(t, closeMs)
+        const next = [...prev, { t: capped, price }]
+        return next.length > 900 ? next.slice(next.length - 900) : next
+      })
+    }
+  }, [closeMs])
+
+  // Best-effort seed of recent history from Coinbase 1-minute candles.
   useEffect(() => {
     let alive = true
     const startISO = new Date(openMs).toISOString()
-    const endISO = new Date(Math.min(closeMs, Date.now())).toISOString()
-    const url = `https://api.exchange.coinbase.com/products/BTC-USD/candles?granularity=60&start=${startISO}&end=${endISO}`
-    fetch(url)
+    const endISO = new Date(Math.min(closeMs, Date.now() + 1000)).toISOString()
+    fetch(`https://api.exchange.coinbase.com/products/BTC-USD/candles?granularity=60&start=${startISO}&end=${endISO}`)
       .then((r) => (r.ok ? r.json() : Promise.reject(new Error('candles'))))
       .then((rows: number[][]) => {
         if (!alive || !Array.isArray(rows) || rows.length === 0) return
-        // [ time(s), low, high, open, close, volume ]
         const seeded: Pt[] = rows
           .map((c) => ({ t: c[0] * 1000, price: c[4] }))
           .filter((p) => p.t >= openMs && p.t <= closeMs)
           .sort((a, b) => a.t - b.t)
-        setPoints((prev) => {
-          const merged = [{ t: openMs, price: referencePrice }, ...seeded, ...prev.filter((p) => p.t > (seeded.at(-1)?.t ?? openMs))]
-          return merged
-        })
+        if (seeded.length) {
+          setPoints((prev) => {
+            const tail = prev.filter((p) => p.t > (seeded.at(-1)?.t ?? openMs))
+            return [{ t: openMs, price: referencePrice }, ...seeded, ...tail]
+          })
+        }
       })
-      .catch(() => {/* CORS/region — start from the strike and stream live */})
+      .catch(() => {/* CORS/region — baseline REST poll fills the line instead */})
     return () => {
       alive = false
     }
   }, [openMs, closeMs, referencePrice])
 
-  // Live tick stream — Coinbase key-less WebSocket ticker.
+  // ALWAYS-ON REST spot poll — guarantees a moving line even if the socket is
+  // blocked. api.coinbase.com is CORS-open, so this works from any browser.
   useEffect(() => {
-    if (windowOver) return
+    if (windowClosed) return
+    let alive = true
+    const tick = () =>
+      fetch('https://api.coinbase.com/v2/prices/BTC-USD/spot')
+        .then((r) => r.json())
+        .then((j) => {
+          if (alive) pushPrice(parseFloat(j?.data?.amount))
+        })
+        .catch(() => {})
+    tick()
+    const id = setInterval(tick, 2500)
+    return () => {
+      alive = false
+      clearInterval(id)
+    }
+  }, [windowClosed, pushPrice])
+
+  // Coinbase WebSocket ticker — smoother sub-second ticks when reachable.
+  useEffect(() => {
+    if (windowClosed) return
     let ws: WebSocket | null = null
-    let poll: ReturnType<typeof setInterval> | null = null
     let closedByUs = false
-
-    const pushPrice = (price: number) => {
-      if (!Number.isFinite(price) || price <= 0) return
-      setLive(price)
-      const t = Date.now()
-      if (t - lastPush.current < 750) return // throttle re-renders (~1.3/s)
-      lastPush.current = t
-      setPoints((prev) => {
-        const next = [...prev, { t: Math.min(t, closeMs), price }]
-        return next.length > 720 ? next.slice(next.length - 720) : next
-      })
-    }
-
-    // REST fallback if the socket can't be established (rare).
-    const startPolling = () => {
-      if (poll) return
-      poll = setInterval(() => {
-        fetch('https://api.coinbase.com/v2/prices/BTC-USD/spot')
-          .then((r) => r.json())
-          .then((j) => pushPrice(parseFloat(j?.data?.amount)))
-          .catch(() => {})
-      }, 5000)
-    }
-
     try {
       ws = new WebSocket('wss://ws-feed.exchange.coinbase.com')
       ws.onopen = () => {
         setConnected(true)
-        ws?.send(
-          JSON.stringify({ type: 'subscribe', product_ids: ['BTC-USD'], channels: ['ticker'] }),
-        )
+        ws?.send(JSON.stringify({ type: 'subscribe', product_ids: ['BTC-USD'], channels: ['ticker'] }))
       }
       ws.onmessage = (ev) => {
         try {
           const m = JSON.parse(ev.data)
           if (m.type === 'ticker' && m.product_id === 'BTC-USD') pushPrice(parseFloat(m.price))
-        } catch {/* ignore malformed frame */}
+        } catch {/* ignore */}
       }
-      ws.onerror = () => {
-        setConnected(false)
-        startPolling()
-      }
+      ws.onerror = () => setConnected(false)
       ws.onclose = () => {
-        setConnected(false)
-        if (!closedByUs) startPolling()
+        if (!closedByUs) setConnected(false)
       }
-    } catch {
-      startPolling()
-    }
-
+    } catch {/* REST poll covers us */}
     return () => {
       closedByUs = true
       setConnected(false)
-      if (ws) {
-        try {
-          ws.close()
-        } catch {/* already closed */}
-      }
-      if (poll) clearInterval(poll)
+      try {
+        ws?.close()
+      } catch {/* already closed */}
     }
-  }, [windowOver, closeMs])
+  }, [windowClosed, pushPrice])
 
   const isUp = live >= referencePrice
   const delta = live - referencePrice
   const deltaPct = referencePrice > 0 ? (delta / referencePrice) * 100 : 0
-  const tone = isUp ? 'var(--yes)' : 'var(--no)'
+  const leanTone = isUp ? 'var(--yes)' : 'var(--no)'
 
   const remainingMs = Math.max(0, closeMs - now)
   const mm = Math.floor(remainingMs / 60000)
   const ss = Math.floor((remainingMs % 60000) / 1000)
-  const countdown = windowOver ? 'Window closed' : `${mm}:${ss.toString().padStart(2, '0')} left`
+  const countdown = windowClosed ? 'Window closed' : `${mm}:${ss.toString().padStart(2, '0')} left`
 
-  // Y domain padded around the strike so the reference line always sits in view.
   const prices = points.map((p) => p.price)
   const lo = Math.min(referencePrice, ...prices)
   const hi = Math.max(referencePrice, ...prices)
-  const pad = Math.max((hi - lo) * 0.15, referencePrice * 0.0008)
+  const pad = Math.max((hi - lo) * 0.2, referencePrice * 0.0006)
+  const last = points[points.length - 1]
 
   return (
     <div>
-      {/* Live readout row */}
-      <div className="mb-3 flex flex-wrap items-end justify-between gap-3">
+      {/* Price to beat + Live pill (Polymarket header row) */}
+      <div className="mb-3 flex items-start justify-between gap-3">
         <div>
-          <p className="text-xs text-text-muted">Live BTC price</p>
-          <div className="flex items-baseline gap-2">
-            <span className="font-mono text-2xl font-bold tabular-nums" style={{ color: tone }}>
-              {usd(live, 0)}
-            </span>
-            <span className="flex items-center gap-0.5 text-sm font-semibold tabular-nums" style={{ color: tone }}>
-              {isUp ? <IconArrowUp size={14} /> : <IconArrowDown size={14} />}
-              {delta >= 0 ? '+' : '−'}
-              {usd(Math.abs(delta), 0)} ({Math.abs(deltaPct).toFixed(2)}%)
-            </span>
-          </div>
+          <p className="text-xs uppercase tracking-wide text-text-muted">Price to beat</p>
+          <p className="font-mono text-2xl font-bold tabular-nums text-text-primary">{usd(referencePrice, 2)}</p>
         </div>
-        <div className="text-right">
-          <p className="text-xs text-text-muted">Price to beat</p>
-          <p className="font-mono text-lg font-semibold tabular-nums text-text-primary">{usd(referencePrice, 0)}</p>
-        </div>
-      </div>
-
-      <div className="mb-2 flex items-center justify-between text-xs">
-        <span className="flex items-center gap-1.5 font-semibold" style={{ color: tone }}>
-          <span className="inline-block h-2 w-2 rounded-full" style={{ background: tone }} />
-          {isUp ? upLabel : downLabel} leading
-        </span>
-        <span className="flex items-center gap-2 text-text-muted">
-          {!windowOver && (
-            <span className="flex items-center gap-1">
-              <span
-                className={`inline-block h-1.5 w-1.5 rounded-full ${connected ? 'animate-pulse-dot' : ''}`}
-                style={{ background: connected ? 'var(--yes)' : 'var(--text-muted)' }}
-              />
-              {connected ? 'Live' : 'Connecting…'}
-            </span>
-          )}
-          <span aria-hidden>·</span>
-          <span className="tabular-nums">{countdown}</span>
+        <span
+          className="inline-flex items-center gap-1.5 rounded-pill border border-hairline px-2.5 py-1 text-xs font-semibold"
+          style={{ color: windowClosed ? 'var(--text-muted)' : 'var(--no-700)' }}
+        >
+          <span
+            className={`inline-block h-1.5 w-1.5 rounded-full ${!windowClosed ? 'animate-pulse-dot' : ''}`}
+            style={{ background: windowClosed ? 'var(--text-muted)' : 'var(--no)' }}
+          />
+          {windowClosed ? 'Closed' : 'Live'}
         </span>
       </div>
 
-      <div className="h-56 w-full">
+      {/* Live price + move + Up/Down lean + countdown */}
+      <div className="mb-2 flex flex-wrap items-center justify-between gap-x-4 gap-y-1 text-sm">
+        <div className="flex items-baseline gap-2">
+          <span className="font-mono text-lg font-bold tabular-nums" style={{ color: BTC_ORANGE }}>{usd(live, 2)}</span>
+          <span className="flex items-center gap-0.5 font-semibold tabular-nums" style={{ color: leanTone }}>
+            {isUp ? <IconArrowUp size={13} /> : <IconArrowDown size={13} />}
+            {delta >= 0 ? '+' : '−'}{usd(Math.abs(delta), 2)} ({Math.abs(deltaPct).toFixed(2)}%)
+          </span>
+        </div>
+        <div className="flex items-center gap-2 text-xs">
+          <span className="flex items-center gap-1 font-semibold" style={{ color: leanTone }}>
+            <span className="inline-block h-2 w-2 rounded-full" style={{ background: leanTone }} />
+            {isUp ? upLabel : downLabel} leading
+          </span>
+          <span aria-hidden className="text-text-muted">·</span>
+          <span className="tabular-nums text-text-muted">
+            {connected && !windowClosed ? 'live · ' : ''}{countdown}
+          </span>
+        </div>
+      </div>
+
+      {/* Chart */}
+      <div className="h-60 w-full">
         <ResponsiveContainer width="100%" height="100%">
-          <AreaChart data={points} margin={{ top: 6, right: 8, bottom: 0, left: 0 }}>
+          <AreaChart data={points} margin={{ top: 8, right: 4, bottom: 0, left: 0 }}>
             <defs>
               <linearGradient id="btcFill" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor={tone} stopOpacity={0.22} />
-                <stop offset="100%" stopColor={tone} stopOpacity={0} />
+                <stop offset="0%" stopColor={BTC_ORANGE} stopOpacity={0.2} />
+                <stop offset="100%" stopColor={BTC_ORANGE} stopOpacity={0} />
               </linearGradient>
             </defs>
-            <CartesianGrid stroke="var(--hairline)" vertical={false} />
             <XAxis
               dataKey="t"
               type="number"
               domain={[openMs, closeMs]}
               scale="time"
-              tickFormatter={(t) => format(new Date(Number(t)), 'HH:mm')}
-              tick={{ fontSize: 11, fill: 'var(--text-muted)' }}
+              tickFormatter={(t) => format(new Date(Number(t)), 'HH:mm:ss')}
+              tick={{ fontSize: 10, fill: 'var(--text-muted)' }}
               stroke="var(--hairline)"
-              minTickGap={40}
+              minTickGap={56}
             />
             <YAxis
               orientation="right"
               domain={[lo - pad, hi + pad]}
               tickFormatter={(v) => usd(Number(v), 0)}
-              tick={{ fontSize: 11, fill: 'var(--text-muted)' }}
+              tick={{ fontSize: 10, fill: 'var(--text-muted)' }}
               stroke="var(--hairline)"
-              width={64}
+              width={66}
             />
             <Tooltip content={<Tip />} />
             <ReferenceLine
               y={referencePrice}
-              stroke="var(--text-muted)"
-              strokeDasharray="4 4"
-              label={{ value: 'Price to beat', position: 'insideTopLeft', fontSize: 10, fill: 'var(--text-muted)' }}
+              stroke={BTC_ORANGE}
+              strokeDasharray="5 4"
+              strokeOpacity={0.7}
+              label={{ value: 'Target', position: 'insideTopRight', fontSize: 10, fill: BTC_ORANGE }}
             />
             <Area
               type="monotone"
               dataKey="price"
-              stroke={tone}
+              stroke={BTC_ORANGE}
               strokeWidth={2}
               fill="url(#btcFill)"
               isAnimationActive={false}
               dot={false}
+              activeDot={{ r: 3 }}
             />
+            {last && !windowClosed && (
+              <ReferenceDot x={last.t} y={last.price} r={4} fill={BTC_ORANGE} stroke="var(--surface)" strokeWidth={2} />
+            )}
           </AreaChart>
         </ResponsiveContainer>
       </div>
+
+      {/* Series chips (5M · 15M · 30M · 1H) — jump between live windows. */}
+      {siblings.length > 1 && (
+        <div className="mt-3 flex flex-wrap gap-1.5">
+          {siblings.map((s) => {
+            const active = s.window_seconds === windowSeconds
+            return (
+              <Link
+                key={s.slug}
+                href={`/markets/${s.slug}`}
+                className={`rounded-pill border px-3 py-1 text-xs font-semibold transition-colors ${
+                  active
+                    ? 'border-transparent bg-text-primary text-surface'
+                    : 'border-hairline text-text-secondary hover:bg-surface-2'
+                }`}
+              >
+                {s.label}
+              </Link>
+            )
+          })}
+        </div>
+      )}
 
       <p className="mt-2 text-center text-[11px] text-text-muted">
         Live BTC/USD via Coinbase · settles at the reference price when the window closes

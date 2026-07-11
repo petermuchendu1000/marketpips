@@ -273,6 +273,7 @@ export default async function MarketPage({
               <>
                 <SectionTitle icon={<IconTrendUp size={14} />}>Live BTC price</SectionTitle>
                 <BtcLiveChart
+                  marketId={market.id}
                   referencePrice={btcReferencePrice}
                   closesAt={market.closes_at}
                   windowSeconds={btcWindowSeconds}
