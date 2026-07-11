@@ -7,6 +7,7 @@ import {
   orderTarget,
   optionsResolverRpc,
   clampLimitCents,
+  oppositeSide,
   MIN_BET_USD,
   DEFAULT_PLATFORM_FEE_RATE,
   DEFAULT_CREATOR_REWARD_RATE,
@@ -217,5 +218,16 @@ describe('clampLimitCents — Polymarket limit-price − / + stepper band', () =
     expect(clampLimitCents(0 - 1)).toBe(0)   // decrement floor
     expect(clampLimitCents(98 + 1)).toBe(99) // increment
     expect(clampLimitCents(99 + 1)).toBe(99) // increment ceiling
+  })
+})
+
+describe('oppositeSide — ticket ⇄ swap affordance', () => {
+  it('flips yes/no', () => {
+    expect(oppositeSide('yes')).toBe('no')
+    expect(oppositeSide('no')).toBe('yes')
+  })
+  it('is an involution (double-swap returns original)', () => {
+    expect(oppositeSide(oppositeSide('yes'))).toBe('yes')
+    expect(oppositeSide(oppositeSide('no'))).toBe('no')
   })
 })

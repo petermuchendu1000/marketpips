@@ -219,6 +219,11 @@ export function clampLimitCents(n: number): number {
   return Math.max(0, Math.min(99, Math.round(n)))
 }
 
+/** The opposite trading side — powers the ticket's ⇄ Yes/No swap affordance. */
+export function oppositeSide(side: 'yes' | 'no'): 'yes' | 'no' {
+  return side === 'yes' ? 'no' : 'yes'
+}
+
 /**
  * The multiple_choice SETTLEMENT RPC that matches a market's pricing engine.
  * Choosing the wrong one silently mis-settles funds:
