@@ -13,9 +13,10 @@ import { createClient } from '@/lib/supabase/client'
 import { useAuth } from '@/hooks/use-auth'
 import { avatarColor, formatUSD } from '@/lib/utils'
 import { MarketActivity } from '@/components/markets/market-activity'
+import { TopHolders } from '@/components/markets/top-holders'
 import { IconComments, IconArrowRight, IconTrophy, IconPortfolio, IconClock } from '@/components/ui/icons'
 import toast from 'react-hot-toast'
-import type { Comment } from '@/types'
+import type { Comment, MarketOption } from '@/types'
 
 type TabKey = 'comments' | 'holders' | 'positions' | 'activity'
 
@@ -111,9 +112,11 @@ function HolderList({ rows, showOwnerNames = true }: { rows: HolderRow[]; showOw
 
 interface MarketCommentsProps {
   marketId: string
+  options?: MarketOption[] | null
+  resolutionType?: string | null
 }
 
-export function MarketComments({ marketId }: MarketCommentsProps) {
+export function MarketComments({ marketId, options, resolutionType }: MarketCommentsProps) {
   const { user } = useAuth()
   const supabase = useMemo(() => createClient(), [])
   const [tab, setTab] = useState<TabKey>('comments')
@@ -125,7 +128,7 @@ export function MarketComments({ marketId }: MarketCommentsProps) {
   const [isSubmitting, setIsSubmitting] = useState(false)
 
   // ---- lazy tab state -----------------------------------------------------
-  const [holders, setHolders] = useState<HolderRow[] | null>(null)
+  // Top Holders is delegated to <TopHolders/> (its own RPC-backed board).
   const [positions, setPositions] = useState<HolderRow[] | null>(null)
   const [activity, setActivity] = useState<ActivityRow[] | null>(null)
 
@@ -159,16 +162,6 @@ export function MarketComments({ marketId }: MarketCommentsProps) {
 
   // Lazy-load a tab's data the first time it's opened.
   useEffect(() => {
-    if (tab === 'holders' && holders === null) {
-      supabase
-        .from('positions')
-        .select('user_id, side, shares, current_value_usd, user:profiles!positions_user_id_fkey(display_name, username)')
-        .eq('market_id', marketId)
-        .eq('is_active', true)
-        .order('current_value_usd', { ascending: false })
-        .limit(20)
-        .then(({ data }) => setHolders(((data as unknown) as HolderRow[]) || []))
-    }
     if (tab === 'positions' && positions === null) {
       if (!user) {
         setPositions([])
@@ -192,7 +185,7 @@ export function MarketComments({ marketId }: MarketCommentsProps) {
         .limit(30)
         .then(({ data }) => setActivity(((data as unknown) as ActivityRow[]) || []))
     }
-  }, [tab, marketId, supabase, user, holders, positions, activity])
+  }, [tab, marketId, supabase, user, positions, activity])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -300,15 +293,10 @@ export function MarketComments({ marketId }: MarketCommentsProps) {
         </>
       )}
 
-      {/* Top holders */}
-      {tab === 'holders' &&
-        (holders === null ? (
-          <TabLoading />
-        ) : holders.length === 0 ? (
-          <EmptyState>No holders yet. Positions appear here once traders take a side.</EmptyState>
-        ) : (
-          <HolderList rows={holders} />
-        ))}
+      {/* Top holders — RPC-backed Yes/No board (Board→Peek→Profile). */}
+      {tab === 'holders' && (
+        <TopHolders marketId={marketId} options={options} resolutionType={resolutionType} />
+      )}
 
       {/* My positions */}
       {tab === 'positions' &&

@@ -280,7 +280,11 @@ export default async function MarketPage({
           />
 
           {/* Community — Comments / Top holders / Positions / Activity (tabs). */}
-          <MarketComments marketId={market.id} />
+          <MarketComments
+            marketId={market.id}
+            options={isMulti ? options : null}
+            resolutionType={market.resolution_type}
+          />
 
           <MarketFaq items={faqItems} />
         </div>
