@@ -21,7 +21,17 @@ export function ThemeToggle({ className = '' }: { className?: string }) {
   useEffect(() => setMounted(true), [])
 
   const isDark = resolvedTheme === 'dark'
-  const label = isDark ? 'Switch to light mode' : 'Switch to dark mode'
+  // Until mounted the theme is unknown on the server, so keep the accessible
+  // label/title neutral and identical on both the server render and the first
+  // client render. Deriving it from `isDark` before mount makes the server
+  // (theme undefined -> "Switch to dark mode") disagree with a dark-theme
+  // client ("Switch to light mode"), which is the hydration-attribute mismatch
+  // React was warning about. Once mounted we swap to the real, theme-aware label.
+  const label = !mounted
+    ? 'Toggle theme'
+    : isDark
+      ? 'Switch to light mode'
+      : 'Switch to dark mode'
 
   return (
     <button
