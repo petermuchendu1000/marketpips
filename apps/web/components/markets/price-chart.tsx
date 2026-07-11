@@ -9,7 +9,7 @@
 import { useMemo, useState } from 'react'
 import {
   AreaChart, Area, XAxis, YAxis, Tooltip,
-  ResponsiveContainer, ReferenceLine,
+  ResponsiveContainer, ReferenceLine, CartesianGrid,
 } from 'recharts'
 import { format } from 'date-fns'
 import { formatUSD } from '@/lib/utils'
@@ -68,6 +68,18 @@ function CustomTooltip({ active, payload, label }: TooltipProps) {
 
 export function PriceChart({ data, currentYes = 0.5, volumeUsd = 0 }: PriceChartProps) {
   const [timeframe, setTimeframe] = useState<Timeframe>('ALL')
+  // Polymarket "Chart Options" sheet (screenshot 6): reader-controlled axes,
+  // gridlines, autoscale and annotations. Defaults mirror Polymarket's own.
+  const [optsOpen, setOptsOpen] = useState(false)
+  const [opts, setOpts] = useState({
+    autoscale: false,
+    xAxis: true,
+    yAxis: true,
+    hGrid: true,
+    vGrid: false,
+    annotations: true,
+  })
+  const toggle = (k: keyof typeof opts) => setOpts((o) => ({ ...o, [k]: !o[k] }))
 
   const chartData = useMemo(() => {
     const rows = (data ?? [])
@@ -119,12 +131,14 @@ export function PriceChart({ data, currentYes = 0.5, volumeUsd = 0 }: PriceChart
       <div className="relative h-56" role="img" aria-label={`Market price history. ${summary}`}>
         <p className="sr-only">{summary}</p>
         {/* Faint brand watermark inside the plot (Polymarket does the same) */}
-        <span
-          aria-hidden
-          className="pointer-events-none absolute right-3 top-2 select-none font-display text-sm font-semibold text-text-muted opacity-30"
-        >
-          MarketPips
-        </span>
+        {opts.annotations && (
+          <span
+            aria-hidden
+            className="pointer-events-none absolute right-3 top-2 select-none font-display text-sm font-semibold text-text-muted opacity-30"
+          >
+            MarketPips
+          </span>
+        )}
         <ResponsiveContainer width="100%" height="100%">
           <AreaChart data={chartData} margin={{ top: 8, right: 0, left: 0, bottom: 0 }}>
             <defs>
@@ -133,8 +147,15 @@ export function PriceChart({ data, currentYes = 0.5, volumeUsd = 0 }: PriceChart
                 <stop offset="95%" stopColor="var(--yes)" stopOpacity={0} />
               </linearGradient>
             </defs>
+            <CartesianGrid
+              strokeDasharray="3 3"
+              stroke="var(--hairline)"
+              horizontal={opts.hGrid}
+              vertical={opts.vGrid}
+            />
             <XAxis
               dataKey="time"
+              hide={!opts.xAxis}
               tickFormatter={(v) => format(new Date(v), 'MMM d')}
               tick={{ fontSize: 10, fill: 'var(--text-muted)' }}
               tickLine={false}
@@ -143,8 +164,9 @@ export function PriceChart({ data, currentYes = 0.5, volumeUsd = 0 }: PriceChart
             />
             <YAxis
               orientation="right"
-              domain={[0, 1]}
-              ticks={[0, 0.25, 0.5, 0.75, 1]}
+              hide={!opts.yAxis}
+              domain={opts.autoscale ? ['auto', 'auto'] : [0, 1]}
+              ticks={opts.autoscale ? undefined : [0, 0.25, 0.5, 0.75, 1]}
               tickFormatter={(v) => `${Math.round(v * 100)}%`}
               tick={{ fontSize: 10, fill: 'var(--text-muted)' }}
               tickLine={false}
@@ -152,7 +174,7 @@ export function PriceChart({ data, currentYes = 0.5, volumeUsd = 0 }: PriceChart
               width={34}
             />
             <Tooltip content={<CustomTooltip />} />
-            <ReferenceLine y={0.5} stroke="var(--hairline)" strokeDasharray="3 3" />
+            {opts.annotations && <ReferenceLine y={0.5} stroke="var(--hairline)" strokeDasharray="3 3" />}
             <Area
               type="monotone"
               dataKey="yes"
@@ -172,6 +194,7 @@ export function PriceChart({ data, currentYes = 0.5, volumeUsd = 0 }: PriceChart
           <span className="font-mono font-medium text-text-secondary">{formatUSD(volumeUsd)}</span> Vol.
           {isSeeded && <span className="ml-2 text-text-muted">· awaiting first trade</span>}
         </span>
+        <div className="flex items-center gap-2">
         <div
           role="tablist"
           aria-label="Chart timeframe"
@@ -194,6 +217,56 @@ export function PriceChart({ data, currentYes = 0.5, volumeUsd = 0 }: PriceChart
               </button>
             )
           })}
+        </div>
+        {/* Chart options popover (Polymarket "Chart Options" sheet, screenshot 6) */}
+        <div className="relative">
+          <button
+            type="button"
+            onClick={() => setOptsOpen((v) => !v)}
+            aria-label="Chart options"
+            aria-haspopup="true"
+            aria-expanded={optsOpen}
+            className="flex h-7 w-7 items-center justify-center rounded-sm border border-hairline text-text-muted transition-colors hover:text-text-secondary"
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+              <line x1="4" y1="8" x2="20" y2="8" />
+              <circle cx="9" cy="8" r="2.6" fill="var(--surface)" />
+              <line x1="4" y1="16" x2="20" y2="16" />
+              <circle cx="15" cy="16" r="2.6" fill="var(--surface)" />
+            </svg>
+          </button>
+          {optsOpen && (
+            <div
+              role="menu"
+              className="absolute bottom-9 right-0 z-20 w-52 overflow-hidden rounded-md border border-hairline bg-surface p-1 shadow-lg"
+            >
+              {(
+                [
+                  ['autoscale', 'Autoscale'],
+                  ['xAxis', 'X-Axis'],
+                  ['yAxis', 'Y-Axis'],
+                  ['hGrid', 'Horizontal Grid'],
+                  ['vGrid', 'Vertical Grid'],
+                  ['annotations', 'Annotations'],
+                ] as [keyof typeof opts, string][]
+              ).map(([k, label]) => (
+                <button
+                  key={k}
+                  type="button"
+                  role="menuitemcheckbox"
+                  aria-checked={opts[k]}
+                  onClick={() => toggle(k)}
+                  className="flex w-full items-center justify-between rounded-[4px] px-2.5 py-2 text-left text-sm text-text-primary transition-colors hover:bg-surface-2"
+                >
+                  <span>{label}</span>
+                  <span className={`relative h-4 w-7 flex-none rounded-full transition-colors ${opts[k] ? 'bg-pip-500' : 'bg-surface-3'}`}>
+                    <span className={`absolute top-0.5 h-3 w-3 rounded-full bg-white transition-transform ${opts[k] ? 'translate-x-3.5' : 'translate-x-0.5'}`} />
+                  </span>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
         </div>
       </div>
     </div>

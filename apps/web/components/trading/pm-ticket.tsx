@@ -30,6 +30,7 @@ import {
   previewOptionBinaryBet,
   orderTarget,
   clampLimitCents,
+  oppositeSide,
   meetsMinBet,
   MIN_BET_USD,
 } from '@/lib/trading'
@@ -425,7 +426,28 @@ export function PmTicket({
         <EntityAvatar name={market.title} imageUrl={market.cover_image_url} size={38} shape="squircle" />
         <div className="min-w-0 flex-1">
           <p className="truncate text-sm font-semibold text-text-primary">{market.title}</p>
-          <p className={`truncate text-xs font-medium ${outcomeTone}`}>{titleOutcome}</p>
+          <div className="flex items-center gap-1.5">
+            <span className={`truncate text-xs font-medium ${outcomeTone}`}>{titleOutcome}</span>
+            {isOpen && (!isMulti || indepMulti) && (
+              <button
+                type="button"
+                onClick={() => {
+                  setSide(oppositeSide(side))
+                  setError('')
+                }}
+                aria-label={`Switch to ${oppositeSide(side) === 'yes' ? 'Yes' : 'No'}`}
+                title={`Switch to ${oppositeSide(side) === 'yes' ? 'Yes' : 'No'}`}
+                className="flex-none rounded p-0.5 text-text-muted transition-colors hover:text-text-secondary"
+              >
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                  <path d="M7 4 3 8l4 4" />
+                  <path d="M3 8h13" />
+                  <path d="m17 20 4-4-4-4" />
+                  <path d="M21 16H8" />
+                </svg>
+              </button>
+            )}
+          </div>
         </div>
       </div>
 
