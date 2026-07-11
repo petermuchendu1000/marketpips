@@ -11,10 +11,10 @@ import { useState, useEffect, useCallback, useMemo } from 'react'
 import { formatDistanceToNow } from 'date-fns'
 import { createClient } from '@/lib/supabase/client'
 import { useAuth } from '@/hooks/use-auth'
-import { formatUSD } from '@/lib/utils'
 import { TraderAvatar } from '@/components/ui/trader-avatar'
 import { MarketActivity } from '@/components/markets/market-activity'
 import { TopHolders } from '@/components/markets/top-holders'
+import { MarketPositions } from '@/components/markets/market-positions'
 import { IconComments, IconArrowRight, IconTrophy, IconPortfolio, IconClock } from '@/components/ui/icons'
 import toast from 'react-hot-toast'
 import type { Comment, MarketOption } from '@/types'
@@ -51,13 +51,6 @@ function EmptyState({ children }: { children: React.ReactNode }) {
 }
 
 // ---- data shapes ----------------------------------------------------------
-interface HolderRow {
-  user_id: string
-  side: 'yes' | 'no' | null
-  shares: number
-  current_value_usd: number | null
-  user?: { display_name: string | null; username: string | null } | null
-}
 interface ActivityRow {
   id: string
   user_id: string
@@ -69,42 +62,8 @@ interface ActivityRow {
   user?: { display_name: string | null; username: string | null }
 }
 
-function displayName(u?: { display_name: string | null; username: string | null } | null, id?: string) {
-  return u?.display_name || u?.username || `User…${(id || '').slice(-4)}`
-}
-
 function Avatar({ id, u }: { id: string; u?: { display_name: string | null; username: string | null } | null }) {
   return <TraderAvatar id={id} name={u?.display_name || u?.username || null} size={32} />
-}
-
-// ---- Holders / Positions rows ---------------------------------------------
-function HolderList({ rows, showOwnerNames = true }: { rows: HolderRow[]; showOwnerNames?: boolean }) {
-  if (!rows.length) return null
-  return (
-    <div className="space-y-3">
-      {rows.map((r, i) => (
-        <div key={`${r.user_id}-${r.side}-${i}`} className="flex items-center gap-3">
-          <Avatar id={r.user_id} u={r.user} />
-          <div className="min-w-0 flex-1">
-            {showOwnerNames && (
-              <p className="truncate text-sm font-medium text-text-primary">{displayName(r.user, r.user_id)}</p>
-            )}
-            <p className="text-xs text-text-muted">
-              <span
-                className={`font-semibold ${r.side === 'no' ? 'text-no' : 'text-yes'}`}
-              >
-                {r.side === 'no' ? 'No' : 'Yes'}
-              </span>{' '}
-              · {Math.round(r.shares).toLocaleString()} shares
-            </p>
-          </div>
-          <span className="flex-none tabular-nums text-sm font-semibold text-text-primary">
-            {formatUSD(r.current_value_usd ?? 0)}
-          </span>
-        </div>
-      ))}
-    </div>
-  )
 }
 
 interface MarketCommentsProps {
@@ -125,8 +84,8 @@ export function MarketComments({ marketId, options, resolutionType }: MarketComm
   const [isSubmitting, setIsSubmitting] = useState(false)
 
   // ---- lazy tab state -----------------------------------------------------
-  // Top Holders is delegated to <TopHolders/> (its own RPC-backed board).
-  const [positions, setPositions] = useState<HolderRow[] | null>(null)
+  // Top Holders and Positions are delegated to their own RPC-backed boards
+  // (<TopHolders/> / <MarketPositions/>); only Activity is fetched here.
   const [activity, setActivity] = useState<ActivityRow[] | null>(null)
 
   const fetchComments = useCallback(async () => {
@@ -159,20 +118,6 @@ export function MarketComments({ marketId, options, resolutionType }: MarketComm
 
   // Lazy-load a tab's data the first time it's opened.
   useEffect(() => {
-    if (tab === 'positions' && positions === null) {
-      if (!user) {
-        setPositions([])
-        return
-      }
-      supabase
-        .from('positions')
-        .select('user_id, side, shares, current_value_usd, user:profiles!positions_user_id_fkey(display_name, username)')
-        .eq('market_id', marketId)
-        .eq('user_id', user.id)
-        .eq('is_active', true)
-        .order('current_value_usd', { ascending: false })
-        .then(({ data }) => setPositions(((data as unknown) as HolderRow[]) || []))
-    }
     if (tab === 'activity' && activity === null) {
       supabase
         .from('market_activity')
@@ -182,7 +127,7 @@ export function MarketComments({ marketId, options, resolutionType }: MarketComm
         .limit(30)
         .then(({ data }) => setActivity(((data as unknown) as ActivityRow[]) || []))
     }
-  }, [tab, marketId, supabase, user, positions, activity])
+  }, [tab, marketId, supabase, activity])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -295,17 +240,10 @@ export function MarketComments({ marketId, options, resolutionType }: MarketComm
         <TopHolders marketId={marketId} options={options} resolutionType={resolutionType} />
       )}
 
-      {/* My positions */}
-      {tab === 'positions' &&
-        (positions === null ? (
-          <TabLoading />
-        ) : !user ? (
-          <EmptyState>Sign in to see your positions in this market.</EmptyState>
-        ) : positions.length === 0 ? (
-          <EmptyState>You don’t hold a position in this market yet.</EmptyState>
-        ) : (
-          <HolderList rows={positions} showOwnerNames={false} />
-        ))}
+      {/* Positions — market-wide Yes/No board (Polymarket parity). */}
+      {tab === 'positions' && (
+        <MarketPositions marketId={marketId} options={options} resolutionType={resolutionType} />
+      )}
 
       {/* Activity */}
       {tab === 'activity' &&
