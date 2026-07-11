@@ -7,6 +7,7 @@ import { createClient } from '@/lib/supabase/server'
 import { MarketHeader } from '@/components/markets/market-header'
 import { PriceChart } from '@/components/markets/price-chart'
 import { OutcomesChart } from '@/components/markets/outcomes-chart'
+import { BtcLiveChart } from '@/components/markets/btc-live-chart'
 import { BettingPanel } from '@/components/trading/betting-panel'
 import { GuidedBetFlow } from '@/components/trading/guided-bet-flow'
 import { PmTicket } from '@/components/trading/pm-ticket'
@@ -179,6 +180,14 @@ export default async function MarketPage({
   const isMulti = isMultiOutcome(market, options)
   const outcomes = normalizeOutcomes(market, options)
 
+  // Recurring "Bitcoin Up or Down" windows (migration 024) carry their strike
+  // (reference_price) + duration in metadata and render a LIVE BTC price chart
+  // instead of the probability history.
+  const meta = (market.metadata ?? {}) as Record<string, unknown>
+  const isUpDown = meta.card_kind === 'up_down'
+  const btcReferencePrice = Number(meta.reference_price ?? 0)
+  const btcWindowSeconds = Number(meta.window_seconds ?? 0)
+
   // Phase C: does this market trade as N independent per-candidate Yes/No lines?
   // Gated by BOTH the stored pricing mode ('independent') AND the feature-flag
   // kill-switch (flags.independent_options) — deploy ≠ release. When off, the
@@ -260,15 +269,31 @@ export default async function MarketPage({
           {isMulti && <CandidateList market={market} options={options} independent={independent} />}
 
           <div className="card p-4">
-            <SectionTitle icon={<IconTrendUp size={14} />}>Probability history</SectionTitle>
-            <Suspense fallback={<div className="skeleton h-48 rounded-md" />}>
-              <MarketPriceHistory
-                marketId={market.id}
-                options={isMulti ? options : null}
-                currentYes={market.yes_price}
-                volumeUsd={market.total_volume_usd}
-              />
-            </Suspense>
+            {isUpDown && btcReferencePrice > 0 ? (
+              <>
+                <SectionTitle icon={<IconTrendUp size={14} />}>Live BTC price</SectionTitle>
+                <BtcLiveChart
+                  referencePrice={btcReferencePrice}
+                  closesAt={market.closes_at}
+                  windowSeconds={btcWindowSeconds}
+                  upLabel={String(meta.yes_label ?? 'Up')}
+                  downLabel={String(meta.no_label ?? 'Down')}
+                  status={market.status}
+                />
+              </>
+            ) : (
+              <>
+                <SectionTitle icon={<IconTrendUp size={14} />}>Probability history</SectionTitle>
+                <Suspense fallback={<div className="skeleton h-48 rounded-md" />}>
+                  <MarketPriceHistory
+                    marketId={market.id}
+                    options={isMulti ? options : null}
+                    currentYes={market.yes_price}
+                    volumeUsd={market.total_volume_usd}
+                  />
+                </Suspense>
+              </>
+            )}
           </div>
 
           {/* Settlement / resolution — Rules / Market context tabs (main column
