@@ -173,7 +173,7 @@ export function MarketCard({
         )}
         {isUpDown && <BitcoinMark size={avatarSize} className="mt-0.5" />}
         <h3
-          className={`min-w-0 flex-1 font-semibold leading-snug ${compact ? 'text-sm line-clamp-2' : 'text-[15px] line-clamp-2'}`}
+          className={`min-w-0 flex-1 font-semibold leading-snug ${compact ? 'text-sm' : 'text-[15px]'}`}
           style={{ color: 'var(--text-primary)' }}
         >
           <TitleContent title={market.title} query={query} />
@@ -225,27 +225,35 @@ export function MarketCard({
           )}
         </div>
       ) : (
-        <div className="relative z-10 grid grid-cols-2 gap-2">
+        // Compact Yes/No (Up/Down) buttons pinned to the BOTTOM of the card
+        // (mt-auto), directly above the volume/time footer. Each button carries
+        // its side's probability, Polymarket-style.
+        <div className="relative z-10 mt-auto grid grid-cols-2 gap-2">
           <Link
             href={sideHref('yes')}
-            className="btn btn-yes pointer-events-auto w-full justify-center gap-1.5 py-3 text-sm"
-            aria-label={`Buy ${yesLabel}`}
+            className="btn btn-yes pointer-events-auto w-full justify-center gap-1.5 py-2 text-[13px]"
+            aria-label={`Buy ${yesLabel} at ${yesPct}%`}
           >
-            {isUpDown && <IconArrowUp size={16} />} {yesLabel}
+            {isUpDown && <IconArrowUp size={14} />} {yesLabel}
+            <span className="font-mono font-bold tabular-nums">{yesPct}%</span>
           </Link>
           <Link
             href={sideHref('no')}
-            className="btn btn-no pointer-events-auto w-full justify-center gap-1.5 py-3 text-sm"
-            aria-label={`Buy ${noLabel}`}
+            className="btn btn-no pointer-events-auto w-full justify-center gap-1.5 py-2 text-[13px]"
+            aria-label={`Buy ${noLabel} at ${100 - yesPct}%`}
           >
-            {isUpDown && <IconArrowDown size={16} />} {noLabel}
+            {isUpDown && <IconArrowDown size={14} />} {noLabel}
+            <span className="font-mono font-bold tabular-nums">{100 - yesPct}%</span>
           </Link>
         </div>
       )}
 
-      {/* Footer: LIVE/vol/time on the left, bettors + bookmark on the right. */}
+      {/* Footer: LIVE/vol/time on the left, bettors + bookmark on the right.
+          For multi markets the footer carries mt-auto to pin itself to the
+          bottom; for binary the Yes/No block already owns mt-auto and the
+          footer sits directly beneath it. */}
       <div
-        className="pointer-events-none relative z-10 mt-auto flex items-center justify-between pt-1"
+        className={`pointer-events-none relative z-10 flex items-center justify-between pt-1 ${isMulti ? 'mt-auto' : ''}`}
         style={{ borderTop: '1px solid var(--hairline)' }}
       >
         <div className="flex items-center gap-2 pt-2 text-[11px]" style={{ color: 'var(--text-muted)' }}>
