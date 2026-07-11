@@ -104,20 +104,21 @@ export function MarketHeader({ market, outcomes, isMulti }: MarketHeaderProps) {
         />
 
         <div className="min-w-0 flex-1">
-          {/* Category breadcrumb (Polymarket: "Economy · Fomc") */}
-          <div className="mb-1.5 flex items-center gap-1.5 text-xs text-text-muted">
-            <CategoryIcon category={market.category} size={13} />
-            <span>{category.label}</span>
-            {market.tags[0] && (
-              <>
-                <span aria-hidden>&middot;</span>
-                <span className="capitalize">{market.tags[0]}</span>
-              </>
-            )}
-          </div>
-
-          <div className="flex items-start justify-between gap-3">
-            <h1 className="font-display text-2xl leading-tight text-text-primary">{market.title}</h1>
+          {/* Breadcrumb row (Polymarket: "Economy · Fomc") + action cluster.
+              The copy-link / share / bookmark icons live on THIS row — not next
+              to the title — so on a phone the title uses the full column width
+              and never has to wrap around the icons. */}
+          <div className="mb-1.5 flex items-center justify-between gap-2">
+            <div className="flex min-w-0 items-center gap-1.5 text-xs text-text-muted">
+              <CategoryIcon category={market.category} size={13} />
+              <span className="truncate">{category.label}</span>
+              {market.tags[0] && (
+                <>
+                  <span aria-hidden>&middot;</span>
+                  <span className="truncate capitalize">{market.tags[0]}</span>
+                </>
+              )}
+            </div>
 
             {/* Action cluster — copy-link · share · bookmark */}
             <div className="flex shrink-0 items-center gap-0.5">
@@ -151,6 +152,10 @@ export function MarketHeader({ market, outcomes, isMulti }: MarketHeaderProps) {
               </button>
             </div>
           </div>
+
+          <h1 className="font-display text-xl leading-tight text-text-primary sm:text-2xl">
+            {market.title}
+          </h1>
 
           {/* Status + compact live probability (binary) / resolved outcome */}
           <div className="mt-3 flex flex-wrap items-center gap-3">
