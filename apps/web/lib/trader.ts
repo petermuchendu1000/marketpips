@@ -13,20 +13,74 @@ export function traderHash(str: string): number {
   return h >>> 0
 }
 
+/** Small deterministic PRNG (xorshift32) seeded from a 32-bit integer. */
+export function traderRng(seed: number): () => number {
+  let x = seed >>> 0 || 0x9e3779b9
+  return () => {
+    x ^= x << 13
+    x ^= x >>> 17
+    x ^= x << 5
+    return (x >>> 0) / 0x100000000
+  }
+}
+
+/** HSL (h 0-360, s/l 0-100) → [r,g,b] 0-255. */
+export function hslToRgb(h: number, s: number, l: number): [number, number, number] {
+  s /= 100
+  l /= 100
+  const k = (n: number) => (n + h / 30) % 12
+  const a = s * Math.min(l, 1 - l)
+  const f = (n: number) => l - a * Math.max(-1, Math.min(k(n) - 3, Math.min(9 - k(n), 1)))
+  return [Math.round(255 * f(0)), Math.round(255 * f(8)), Math.round(255 * f(4))]
+}
+
 /**
- * A deterministic multi-hue radial gradient (CSS) seeded from a user id — the
- * Polymarket-style identity "orb" so every account has a distinct, recognizable
- * mark with zero empty-avatar states.
+ * The four fixed radial-gradient anchor positions Polymarket uses for its
+ * identity orbs (verified by inspecting their computed styles). Only the four
+ * colours change per account — the geometry is constant, which is what gives
+ * every orb the same organic "bloom from the lower-right" character.
+ */
+export const ORB_POSITIONS: ReadonlyArray<readonly [number, number]> = [
+  [66, 77],
+  [29, 97],
+  [99, 86],
+  [29, 88],
+]
+
+export interface TraderOrb {
+  /** Stacked radial-gradient layers → CSS `background-image`. */
+  image: string
+  /** Darker base tone → CSS `background-color` (keeps the top from washing out). */
+  base: string
+}
+
+/**
+ * A deterministic Polymarket-faithful identity "orb": four stacked
+ * radial-gradient layers (each a distinct hue fading to transparent at 50%)
+ * over a darker base fill, all seeded from the user id. No letter/monogram —
+ * the gradient itself is the identity, exactly like Polymarket. Every account
+ * gets a distinct, recognizable mark with zero empty-avatar states.
+ */
+export function traderOrb(id: string): TraderOrb {
+  const rand = traderRng(traderHash(id))
+  const baseHue = Math.floor(rand() * 360)
+  const layers = ORB_POSITIONS.map(([x, y], i) => {
+    const hue = (baseHue + i * (70 + Math.floor(rand() * 80))) % 360
+    const sat = 62 + Math.floor(rand() * 26) // 62–88%
+    const lig = 46 + Math.floor(rand() * 20) // 46–66%
+    const [r, g, b] = hslToRgb(hue, sat, lig)
+    return `radial-gradient(at ${x}% ${y}%, rgb(${r},${g},${b}) 0px, rgba(0,0,0,0) 50%)`
+  })
+  const [br, bg, bb] = hslToRgb(baseHue, 42, 26)
+  return { image: layers.join(', '), base: `rgb(${br},${bg},${bb})` }
+}
+
+/**
+ * Back-compat convenience: the orb's `background-image` string only.
+ * Prefer {@link traderOrb} so callers can also set the base `background-color`.
  */
 export function traderGradient(id: string): string {
-  const h = traderHash(id)
-  const hueA = h % 360
-  const hueB = (hueA + 40 + ((h >> 8) % 120)) % 360
-  const angle = (h >> 16) % 360
-  const c1 = `hsl(${hueA} 82% 62%)`
-  const c2 = `hsl(${hueB} 78% 52%)`
-  const c3 = `hsl(${(hueB + 30) % 360} 74% 44%)`
-  return `radial-gradient(circle at 30% 25%, ${c1} 0%, ${c2} 55%, ${c3} 100%), linear-gradient(${angle}deg, ${c1}, ${c3})`
+  return traderOrb(id).image
 }
 
 /** Human display name with graceful fallbacks (never a raw uuid soup). */

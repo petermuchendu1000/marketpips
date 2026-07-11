@@ -11,7 +11,8 @@ import { useState, useEffect, useCallback, useMemo } from 'react'
 import { formatDistanceToNow } from 'date-fns'
 import { createClient } from '@/lib/supabase/client'
 import { useAuth } from '@/hooks/use-auth'
-import { avatarColor, formatUSD } from '@/lib/utils'
+import { formatUSD } from '@/lib/utils'
+import { TraderAvatar } from '@/components/ui/trader-avatar'
 import { MarketActivity } from '@/components/markets/market-activity'
 import { TopHolders } from '@/components/markets/top-holders'
 import { IconComments, IconArrowRight, IconTrophy, IconPortfolio, IconClock } from '@/components/ui/icons'
@@ -73,11 +74,7 @@ function displayName(u?: { display_name: string | null; username: string | null 
 }
 
 function Avatar({ id, u }: { id: string; u?: { display_name: string | null; username: string | null } | null }) {
-  return (
-    <div className={`flex h-8 w-8 flex-none items-center justify-center rounded-full text-xs font-bold text-white ${avatarColor(id)}`}>
-      {(u?.display_name || u?.username || '?')[0]?.toUpperCase() || '?'}
-    </div>
-  )
+  return <TraderAvatar id={id} name={u?.display_name || u?.username || null} size={32} />
 }
 
 // ---- Holders / Positions rows ---------------------------------------------

@@ -1,5 +1,14 @@
 import { describe, it, expect } from 'vitest'
-import { traderHash, traderGradient, traderName, joinedMonthYear } from '@/lib/trader'
+import {
+  traderHash,
+  traderRng,
+  hslToRgb,
+  traderOrb,
+  traderGradient,
+  traderName,
+  joinedMonthYear,
+  ORB_POSITIONS,
+} from '@/lib/trader'
 
 describe('traderHash', () => {
   it('is deterministic for the same input', () => {
@@ -16,19 +25,55 @@ describe('traderHash', () => {
   })
 })
 
-describe('traderGradient', () => {
+describe('traderRng', () => {
+  it('is deterministic for the same seed', () => {
+    const a = traderRng(12345)
+    const b = traderRng(12345)
+    expect([a(), a(), a()]).toEqual([b(), b(), b()])
+  })
+  it('returns values in [0, 1)', () => {
+    const r = traderRng(traderHash('seed'))
+    for (let i = 0; i < 50; i++) {
+      const v = r()
+      expect(v).toBeGreaterThanOrEqual(0)
+      expect(v).toBeLessThan(1)
+    }
+  })
+})
+
+describe('hslToRgb', () => {
+  it('maps primary colors correctly', () => {
+    expect(hslToRgb(0, 100, 50)).toEqual([255, 0, 0])
+    expect(hslToRgb(120, 100, 50)).toEqual([0, 255, 0])
+    expect(hslToRgb(240, 100, 50)).toEqual([0, 0, 255])
+  })
+  it('maps black and white', () => {
+    expect(hslToRgb(0, 0, 0)).toEqual([0, 0, 0])
+    expect(hslToRgb(0, 0, 100)).toEqual([255, 255, 255])
+  })
+})
+
+describe('traderOrb', () => {
   it('is deterministic per id (stable across renders)', () => {
     const id = '7b697424-4a0a-46dc-8b64-1756e8439c9f'
-    expect(traderGradient(id)).toBe(traderGradient(id))
+    expect(traderOrb(id)).toEqual(traderOrb(id))
   })
-  it('produces distinct gradients for distinct ids', () => {
-    expect(traderGradient('user-a')).not.toBe(traderGradient('user-b'))
+  it('produces distinct orbs for distinct ids', () => {
+    expect(traderOrb('user-a').image).not.toBe(traderOrb('user-b').image)
   })
-  it('emits a valid layered CSS gradient', () => {
-    const g = traderGradient('x')
-    expect(g).toContain('radial-gradient(')
-    expect(g).toContain('linear-gradient(')
-    expect(g).toContain('hsl(')
+  it('emits one radial-gradient layer per fixed anchor position (no letter)', () => {
+    const { image, base } = traderOrb('x')
+    const layers = image.match(/radial-gradient\(/g) ?? []
+    expect(layers.length).toBe(ORB_POSITIONS.length)
+    ORB_POSITIONS.forEach(([px, py]) => expect(image).toContain(`at ${px}% ${py}%`))
+    expect(base).toMatch(/^rgb\(\d+,\d+,\d+\)$/)
+  })
+})
+
+describe('traderGradient (back-compat)', () => {
+  it('returns the orb background-image string', () => {
+    expect(traderGradient('x')).toBe(traderOrb('x').image)
+    expect(traderGradient('x')).toContain('radial-gradient(')
   })
 })
 

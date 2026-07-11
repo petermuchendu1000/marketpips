@@ -12,7 +12,7 @@
 // Kept separate from EntityAvatar (markets/logos) on purpose: entities want
 // monogram+brand-colour squares; people want circular identity gradients.
 import { useState } from 'react'
-import { traderGradient } from '@/lib/trader'
+import { traderOrb } from '@/lib/trader'
 
 interface TraderAvatarProps {
   /** Stable user id — seeds the deterministic gradient. */
@@ -38,8 +38,8 @@ export function TraderAvatar({
 }: TraderAvatarProps) {
   const [failed, setFailed] = useState(false)
   const showImage = !!imageUrl && /^https?:\/\//i.test(imageUrl) && !failed
-  const letter = (name?.trim()?.[0] || '?').toUpperCase()
-  const pip = Math.max(10, Math.round(size * 0.38))
+  const orb = traderOrb(id)
+  const pip = Math.max(12, Math.round(size * 0.34))
 
   return (
     <span
@@ -60,18 +60,13 @@ export function TraderAvatar({
           style={{ background: 'var(--surface-2)' }}
         />
       ) : (
+        // Polymarket-style identity orb: pure deterministic gradient, no letter.
         <span
           role="img"
           aria-label={name || 'Trader avatar'}
-          className="flex h-full w-full items-center justify-center rounded-full font-bold leading-none text-white"
-          style={{
-            backgroundImage: traderGradient(id),
-            fontSize: Math.max(9, Math.round(size * 0.42)),
-            textShadow: '0 1px 2px rgba(0,0,0,.25)',
-          }}
-        >
-          {letter}
-        </span>
+          className="block h-full w-full rounded-full"
+          style={{ backgroundColor: orb.base, backgroundImage: orb.image }}
+        />
       )}
       {verified && (
         <span
