@@ -145,3 +145,31 @@ Polymarket’s payoff.
 Per‑market: `UPDATE markets SET options_pricing_mode='simplex'` (q_shares/price untouched) and/or flip
 `flags.independent_options` off — instant, no redeploy, no schema revert. M‑B is additive (new dispatch +
 new wrapper RPC) and safe for simplex markets (unchanged path).
+
+---
+
+## 7. Activation record — 2026‑07‑11 (Phase 2 executed)
+
+- Merged M‑A + M‑B to `main` (PR #6, squash `5d3f4ce`) with all blocking CI checks green
+  (lint · type‑check · unit 534 · build · migration‑lint · security · i18n · a11y).
+- Migration `027` applied to the live DB.
+- `platform_settings.flags.independent_options` = `true`.
+- All **22** active `multiple_choice` markets converted with `set_market_pricing_independent()`.
+  Existing per‑option `yes_price`/`no_price` were already seeded from the simplex `price`
+  (`Σ yes = 1.0`), so probabilities were **preserved** (e.g. Ruto stays 44¢ Yes / 56¢ No) — not reset to 50/50.
+- End‑to‑end verification (single transaction, **rolled back** — nothing persisted): bought **No** on a
+  5% candidate → resolved a different winner → the No holder was **paid** (`total_won` credited),
+  proving `place_bet_option_binary` + the new resolver dispatch settle No positions correctly.
+
+**Rollback SQL** (pre‑conversion state snapshotted to `phase2_pre_conversion_snapshot.json`):
+```sql
+-- kill‑switch (instant, no redeploy):
+UPDATE platform_settings SET value='false'::jsonb WHERE key='flags.independent_options';
+-- or per‑market revert (prices/q untouched):
+UPDATE markets SET options_pricing_mode='simplex'
+WHERE resolution_type='multiple_choice';
+```
+
+### Remaining parity polish (follow‑up PRs, not blockers)
+Per §1.10 / §2 / §3: per‑row 24h change chip, live matching/depth hint, chart‑options sheet, embed action,
+`⇄` side‑swap affordance on mobile, category scroll rail on detail. Tracked as **M‑E**.
