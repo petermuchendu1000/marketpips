@@ -80,7 +80,14 @@ export function BtcLiveChart({
   const [points, setPoints] = useState<Pt[]>([{ t: openMs, price: referencePrice }])
   const [live, setLive] = useState<number>(referencePrice)
   const [connected, setConnected] = useState(false)
-  const [now, setNow] = useState<number>(() => Date.now())
+  // Seed `now` from a DETERMINISTIC, prop-derived value (the window open time)
+  // so the server render and the first client render produce identical
+  // countdown / "Live" text. Initialising from Date.now() here ran the state
+  // initializer twice — once on the server, once on the client — with two
+  // different clock readings, which is exactly the "server rendered text didn't
+  // match the client" hydration mismatch. The interval below swaps in the real
+  // wall-clock immediately after mount, so the countdown is still live.
+  const [now, setNow] = useState<number>(openMs)
   const [siblings, setSiblings] = useState<Sibling[]>([])
   const lastPush = useRef<number>(0)
 
@@ -88,6 +95,7 @@ export function BtcLiveChart({
 
   // 1s clock (countdown + freezes the series at the close boundary).
   useEffect(() => {
+    setNow(Date.now()) // adopt the real clock the moment we're on the client
     const id = setInterval(() => setNow(Date.now()), 1000)
     return () => clearInterval(id)
   }, [])

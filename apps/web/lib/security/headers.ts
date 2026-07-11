@@ -31,6 +31,19 @@ export function buildCsp(opts: CspOptions = {}): string {
   const supaWss = supa ? supa.replace(/^https:/, 'wss:') : null
 
   const connect = ["'self'", 'https://api.polymarket.com', 'https://gamma-api.polymarket.com']
+  // Live BTC/USD market-data feeds used by the client Up/Down chart
+  // (components/markets/btc-live-chart.tsx). These are the same key-less,
+  // CORS-open public endpoints the server oracle settles against, so the
+  // browser chart and settlement agree. Without them the CSP silently blocks
+  // every price request and the chart line stays empty. Kraken + CoinGecko are
+  // whitelisted too so the client can fall back if Coinbase is unreachable.
+  connect.push(
+    'https://api.coinbase.com',
+    'https://api.exchange.coinbase.com',
+    'wss://ws-feed.exchange.coinbase.com',
+    'https://api.kraken.com',
+    'https://api.coingecko.com',
+  )
   if (supa) connect.push(supa)
   if (supaWss) connect.push(supaWss)
 

@@ -25,6 +25,7 @@ import {
 } from '@/components/ui/icons'
 import { EntityAvatar } from '@/components/ui/entity-avatar'
 import type { CardOption } from '@/lib/markets/card-options'
+import { useClientClock } from '@/hooks/use-client-clock'
 
 /** @deprecated superseded by `options`; kept so older callers still compile. */
 export interface CardLeadingOption {
@@ -63,8 +64,8 @@ function TitleContent({ title, query }: { title: string; query?: string }) {
   )
 }
 
-function timeLeft(closes: string) {
-  const ms = new Date(closes).getTime() - Date.now()
+function timeLeft(closes: string, now: number) {
+  const ms = new Date(closes).getTime() - now
   if (ms < 0) return 'Closed'
   const d = Math.floor(ms / 86400000)
   const h = Math.floor((ms % 86400000) / 3600000)
@@ -145,6 +146,11 @@ export function MarketCard({
   const yesLabel = isUpDown ? String(meta.yes_label ?? 'Up') : 'Yes'
   const noLabel = isUpDown ? String(meta.no_label ?? 'Down') : 'No'
   const isLive = isUpDown && market.status === 'active'
+
+  // Hydration-safe live clock: null on the server + first client render (so both
+  // agree), then ticks each second. The countdown / "Settling…" state below is
+  // gated on this so we never emit two different times server vs client.
+  const now = useClientClock()
 
   const detailHref = `/markets/${market.slug}`
   const sideHref = (side: 'yes' | 'no', optionId?: string) =>
@@ -258,7 +264,15 @@ export function MarketCard({
       >
         <div className="flex items-center gap-2 pt-2 text-[11px]" style={{ color: 'var(--text-muted)' }}>
           {isLive ? (
-            new Date(market.closes_at).getTime() <= Date.now() ? (
+            now == null ? (
+              // First paint (server + pre-mount client) — deterministic LIVE pill
+              // with no time text, so hydration matches. The countdown is added
+              // once the client clock is available (below).
+              <span className="flex items-center gap-1 font-semibold" style={{ color: 'var(--no-700)' }}>
+                <span className="inline-block h-1.5 w-1.5 rounded-full" style={{ background: 'var(--no)' }} />
+                LIVE
+              </span>
+            ) : new Date(market.closes_at).getTime() <= now ? (
               // Window closed but not yet settled by the engine — brief transient
               // (the cron resolves within ~60s). Never show "Closed left".
               <span className="font-semibold" style={{ color: 'var(--text-3)' }}>Settling…</span>
@@ -269,7 +283,7 @@ export function MarketCard({
                   LIVE
                 </span>
                 <span aria-hidden>·</span>
-                <span>{timeLeft(market.closes_at)} left</span>
+                <span>{timeLeft(market.closes_at, now)} left</span>
               </>
             )
           ) : (
@@ -281,7 +295,7 @@ export function MarketCard({
               <span aria-hidden>·</span>
               <span className="flex items-center gap-1">
                 <IconClock size={11} />
-                {timeLeft(market.closes_at)}
+                {now != null ? timeLeft(market.closes_at, now) : '—'}
               </span>
             </>
           )}

@@ -177,6 +177,18 @@ describe('security headers & CSP', () => {
     expect(csp).not.toContain("'unsafe-eval'")
   })
 
+  it('whitelists the live BTC price feeds in connect-src (chart would break otherwise)', () => {
+    const csp = buildCsp({ supabaseUrl: 'https://proj.supabase.co' })
+    // The client Up/Down chart polls Coinbase over REST + WebSocket and can fall
+    // back to Kraken/CoinGecko. If any of these drop out of connect-src the CSP
+    // silently blocks the feed and the chart line stays empty.
+    expect(csp).toContain('https://api.coinbase.com')
+    expect(csp).toContain('https://api.exchange.coinbase.com')
+    expect(csp).toContain('wss://ws-feed.exchange.coinbase.com')
+    expect(csp).toContain('https://api.kraken.com')
+    expect(csp).toContain('https://api.coingecko.com')
+  })
+
   it('includes unsafe-eval only when allowed (dev)', () => {
     expect(buildCsp({ allowUnsafeEval: true })).toContain("'unsafe-eval'")
   })
