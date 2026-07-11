@@ -279,15 +279,21 @@ def main() -> int:
 
     # ---- price history ----------------------------------------------------
     def ticks(market_id, option_id, base):
+        # Daily ticks anchored to the SAME time each day so that, when
+        # trader_pnl_series buckets by hour and sums across a trader's markets,
+        # the buckets align and the portfolio curve reads as a smooth trend
+        # (not sawtooth noise). Gentle random walk + slight mean-reversion.
         p = base
+        anchor = NOW.replace(minute=0, second=0, microsecond=0)
         for d in range(45, -1, -1):
-            p = min(0.96, max(0.04, p + RNG.uniform(-0.03, 0.03)))
+            drift = (base - p) * 0.08  # mild pull back toward the baseline
+            p = min(0.96, max(0.04, p + drift + RNG.uniform(-0.018, 0.018)))
             cur.execute(
                 """INSERT INTO price_history
                      (market_id, market_option_id, yes_price, no_price, price, volume_usd, recorded_at)
                      VALUES (%s,%s,%s,%s,%s,%s,%s)""",
                 (market_id, option_id, round(p, 4), round(1 - p, 4), round(p, 4),
-                 round(RNG.uniform(10_000, 240_000), 2), NOW - timedelta(days=d, hours=RNG.randint(0, 12))),
+                 round(RNG.uniform(10_000, 240_000), 2), anchor - timedelta(days=d)),
             )
 
     for slug in BINARY_SLUGS:
@@ -314,6 +320,51 @@ def main() -> int:
                  round(RNG.uniform(200, 90_000), 2), h["side"], round(RNG.uniform(0.05, 0.95), 4),
                  NOW - timedelta(days=RNG.randint(0, 40), hours=RNG.randint(0, 23))),
             )
+
+    # ---- market + option aggregates (headers, $Vol, chart footer) ---------
+    # Derive believable market stats from the seeded positions so the market
+    # header (Total volume / bets / unique traders), the chart "$Vol" footer and
+    # the per-option $Vol all read as a live market rather than $0.
+    if touched_market_ids:
+        cur.execute(
+            """WITH agg AS (
+                 SELECT p.market_id,
+                        SUM(p.total_invested_usd) AS invested,
+                        SUM(p.total_invested_usd) FILTER (WHERE p.side='yes') AS yes_inv,
+                        SUM(p.total_invested_usd) FILTER (WHERE p.side='no')  AS no_inv,
+                        COUNT(*) AS bets,
+                        COUNT(DISTINCT p.user_id) AS traders
+                 FROM positions p
+                 WHERE p.market_id = ANY(%s::uuid[])
+                 GROUP BY p.market_id
+               )
+               UPDATE markets m SET
+                 total_volume_usd = ROUND(agg.invested * 2.3, 2),
+                 yes_volume_usd   = ROUND(COALESCE(agg.yes_inv,0) * 2.3, 2),
+                 no_volume_usd    = ROUND(COALESCE(agg.no_inv,0) * 2.3, 2),
+                 volume_24h_usd   = ROUND(agg.invested * 0.12, 2),
+                 total_bets       = agg.bets,
+                 unique_bettors   = agg.traders,
+                 last_trade_at    = NOW()
+               FROM agg WHERE m.id = agg.market_id""",
+            (touched_market_ids,),
+        )
+        # per-option volume + invested for the multi-outcome candidate boards
+        cur.execute(
+            """WITH agg AS (
+                 SELECT market_option_id,
+                        SUM(total_invested_usd) AS invested,
+                        COUNT(*) AS bets
+                 FROM positions
+                 WHERE market_option_id IS NOT NULL AND market_id = ANY(%s::uuid[])
+                 GROUP BY market_option_id
+               )
+               UPDATE market_options o SET
+                 volume_usd = ROUND(agg.invested * 2.1, 2),
+                 total_invested_usd = ROUND(agg.invested, 2)
+               FROM agg WHERE o.id = agg.market_option_id""",
+            (touched_market_ids,),
+        )
 
     conn.commit()
 

@@ -166,3 +166,88 @@ Market detail ──▶ Top Holders tab
 5. Representative seed data (positions/activity/price history) so the surfaces
    render with real content.
 6. Unit tests + a11y + lint/type-check/build; push; verify CI.
+
+
+---
+
+# Addendum v2 — live Polymarket teardown (element-by-element)
+
+Captured by inspecting Polymarket's live DOM + computed styles
+(`/event/world-cup-winner`, `/profile/0x…`) — not guesswork. This section is the
+authoritative mapping the MarketPips surfaces are built to.
+
+## 1. Identity avatar (the big correction)
+
+Polymarket does **not** use letter monograms. Every account renders a smooth
+multi-hue **gradient orb** generated deterministically from the wallet address.
+Verified technique (computed `background-image`):
+
+```
+background-image:
+  radial-gradient(at 66% 77%, rgb(R1,G1,B1) 0px, rgba(0,0,0,0) 50%),
+  radial-gradient(at 29% 97%, rgb(R2,G2,B2) 0px, rgba(0,0,0,0) 50%),
+  radial-gradient(at 99% 86%, rgb(R3,G3,B3) 0px, rgba(0,0,0,0) 50%),
+  radial-gradient(at 29% 88%, rgb(R4,G4,B4) 0px, rgba(0,0,0,0) 50%);
+border-radius: 50%;
+```
+
+* **Four layers, four fixed anchor positions** — `66% 77%`, `29% 97%`,
+  `99% 86%`, `29% 88%` — constant across every avatar. Only the four colours
+  change per account, so all orbs share the same "bloom from the lower-right"
+  character while staying individually recognizable.
+* Each layer fades to transparent at 50%; overlaps blend into organic mid-tones.
+* Real uploaded photos win (`<img class="object-cover">`); a broken photo must
+  fall back to the orb — never a blank.
+* Verified accounts get a small corner pip/badge.
+
+**Our implementation** — `lib/trader.ts › traderOrb(id)`:
+FNV-1a hash → xorshift PRNG → 4 HSL colours (S 62–88%, L 46–66%) at the exact
+four positions above, over a darker base fill (`hsl(h,42%,26%)`) so the top
+never washes out. `TraderAvatar` renders the orb with no letter + optional pip.
+12 unit tests lock determinism and geometry.
+
+## 2. Top Holders board
+
+| Element | Polymarket | MarketPips |
+|---|---|---|
+| Layout | Two mirrored columns: **Yes holders** \| **No holders** | ✅ `grid-cols-1 sm:grid-cols-2` (mobile stacks Yes→No) |
+| Column header | Title left, `SHARES` right (uppercase, muted) | ✅ |
+| Row | orb · name · right-aligned shares | ✅ orb + name + shares |
+| Shares colour | green (Yes) / red (No) | ✅ `text-yes` / `text-no` |
+| Ranking | by shares desc, top 10 | ✅ `market_top_holders` limit 10, `side_rank` |
+| Multi-outcome | option selector → that option's Yes/No book (each option is its own Yes/No market) | ✅ `<select>` scopes the board via `p_option_id` |
+| Interaction | hover name → peek; click → profile | ✅ hover/focus peek + `/traders/[id]` link |
+| Extra (ours) | — | share-of-book concentration bar; "You" anchor |
+
+## 3. Holder peek (hover/focus card)
+
+`orb + display name + "Joined Mon YYYY"`, divider, then a 3-up stat row:
+**Positions** (value) · **Profit/Loss** (green/red) · **Volume**. Fetched from
+`trader_card_stats`. Ours matches 1:1 and is an accessible `role="dialog"` that
+also opens on keyboard focus and closes on Escape.
+
+## 4. Public trader profile (`/traders/[id]`)
+
+| Block | Polymarket | MarketPips |
+|---|---|---|
+| Identity | orb (+pip) · name · `@handle` · "Joined … · N views" · bio | ✅ |
+| Stat strip | Positions value · Biggest win · Predictions | ✅ `trader_public_profile` |
+| P&L card | big signed $ (green/red) · `1D 1W 1M 1Y YTD ALL` · area chart | ✅ range-switched inline-SVG sparkline (aligned daily ticks → smooth) |
+| Portfolio | **Positions** / **Activity** tabs; **Active** \| **Closed**; search; sort (Value/Profit-Loss) | ✅ `trader_positions` |
+| Active cols | Market · Avg · Current · Value (+unrealized %) | ✅ `10¢` cents formatting, Yes/No chip |
+| Closed cols | Result (Won/Lost) · Market · Total traded · Amount won (+realized %) | ✅ |
+
+## 5. Mobile-first
+
+400px is the design baseline: board stacks to one column, peek is width-capped,
+profile stat strips wrap, portfolio table scrolls inside `.table-wrapper`. `sm:`
+promotes the two-column board and inline profile layout on wider panels.
+
+## 6. Demo data
+
+`scripts/seed_demo_traders.py` seeds ~60 orb-only traders with Yes **and** No
+books on featured binary markets and on **every option** of multi-outcome
+markets, cross-market positions, closed (won/lost) positions, aligned 45-day
+price history (smooth P&L curves), an activity feed, and recomputed market +
+option aggregates ($Vol / bets / unique traders). Idempotent by
+`@demo.marketpips`.
