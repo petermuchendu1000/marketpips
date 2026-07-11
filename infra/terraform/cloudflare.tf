@@ -30,17 +30,17 @@ resource "cloudflare_zone_settings_override" "marketpips" {
   zone_id = var.cloudflare_zone_id
 
   settings {
-    ssl                      = "strict"   # full (strict): validate the Fly origin cert
+    ssl                      = "strict" # full (strict): validate the Fly origin cert
     min_tls_version          = "1.2"
     always_use_https         = "on"
     automatic_https_rewrites = "on"
     tls_1_3                  = "on"
-    brotli                   = "on"       # Module 15: Brotli compression at edge
+    brotli                   = "on" # Module 15: Brotli compression at edge
     http3                    = "on"
     security_header {
       enabled            = true
       include_subdomains = true
-      max_age            = 31536000       # HSTS 1y (mirrors app CSP/HSTS, Module 14)
+      max_age            = 31536000 # HSTS 1y (mirrors app CSP/HSTS, Module 14)
       preload            = true
       nosniff            = true
     }
@@ -59,10 +59,10 @@ resource "cloudflare_tiered_cache" "marketpips" {
 # here we only codify the classification.
 # ---------------------------------------------------------------------------
 resource "cloudflare_ruleset" "cache_rules" {
-  zone_id     = var.cloudflare_zone_id
-  name        = "MarketPips cache policy"
-  kind        = "zone"
-  phase       = "http_request_cache_settings"
+  zone_id = var.cloudflare_zone_id
+  name    = "MarketPips cache policy"
+  kind    = "zone"
+  phase   = "http_request_cache_settings"
 
   rules {
     description = "Cache public market & leaderboard reads"
