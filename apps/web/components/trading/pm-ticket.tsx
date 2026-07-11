@@ -29,6 +29,7 @@ import {
   previewOptionBet,
   previewOptionBinaryBet,
   orderTarget,
+  clampLimitCents,
   meetsMinBet,
   MIN_BET_USD,
 } from '@/lib/trading'
@@ -573,22 +574,40 @@ export function PmTicket({
               </div>
             )}
 
-            {/* Limit price row (binary limit orders only). */}
+            {/* Limit price row (binary limit orders only) — Polymarket − ¢ + stepper. */}
             {!isMulti && orderType === 'limit' && (
               <div className="mt-3 flex items-center justify-between rounded-md border border-hairline px-3 py-2">
                 <label htmlFor="pm-limit" className="text-sm text-text-secondary">
                   Limit price
                 </label>
-                <div className="flex items-center gap-1">
-                  <input
-                    id="pm-limit"
-                    inputMode="numeric"
-                    value={limitCents}
-                    onChange={(e) => setLimitCents(e.target.value.replace(/[^0-9]/g, '').slice(0, 2))}
-                    placeholder="50"
-                    className="w-12 bg-transparent text-right text-sm font-semibold tabular-nums text-text-primary outline-none"
-                  />
-                  <span className="text-sm text-text-muted">¢</span>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    aria-label="Decrease limit price"
+                    onClick={() => setLimitCents(String(clampLimitCents((parseFloat(limitCents) || 0) - 1)))}
+                    className="flex h-6 w-6 items-center justify-center rounded-full border border-hairline text-text-secondary transition-colors hover:border-pip-400 hover:text-pip-500"
+                  >
+                    −
+                  </button>
+                  <div className="flex items-center gap-0.5">
+                    <input
+                      id="pm-limit"
+                      inputMode="numeric"
+                      value={limitCents}
+                      onChange={(e) => setLimitCents(e.target.value.replace(/[^0-9]/g, '').slice(0, 2))}
+                      placeholder="50"
+                      className="w-8 bg-transparent text-right text-sm font-semibold tabular-nums text-text-primary outline-none"
+                    />
+                    <span className="text-sm text-text-muted">¢</span>
+                  </div>
+                  <button
+                    type="button"
+                    aria-label="Increase limit price"
+                    onClick={() => setLimitCents(String(clampLimitCents((parseFloat(limitCents) || 0) + 1)))}
+                    className="flex h-6 w-6 items-center justify-center rounded-full border border-hairline text-text-secondary transition-colors hover:border-pip-400 hover:text-pip-500"
+                  >
+                    +
+                  </button>
                 </div>
               </div>
             )}
@@ -631,15 +650,25 @@ export function PmTicket({
               ))}
             </div>
 
-            {/* Live preview line */}
+            {/* Live preview — Polymarket Total / To win summary. */}
             {preview && amountNum > 0 && (
-              <div className="mt-4 flex items-center justify-between rounded-md bg-surface-2 px-3 py-2.5 text-sm">
-                <span className="text-text-muted">
-                  {preview.shares.toFixed(1)} shares · avg {cents(previewAvgPrice)}
-                </span>
-                <span className={`font-semibold tabular-nums ${outcomeTone}`}>
-                  {formatCurrency(payoutLocal, preferredCurrency)} to win
-                </span>
+              <div className="mt-4 space-y-1.5 rounded-md bg-surface-2 px-3 py-3 text-sm">
+                <div className="flex items-center justify-between text-text-muted">
+                  <span>Avg price</span>
+                  <span className="tabular-nums">{cents(previewAvgPrice)} · {preview.shares.toFixed(1)} shares</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-text-secondary">Total</span>
+                  <span className="font-semibold tabular-nums text-text-primary">
+                    {formatCurrency(amountNum, preferredCurrency)}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between border-t border-hairline pt-1.5">
+                  <span className="text-text-secondary">To win</span>
+                  <span className={`text-base font-bold tabular-nums ${outcomeTone}`}>
+                    {formatCurrency(payoutLocal, preferredCurrency)}
+                  </span>
+                </div>
               </div>
             )}
 
