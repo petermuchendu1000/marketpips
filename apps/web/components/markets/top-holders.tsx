@@ -112,11 +112,13 @@ function HolderPeek({ userId, fallbackName }: { userId: string; fallbackName: st
 }
 
 // ---- Row ------------------------------------------------------------------
-function HolderRow({ row, isSelf }: { row: HolderRow; isSelf: boolean }) {
+// Polymarket parity: [rank badge over avatar] name / "N shares" (side-tinted).
+// The shares value sits UNDER the name (not right-aligned) so the row survives
+// the narrow half-width columns on a phone without truncating the count.
+function HolderRow({ row, isSelf, rank }: { row: HolderRow; isSelf: boolean; rank: number }) {
   const [open, setOpen] = useState(false)
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const name = traderName(row, row.user_id)
-  const pct = Math.min(100, Math.round((row.share_of_book ?? 0) * 100))
 
   const show = useCallback(() => {
     if (timer.current) clearTimeout(timer.current)
@@ -143,35 +145,41 @@ function HolderRow({ row, isSelf }: { row: HolderRow; isSelf: boolean }) {
           if (e.key === 'Escape') setOpen(false)
         }}
       >
-        <TraderAvatar id={row.user_id} name={name} imageUrl={row.avatar_url} size={30} />
-        <div className="min-w-0 flex-1">
-          <Link
-            href={`/traders/${row.user_id}`}
-            className="truncate text-sm font-medium text-text-primary underline-offset-2 hover:text-pip-text hover:underline focus:outline-none focus-visible:text-pip-text focus-visible:underline"
-            aria-describedby={open ? `peek-${row.user_id}` : undefined}
+        {/* Avatar + numbered rank badge (Polymarket's ranked holder list). */}
+        <div className="relative flex-none">
+          <TraderAvatar id={row.user_id} name={name} imageUrl={row.avatar_url} size={30} />
+          <span
+            className={`absolute -bottom-1 -right-1 flex h-[15px] min-w-[15px] items-center justify-center rounded-full px-1 text-[9px] font-bold leading-none text-white ring-2 ring-surface ${
+              row.side === 'no' ? 'bg-no' : 'bg-yes'
+            }`}
+            aria-hidden
           >
-            {name}
-          </Link>
-          {isSelf && (
-            <span className="ml-1.5 rounded-pill bg-pip-100 px-1.5 py-px text-[10px] font-semibold text-pip-text">
-              You
-            </span>
-          )}
-          {/* share-of-book concentration bar (desktop only) */}
-          <div className="mt-1 hidden h-0.5 w-full overflow-hidden rounded-pill bg-surface-2 sm:block">
-            <div
-              className={`h-full ${row.side === 'no' ? 'bg-no' : 'bg-yes'}`}
-              style={{ width: `${pct}%`, opacity: 0.5 }}
-            />
-          </div>
+            {rank}
+          </span>
         </div>
-        <span
-          className={`flex-none tabular-nums text-sm font-semibold ${
-            row.side === 'no' ? 'text-no' : 'text-yes'
-          }`}
-        >
-          {Math.round(row.shares).toLocaleString()}
-        </span>
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-1.5">
+            <Link
+              href={`/traders/${row.user_id}`}
+              className="truncate text-sm font-medium text-text-primary underline-offset-2 hover:text-pip-text hover:underline focus:outline-none focus-visible:text-pip-text focus-visible:underline"
+              aria-describedby={open ? `peek-${row.user_id}` : undefined}
+            >
+              {name}
+            </Link>
+            {isSelf && (
+              <span className="flex-none rounded-pill bg-pip-100 px-1.5 py-px text-[10px] font-semibold text-pip-text">
+                You
+              </span>
+            )}
+          </div>
+          <p
+            className={`truncate text-xs font-medium tabular-nums ${
+              row.side === 'no' ? 'text-no' : 'text-yes'
+            }`}
+          >
+            {Math.round(row.shares).toLocaleString()} shares
+          </p>
+        </div>
       </div>
       {open && (
         <div id={`peek-${row.user_id}`}>
@@ -193,17 +201,16 @@ function HolderColumn({
   selfId?: string
 }) {
   return (
-    <div>
-      <div className="mb-2 flex items-baseline justify-between border-b border-hairline pb-1.5">
+    <div className="min-w-0">
+      <div className="mb-2 border-b border-hairline pb-1.5">
         <h4 className="text-sm font-semibold text-text-primary">{title}</h4>
-        <span className="text-[11px] font-medium uppercase tracking-wide text-text-muted">Shares</span>
       </div>
       {rows.length === 0 ? (
         <p className="py-6 text-center text-xs text-text-muted">No holders on this side yet.</p>
       ) : (
         <ul className="space-y-0.5">
-          {rows.map((r) => (
-            <HolderRow key={r.user_id} row={r} isSelf={r.user_id === selfId} />
+          {rows.map((r, i) => (
+            <HolderRow key={r.user_id} row={r} isSelf={r.user_id === selfId} rank={r.side_rank || i + 1} />
           ))}
         </ul>
       )}
@@ -291,7 +298,7 @@ export function TopHolders({ marketId, options, resolutionType }: TopHoldersProp
           </p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 gap-x-8 gap-y-6 sm:grid-cols-2">
+        <div className="grid grid-cols-2 gap-x-4 gap-y-6 sm:gap-x-8">
           <HolderColumn title="Yes holders" rows={yes} selfId={user?.id} />
           <HolderColumn title="No holders" rows={no} selfId={user?.id} />
         </div>
@@ -309,7 +316,7 @@ export function TopHolders({ marketId, options, resolutionType }: TopHoldersProp
 
 function HoldersLoading() {
   return (
-    <div className="grid grid-cols-1 gap-x-8 gap-y-6 sm:grid-cols-2">
+    <div className="grid grid-cols-2 gap-x-4 gap-y-6 sm:gap-x-8">
       {[0, 1].map((c) => (
         <div key={c} className="space-y-2">
           <div className="skeleton mb-3 h-4 w-24 rounded" />
