@@ -210,6 +210,16 @@ export function orderTarget(args: OrderTargetArgs): OrderTarget {
 }
 
 /**
+ * Clamp a limit-price value (in cents) to the tradeable band. Prices settle to
+ * $0..$1, so a limit is only meaningful in 1..99¢; 0 means "unset". Pure +
+ * unit-tested so the ticket's − / + stepper and the /api/orders guard agree.
+ */
+export function clampLimitCents(n: number): number {
+  if (!Number.isFinite(n)) return 0
+  return Math.max(0, Math.min(99, Math.round(n)))
+}
+
+/**
  * The multiple_choice SETTLEMENT RPC that matches a market's pricing engine.
  * Choosing the wrong one silently mis-settles funds:
  *   • simplex      → *_resolve_market_options        (pays winning-option holders)
