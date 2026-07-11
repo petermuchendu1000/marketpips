@@ -5,6 +5,7 @@ import {
   previewBet,
   previewOptionBinaryBet,
   orderTarget,
+  optionsResolverRpc,
   MIN_BET_USD,
   DEFAULT_PLATFORM_FEE_RATE,
   DEFAULT_CREATOR_REWARD_RATE,
@@ -171,5 +172,27 @@ describe('orderTarget — Phase C ticket → /api/orders body shaping', () => {
   it('throws if a multiple_choice order is missing its option id', () => {
     expect(() => orderTarget({ isMulti: true, independent: true, side: 'yes' })).toThrow(/optionId/)
     expect(() => orderTarget({ isMulti: true, independent: false, optionId: null, side: 'yes' })).toThrow(/optionId/)
+  })
+})
+
+describe('optionsResolverRpc — settlement dispatch by pricing engine', () => {
+  it('simplex → resolve_market_options (app path)', () => {
+    expect(optionsResolverRpc('simplex')).toBe('resolve_market_options')
+    expect(optionsResolverRpc(null)).toBe('resolve_market_options')
+    expect(optionsResolverRpc(undefined)).toBe('resolve_market_options')
+  })
+  it('independent → resolve_market_options_binary (app path)', () => {
+    expect(optionsResolverRpc('independent')).toBe('resolve_market_options_binary')
+  })
+  it('simplex → admin_resolve_market_options (admin path)', () => {
+    expect(optionsResolverRpc('simplex', true)).toBe('admin_resolve_market_options')
+    expect(optionsResolverRpc(null, true)).toBe('admin_resolve_market_options')
+  })
+  it('independent → admin_resolve_market_options_binary (admin path)', () => {
+    expect(optionsResolverRpc('independent', true)).toBe('admin_resolve_market_options_binary')
+  })
+  it('unknown mode is treated as simplex (safe default)', () => {
+    expect(optionsResolverRpc('weird')).toBe('resolve_market_options')
+    expect(optionsResolverRpc('weird', true)).toBe('admin_resolve_market_options')
   })
 })

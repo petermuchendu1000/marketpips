@@ -210,6 +210,27 @@ export function orderTarget(args: OrderTargetArgs): OrderTarget {
 }
 
 /**
+ * The multiple_choice SETTLEMENT RPC that matches a market's pricing engine.
+ * Choosing the wrong one silently mis-settles funds:
+ *   • simplex      → *_resolve_market_options        (pays winning-option holders)
+ *   • independent  → *_resolve_market_options_binary (pays winning-Yes AND losing-No)
+ * Pass `admin: true` for the capability-guarded admin-console wrappers. This is
+ * the single source of truth both resolve routes use, so the binary path can
+ * never be skipped for an independent market.
+ */
+export function optionsResolverRpc(
+  pricingMode: string | null | undefined,
+  admin = false,
+): 'resolve_market_options' | 'resolve_market_options_binary'
+  | 'admin_resolve_market_options' | 'admin_resolve_market_options_binary' {
+  const independent = pricingMode === 'independent'
+  if (admin) {
+    return independent ? 'admin_resolve_market_options_binary' : 'admin_resolve_market_options'
+  }
+  return independent ? 'resolve_market_options_binary' : 'resolve_market_options'
+}
+
+/**
  * Full bet preview mirroring place_bet: convert to USD, take fees, run the
  * net stake through the LMSR inversion for slippage-aware shares & price impact.
  */

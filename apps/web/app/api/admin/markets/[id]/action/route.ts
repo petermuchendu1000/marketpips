@@ -8,6 +8,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { requireCapability, type Capability } from '@/lib/auth'
+import { optionsResolverRpc } from '@/lib/trading'
 
 const schema = z.discriminatedUnion('action', [
   z.object({ action: z.literal('approve'), reason: z.string().max(1000).optional() }),
@@ -84,7 +85,14 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
         )
       }
       if (hasOption) {
-        rpc = 'admin_resolve_market_options'
+        // Pick the settlement wrapper by pricing engine so No holders of an
+        // independent market are actually paid (simplex resolver ignores side).
+        const { data: mkt } = await sb
+          .from('markets')
+          .select('options_pricing_mode')
+          .eq('id', id)
+          .single()
+        rpc = optionsResolverRpc((mkt as { options_pricing_mode?: string } | null)?.options_pricing_mode, true)
         args = { p_market_id: id, p_winning_option_id: body.winning_option_id, p_notes: body.resolution_notes }
       } else {
         rpc = 'admin_resolve_market'
