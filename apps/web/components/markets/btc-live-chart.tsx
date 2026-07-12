@@ -42,6 +42,8 @@ import {
   isWindowClosed,
   candleBucketMs,
   bucketCandles,
+  mergeLiveCandle,
+  pickGranularity,
   type ChartType,
   type Pt,
   type Candle,
@@ -109,7 +111,14 @@ export function BtcLiveChart({
   // in the real wall-clock immediately after mount, so the countdown is live.
   const [now, setNow] = useState<number>(openMs)
   const [siblings, setSiblings] = useState<Sibling[]>([])
+  // Real Coinbase OHLC candles (authoritative pips) for the candlestick view.
+  const [realCandles, setRealCandles] = useState<Candle[]>([])
   const lastPush = useRef<number>(0)
+
+  // Coinbase candle granularity chosen for this window length (5M/15M/30M/1H
+  // all resolve to 60s; larger windows step up). One source of truth so the
+  // fetch and the live-candle merge agree on bucket size.
+  const granularity = useMemo(() => pickGranularity(windowSeconds), [windowSeconds])
 
   const windowClosed = isWindowClosed(status, closeMs, now)
 
@@ -186,6 +195,44 @@ export function BtcLiveChart({
     }
   }, [openMs, closeMs, referencePrice])
 
+  // Real Coinbase OHLC candles for the candlestick view — actual [time, low,
+  // high, open, close, vol] bars (not spot buckets), the same feed Polymarket's
+  // BTC chart uses. Fetched at the window's granularity, refreshed while live.
+  // If Coinbase is CORS/region-blocked the candle view degrades to bucketing
+  // the live spot series (bucketCandles below).
+  useEffect(() => {
+    let alive = true
+    const load = () => {
+      const startISO = new Date(openMs).toISOString()
+      const endISO = new Date(Math.min(closeMs, Date.now() + 1000)).toISOString()
+      fetch(
+        `https://api.exchange.coinbase.com/products/BTC-USD/candles?granularity=${granularity}` +
+          `&start=${startISO}&end=${endISO}`,
+      )
+        .then((r) => (r.ok ? r.json() : Promise.reject(new Error('candles'))))
+        .then((rows: number[][]) => {
+          if (!alive || !Array.isArray(rows)) return
+          // Coinbase rows are [time(s), low, high, open, close, volume], newest
+          // first — normalise to ascending OHLC candles inside the window.
+          const parsed: Candle[] = rows
+            .filter((c) => Array.isArray(c) && c.length >= 5)
+            .map((c) => ({ t: c[0] * 1000, l: c[1], h: c[2], o: c[3], c: c[4] }))
+            .filter((c) => c.t >= openMs && c.t <= closeMs)
+            .sort((a, b) => a.t - b.t)
+          if (parsed.length) setRealCandles(parsed)
+        })
+        .catch(() => {/* fall back to bucketed spot candles */})
+    }
+    load()
+    // Refresh the real bars periodically while the window is live so freshly
+    // closed 1-minute Coinbase candles fill in; stop once the window closes.
+    const id = windowClosed ? undefined : setInterval(load, 30_000)
+    return () => {
+      alive = false
+      if (id) clearInterval(id)
+    }
+  }, [openMs, closeMs, granularity, windowClosed])
+
   // ALWAYS-ON REST spot poll — guarantees a moving line even if the socket is
   // blocked. api.coinbase.com is CORS-open, so this works from any browser.
   useEffect(() => {
@@ -259,13 +306,30 @@ export function BtcLiveChart({
   const pad = Math.max((hi - lo) * 0.2, referencePrice * 0.0006)
   const last = points[points.length - 1]
 
-  // ---- Candlesticks: bucket the spot series into ~44 OHLC candles ----------
-  const bucketMs = useMemo(() => candleBucketMs(openMs, closeMs, 44), [openMs, closeMs])
+  // ---- Candlesticks --------------------------------------------------------
+  // Prefer REAL Coinbase OHLC bars; while the window is live, layer a single
+  // in-progress candle built from the freshest spot ticks so the tail keeps
+  // moving between 1-minute bars. If Coinbase is unreachable, fall back to
+  // bucketing the live spot series into ~44 synthetic candles.
+  const candles = useMemo<Candle[]>(() => {
+    if (realCandles.length > 0) {
+      return windowClosed ? realCandles : mergeLiveCandle(realCandles, points, granularity)
+    }
+    return bucketCandles(points, openMs, closeMs, 44)
+  }, [realCandles, points, openMs, closeMs, granularity, windowClosed])
 
-  const candles = useMemo<Candle[]>(
-    () => bucketCandles(points, openMs, closeMs, 44),
-    [points, openMs, closeMs],
+  // Candle spacing (ms) — real bars use the granularity; synthetic ones use the
+  // bucket width. Drives the candle body width in the SVG layer below.
+  const bucketMs = useMemo(
+    () => (realCandles.length > 0 ? granularity * 1000 : candleBucketMs(openMs, closeMs, 44)),
+    [realCandles.length, granularity, openMs, closeMs],
   )
+
+  // Candle view has its own price domain: real OHLC wicks can reach past the
+  // spot line's min/max, so widen the axis to include every high/low + strike.
+  const candleLo = candles.length ? Math.min(lo, ...candles.map((c) => c.l)) : lo
+  const candleHi = candles.length ? Math.max(hi, ...candles.map((c) => c.h)) : hi
+  const candlePad = Math.max((candleHi - candleLo) * 0.2, referencePrice * 0.0006)
 
   // ---- Probability series: implied UP chance over time ---------------------
   const probPoints = useMemo(
@@ -445,7 +509,7 @@ export function BtcLiveChart({
               <XAxis {...xAxisProps} />
               <YAxis
                 orientation="right"
-                domain={[lo - pad, hi + pad]}
+                domain={[candleLo - candlePad, candleHi + candlePad]}
                 tickFormatter={(v) => usd(Number(v), 0)}
                 tick={{ fontSize: 10, fill: 'var(--text-muted)' }}
                 stroke="var(--hairline)"
@@ -554,7 +618,9 @@ export function BtcLiveChart({
       <p className="mt-2 text-center text-[11px] text-text-muted">
         {chartType === 'prob'
           ? 'Implied Up chance from live BTC/USD (Coinbase) vs the strike'
-          : 'Live BTC/USD via Coinbase · settles at the reference price when the window closes'}
+          : chartType === 'candle'
+            ? `Real BTC/USD OHLC candles via Coinbase${realCandles.length ? '' : ' (spot fallback)'} · settles at the reference price`
+            : 'Live BTC/USD via Coinbase · settles at the reference price when the window closes'}
       </p>
     </div>
   )
