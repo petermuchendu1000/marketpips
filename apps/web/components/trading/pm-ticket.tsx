@@ -120,6 +120,11 @@ export function PmTicket({
   const selYesPrice = selectedOutcome?.yesPrice ?? selectedOutcome?.price ?? 0
   const selNoPrice = selectedOutcome?.noPrice ?? (selectedOutcome ? 1 - selectedOutcome.price : 0)
 
+  // Binary outcome labels (custom labels fall back to Yes/No), used on the
+  // solid-fill outcome buttons — mirrors Polymarket's "Yes 47¢ / No 54¢".
+  const yesLabel = outcomes.find((o) => o.id === 'yes')?.label ?? 'Yes'
+  const noLabel = outcomes.find((o) => o.id === 'no')?.label ?? 'No'
+
   // Marginal price of the current selection (binary market, independent line, or
   // simplex option) — mirrors the pro panel exactly.
   const currentPrice = isMulti
@@ -191,7 +196,7 @@ export function PmTicket({
 
   // Additive quick-add chips (+$1/+$5/+$20/+$100 equivalents in local currency).
   const chips = useMemo(() => {
-    return [1, 5, 20, 100].map((usd) => Math.max(1, Math.round(usdToLocal(usd, preferredCurrency, rates))))
+    return [1, 5, 10, 100].map((usd) => Math.max(1, Math.round(usdToLocal(usd, preferredCurrency, rates))))
   }, [preferredCurrency, rates])
 
   // Seed a small default stake so the payout preview shows on first render.
@@ -415,9 +420,9 @@ export function PmTicket({
       : 'No'
   const outcomeTone = isMulti && !indepMulti ? 'text-pip-500' : side === 'yes' ? 'text-yes' : 'text-no'
 
-  const tradeLabel = !user
-    ? 'Log in to trade'
-    : `Trade${amountNum > 0 ? ` · ${formatCurrency(payoutLocal, preferredCurrency)} to win` : ''}`
+  // Polymarket's action button reads simply "Trade" (the To-win figure lives in
+  // the preview summary just above it).
+  const tradeLabel = !user ? 'Log in to trade' : 'Trade'
 
   return (
     <div className="card overflow-hidden">
@@ -452,17 +457,19 @@ export function PmTicket({
       </div>
 
       <div className="p-4">
-        {/* Buy/Sell tabs + order-type dropdown */}
-        <div className="mb-4 flex items-center justify-between">
-          <div className="inline-flex rounded-pill bg-surface-2 p-0.5">
+        {/* Buy/Sell underline tabs + order-type dropdown (Polymarket header row) */}
+        <div className="mb-4 flex items-center justify-between border-b border-hairline">
+          <div className="flex items-center gap-5">
             {(['buy', 'sell'] as Action[]).map((a) => (
               <button
                 key={a}
                 type="button"
                 onClick={() => setAction(a)}
                 aria-pressed={action === a}
-                className={`rounded-pill px-4 py-1.5 text-sm font-semibold capitalize transition-colors ${
-                  action === a ? 'bg-surface-1 text-text-primary shadow-sm' : 'text-text-muted hover:text-text-secondary'
+                className={`relative -mb-px border-b-2 pb-2.5 text-[15px] font-semibold capitalize transition-colors ${
+                  action === a
+                    ? 'border-text-primary text-text-primary'
+                    : 'border-transparent text-text-muted hover:text-text-secondary'
                 }`}
               >
                 {a}
@@ -471,11 +478,11 @@ export function PmTicket({
           </div>
 
           {!isMulti && (
-            <div className="relative">
+            <div className="relative -mb-px pb-2.5">
               <button
                 type="button"
                 onClick={() => setTypeMenu((v) => !v)}
-                className="flex items-center gap-1 rounded-pill px-2.5 py-1.5 text-sm font-medium text-text-secondary hover:bg-surface-2"
+                className="flex items-center gap-1 text-sm font-medium text-text-secondary hover:text-text-primary"
                 aria-haspopup="listbox"
                 aria-expanded={typeMenu}
               >
@@ -566,34 +573,41 @@ export function PmTicket({
                   type="button"
                   onClick={() => setSide('yes')}
                   aria-pressed={side === 'yes'}
-                  className={`flex flex-col items-center rounded-md border py-2.5 text-sm font-semibold transition-colors ${
+                  className="flex items-center justify-center gap-1.5 rounded-lg py-3 text-[15px] font-semibold transition-colors"
+                  style={
                     side === 'yes'
-                      ? 'border-yes bg-yes/10 text-yes'
-                      : 'border-hairline text-text-secondary hover:border-yes/40'
-                  }`}
+                      ? { background: 'var(--yes)', color: '#fff' }
+                      : { background: 'var(--surface-2)', color: 'var(--text-2)' }
+                  }
                 >
-                  <span>Yes</span>
+                  <span>{yesLabel}</span>
                   <span className="tabular-nums">{cents(isMulti ? selYesPrice : market.yes_price)}</span>
                 </button>
                 <button
                   type="button"
                   onClick={() => setSide('no')}
                   aria-pressed={side === 'no'}
-                  className={`flex flex-col items-center rounded-md border py-2.5 text-sm font-semibold transition-colors ${
+                  className="flex items-center justify-center gap-1.5 rounded-lg py-3 text-[15px] font-semibold transition-colors"
+                  style={
                     side === 'no'
-                      ? 'border-no bg-no/10 text-no'
-                      : 'border-hairline text-text-secondary hover:border-no/40'
-                  }`}
+                      ? { background: 'var(--no)', color: '#fff' }
+                      : { background: 'var(--surface-2)', color: 'var(--text-2)' }
+                  }
                 >
-                  <span>No</span>
+                  <span>{noLabel}</span>
                   <span className="tabular-nums">{cents(isMulti ? selNoPrice : market.no_price)}</span>
                 </button>
               </div>
             ) : (
-              <div className="flex items-center justify-between rounded-md border border-pip-500 bg-pip-100/60 px-3 py-2.5 text-sm font-semibold text-pip-600">
+              <button
+                type="button"
+                aria-pressed
+                className="flex w-full items-center justify-center gap-1.5 rounded-lg py-3 text-[15px] font-semibold text-white transition-colors"
+                style={{ background: 'var(--pip-500)' }}
+              >
                 <span className="truncate">{selectedOutcome?.label}</span>
                 <span className="tabular-nums">{cents(currentPrice)}</span>
-              </div>
+              </button>
             )}
 
             {/* Limit price row (binary limit orders only) — Polymarket − ¢ + stepper. */}
@@ -634,11 +648,15 @@ export function PmTicket({
               </div>
             )}
 
-            {/* Amount label + big live figure (inline editable) */}
-            <div className="mt-4 flex items-center justify-between">
-              <span className="text-sm font-medium text-text-secondary">Amount</span>
-              <div className="flex items-baseline gap-1">
-                <span className="text-sm text-text-muted">{currencyInfo?.symbol}</span>
+            {/* Amount label + big live figure (inline editable) — Polymarket's
+                oversized "$0" amount display. */}
+            <div className="mt-5 flex items-center justify-between">
+              <span className="text-base font-medium text-text-secondary">Amount</span>
+              <div
+                className="flex items-baseline gap-0.5 tabular-nums"
+                style={{ color: amountNum > 0 ? 'var(--text)' : 'var(--text-3)' }}
+              >
+                <span className="text-2xl font-bold">{currencyInfo?.symbol}</span>
                 <input
                   aria-label="Trade amount"
                   inputMode="decimal"
@@ -649,13 +667,15 @@ export function PmTicket({
                     setError('')
                   }}
                   placeholder="0"
-                  className="w-28 bg-transparent text-right text-2xl font-bold tabular-nums text-text-primary outline-none placeholder:text-text-muted"
+                  size={Math.max(1, amount.length || 1)}
+                  className="max-w-[8rem] bg-transparent text-right text-4xl font-bold tabular-nums outline-none placeholder:text-text-muted"
+                  style={{ color: 'inherit', width: `${Math.max(1, amount.length || 1)}ch` }}
                 />
               </div>
             </div>
 
-            {/* Additive quick-add chips */}
-            <div className="mt-3 grid grid-cols-4 gap-2">
+            {/* Additive quick-add chips — right-aligned pills (+1 / +5 / +10 / +100). */}
+            <div className="mt-3 flex flex-wrap items-center justify-end gap-2">
               {chips.map((c) => (
                 <button
                   key={c}
@@ -665,7 +685,7 @@ export function PmTicket({
                     setAmount(String((parseFloat(amount) || 0) + c))
                     setError('')
                   }}
-                  className="rounded-pill border border-hairline py-1.5 text-xs font-semibold text-text-secondary transition-colors hover:border-pip-400 hover:text-pip-500"
+                  className="rounded-pill border border-hairline px-3.5 py-1.5 text-sm font-semibold text-text-secondary transition-colors hover:border-pip-400 hover:text-pip-500"
                 >
                   +{c >= 1000 ? `${(c / 1000).toFixed(c % 1000 ? 1 : 0)}k` : c}
                 </button>
@@ -720,12 +740,12 @@ export function PmTicket({
                 </button>
               </div>
             )}
-            <p className="mt-3 text-center text-[11px] leading-relaxed text-text-muted">
-              By trading you agree to the{' '}
+            <p className="mt-3 text-center text-[12px] leading-relaxed text-text-muted">
+              By trading, you agree to the{' '}
               <a href="/legal/terms" className="underline hover:text-text-secondary">
-                Terms
+                Terms of Use
               </a>
-              . Outcomes settle to the source in the Rules tab.
+              .
             </p>
           </>
         )}
