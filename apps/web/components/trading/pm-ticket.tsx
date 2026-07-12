@@ -53,6 +53,14 @@ interface PmTicketProps {
   initialOptionId?: string
   initialAmount?: string
   independent?: boolean
+  /**
+   * Window close time (ISO). When provided, the ticket freezes client-side the
+   * instant the clock crosses it — even if the server row is still 'active' (the
+   * "Settling…" limbo). Critical for recurring BTC Up/Down windows, which close
+   * every few minutes: without this the ticket would keep accepting bets on a
+   * window that has already ended until the next page refresh.
+   */
+  closesAt?: string
 }
 
 const CLOSED_COPY: Partial<Record<Market['status'], { label: string; body: string }>> = {
@@ -71,6 +79,7 @@ export function PmTicket({
   initialOptionId,
   initialAmount,
   independent = false,
+  closesAt,
 }: PmTicketProps) {
   const { user } = useAuth()
   const { wallets, preferredCurrency, refreshWallets, isLoading: walletsLoading } = useWallets()
@@ -111,8 +120,30 @@ export function PmTicket({
   const wallet = wallets.find((w) => w.currency === preferredCurrency)
   const balance = wallet?.available_balance ?? 0
   const currencyInfo = CURRENCIES[preferredCurrency]
-  const isOpen = market.status === 'active'
-  const closedCopy = CLOSED_COPY[market.status]
+
+  // Client-side window-close detection (no refresh). `nowMs` starts null so the
+  // server render and first client render agree (no hydration mismatch); a 1s
+  // interval adopts the real clock on mount. When a `closesAt` is supplied and
+  // the clock crosses it, the ticket freezes even though the server row may
+  // still read 'active' — the recurring BTC windows depend on this.
+  const [nowMs, setNowMs] = useState<number | null>(null)
+  useEffect(() => {
+    if (!closesAt) return
+    setNowMs(Date.now())
+    const id = setInterval(() => setNowMs(Date.now()), 1000)
+    return () => clearInterval(id)
+  }, [closesAt])
+  const closeMs = closesAt ? new Date(closesAt).getTime() : null
+  const pastClose = closeMs != null && nowMs != null && Number.isFinite(closeMs) && nowMs >= closeMs
+
+  const isOpen = market.status === 'active' && !pastClose
+  // Prefer the status-driven copy; fall back to a "window closed" message when
+  // the server is still 'active' but the clock has crossed close (settling).
+  const closedCopy =
+    CLOSED_COPY[market.status] ??
+    (pastClose
+      ? { label: 'Window closed', body: 'This window has closed and is awaiting settlement. No new positions can be opened.' }
+      : undefined)
 
   const selectedOutcome = isMulti
     ? outcomes.find((o) => o.id === selectedOptionId) ?? outcomes[0]

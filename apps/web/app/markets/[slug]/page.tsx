@@ -187,6 +187,9 @@ export default async function MarketPage({
   const isUpDown = meta.card_kind === 'up_down'
   const btcReferencePrice = Number(meta.reference_price ?? 0)
   const btcWindowSeconds = Number(meta.window_seconds ?? 0)
+  // Recurring BTC windows close every few minutes; hand the ticket the close
+  // time so it freezes client-side the instant the window ends (no refresh).
+  const btcClosesAt = isUpDown ? market.closes_at : undefined
 
   // Phase C: does this market trade as N independent per-candidate Yes/No lines?
   // Gated by BOTH the stored pricing mode ('independent') AND the feature-flag
@@ -331,6 +334,7 @@ export default async function MarketPage({
                   independent={independent}
                   initialSide={initialSide}
                   initialOptionId={initialOptionId}
+                  closesAt={btcClosesAt}
                 />
               ) : guidedBets ? (
                 <GuidedBetFlow
@@ -392,6 +396,7 @@ export default async function MarketPage({
           pmTicket={pmTicket}
           initialSide={initialSide}
           initialOptionId={initialOptionId}
+          closesAt={btcClosesAt}
         />
       )}
     </div>

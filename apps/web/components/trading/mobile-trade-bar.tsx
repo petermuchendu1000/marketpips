@@ -34,6 +34,7 @@ export function MobileTradeBar({
   pmTicket = false,
   initialSide,
   initialOptionId,
+  closesAt,
 }: {
   market: Market
   options?: MarketOption[]
@@ -47,6 +48,8 @@ export function MobileTradeBar({
   initialSide?: 'yes' | 'no'
   /** Deep-link pre-arm: the candidate tapped on a market card (?option=). */
   initialOptionId?: string
+  /** BTC window close time — freezes the ticket client-side on close (no refresh). */
+  closesAt?: string
 }) {
   const [open, setOpen] = useState(false)
   // The side/option the user tapped in the bar — pre-selected in the sheet so
@@ -286,6 +289,7 @@ export function MobileTradeBar({
                     initialOptionId={pendingOptionId}
                     initialAmount={resumedAmount}
                     independent={independent}
+                    closesAt={closesAt}
                   />
                 ) : guided ? (
                   <GuidedBetFlow
