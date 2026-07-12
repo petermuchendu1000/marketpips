@@ -30,6 +30,7 @@
 // settles against, so the chart and settlement agree.
 import { useEffect, useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import {
   AreaChart, Area, ComposedChart, XAxis, YAxis, Tooltip,
   ResponsiveContainer, ReferenceLine, ReferenceDot, Customized,
@@ -46,6 +47,7 @@ import {
   pickGranularity,
   pastWindows,
   windowOutcome,
+  pickSuccessorWindow,
   type ChartType,
   type Pt,
   type Candle,
@@ -210,6 +212,46 @@ export function BtcLiveChart({
 
   const pastRows = useMemo(() => pastWindows(seriesRows, 10), [seriesRows])
   const [navOpen, setNavOpen] = useState(false)
+  const router = useRouter()
+
+  // This window's OWN resolved outcome, once the 20s poller has picked it up
+  // after close — lets us flash "Up won / Down won" without a refresh.
+  const currentOutcome = useMemo(() => {
+    const self = seriesRows.find((w) => w.slug === slug && w.status === 'resolved')
+    return self ? windowOutcome(self) : null
+  }, [seriesRows, slug])
+
+  // The live window a trader should move to once this one closes (same length,
+  // else any live sibling). Only relevant while the window is closed.
+  const successor = useMemo(
+    () => (windowClosed ? pickSuccessorWindow(seriesRows, windowSeconds, now) : null),
+    [windowClosed, seriesRows, windowSeconds, now],
+  )
+
+  // Auto-advance ONLY when the window closed while the user was watching it live
+  // (server rendered it 'active', the clock then crossed close). If they opened
+  // a past/resolved window on purpose, show the CTA but never yank them away.
+  const closedWhileWatching = status === 'active' && now >= closeMs
+  const AUTO_ADVANCE_MS = 6000
+  const [advanceLeft, setAdvanceLeft] = useState<number | null>(null)
+  useEffect(() => {
+    if (!closedWhileWatching || !successor) {
+      setAdvanceLeft(null)
+      return
+    }
+    const deadline = Date.now() + AUTO_ADVANCE_MS
+    setAdvanceLeft(Math.ceil(AUTO_ADVANCE_MS / 1000))
+    const tick = setInterval(() => {
+      setAdvanceLeft(Math.max(0, Math.ceil((deadline - Date.now()) / 1000)))
+    }, 500)
+    const to = setTimeout(() => router.push(`/markets/${successor.slug}`), AUTO_ADVANCE_MS)
+    return () => {
+      clearInterval(tick)
+      clearTimeout(to)
+    }
+    // Keyed on the successor SLUG so the 1s clock doesn't reset the countdown.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [closedWhileWatching, successor?.slug, router])
 
   const pushPrice = useMemo(() => {
     return (price: number, force = false) => {
@@ -523,6 +565,54 @@ export function BtcLiveChart({
             </div>
           </div>
         </>
+      )}
+
+      {/* Window-closed banner — appears the instant the clock crosses close
+          (no refresh): flashes this window's outcome once resolved and points
+          to the live successor, auto-advancing if the user was watching live. */}
+      {windowClosed && (successor || currentOutcome) && (
+        <div
+          className="mb-3 flex flex-wrap items-center justify-between gap-2 rounded-lg border px-3 py-2"
+          style={{
+            borderColor: 'var(--hairline)',
+            background: 'var(--surface-2)',
+          }}
+          role="status"
+          aria-live="polite"
+        >
+          <div className="flex items-center gap-2 text-sm">
+            <span className="font-semibold text-text-primary">Window closed</span>
+            {currentOutcome && (
+              <span
+                className="inline-flex items-center gap-1 rounded-pill px-2 py-0.5 text-xs font-bold"
+                style={{
+                  color: currentOutcome === 'up' ? UP_GREEN : DOWN_RED,
+                  background: currentOutcome === 'up' ? 'rgba(31,157,107,0.12)' : 'rgba(209,73,91,0.12)',
+                }}
+              >
+                {currentOutcome === 'up' ? <IconArrowUp size={12} /> : <IconArrowDown size={12} />}
+                {(currentOutcome === 'up' ? upLabel : downLabel)} won
+              </span>
+            )}
+          </div>
+          {successor && (
+            <div className="flex items-center gap-2">
+              {advanceLeft != null && advanceLeft > 0 && (
+                <span className="text-xs tabular-nums text-text-muted">Advancing in {advanceLeft}s</span>
+              )}
+              <Link
+                href={`/markets/${successor.slug}`}
+                className="inline-flex items-center gap-1 rounded-pill px-3 py-1 text-xs font-semibold text-white transition-opacity hover:opacity-90"
+                style={{ background: PROB_BLUE }}
+              >
+                Trade live {successor.label} window
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                  <path d="M5 12h14M13 6l6 6-6 6" />
+                </svg>
+              </Link>
+            </div>
+          )}
+        </div>
       )}
 
       {/* Past-window navigator — browse recently-resolved windows in this
