@@ -3,6 +3,7 @@ import { HeroSection } from '@/components/layout/hero-section'
 import { HomeCategoryBar } from '@/components/layout/home-category-bar'
 import { MarketCard } from '@/components/markets/market-card'
 import { FeaturedMarketCard } from '@/components/markets/featured-market-card'
+import { FeaturedCarousel } from '@/components/markets/featured-carousel'
 import { MarketsTicker } from '@/components/markets/markets-ticker'
 import { getCardOptions, type CardOption } from '@/lib/markets/card-options'
 import { getPriceSeries, type PriceSeries } from '@/lib/markets/price-history'
@@ -58,11 +59,11 @@ async function getData() {
   )
   const { topByMarket, countByMarket } = await getCardOptions(supabase, multiIds)
 
-  // Probability sparkline series for the featured shelf only (small set).
-  const seriesByMarket = await getPriceSeries(
-    supabase,
-    featuredList.map((m) => m.id),
+  // Probability sparkline series for the featured carousel (featured + trending).
+  const carouselIds = Array.from(
+    new Set([...featuredList, ...trendingList].map((m) => m.id)),
   )
+  const seriesByMarket = await getPriceSeries(supabase, carouselIds)
 
   return {
     featured: featuredList,
@@ -101,6 +102,11 @@ export default async function HomePage() {
 
   const featuredGrid = featured.slice(0, 3)
   const trendingGrid = trending.filter(m => !featuredGrid.some(f => f.id === m.id)).slice(0, 8)
+
+  // Carousel set: featured first, then trending fills it out (deduped, capped).
+  const carouselMarkets = [...featured, ...trending]
+    .filter((m, i, arr) => arr.findIndex(x => x.id === m.id) === i)
+    .slice(0, 8)
 
   const stats = [
     { n: activeCount > 0 ? `${activeCount}` : '—', l: 'Active markets' },
@@ -146,18 +152,23 @@ export default async function HomePage() {
         </Section>
 
         {/* Featured markets */}
-        {featuredGrid.length > 0 && (
+        {carouselMarkets.length > 0 && (
           <Section eyebrow="Editor's picks" title="Featured markets" href="/markets?sort=featured">
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {featuredGrid.map(m => (
-                <FeaturedMarketCard
+            <FeaturedCarousel>
+              {carouselMarkets.map(m => (
+                <div
                   key={m.id}
-                  market={m}
-                  series={seriesByMarket.get(m.id)}
-                  {...cardExtras(m)}
-                />
+                  data-carousel-item
+                  className="snap-start flex-none w-[300px] sm:w-[340px]"
+                >
+                  <FeaturedMarketCard
+                    market={m}
+                    series={seriesByMarket.get(m.id)}
+                    {...cardExtras(m)}
+                  />
+                </div>
               ))}
-            </div>
+            </FeaturedCarousel>
           </Section>
         )}
 
