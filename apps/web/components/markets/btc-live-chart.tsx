@@ -37,13 +37,20 @@ import {
 import { format } from 'date-fns'
 import { createClient } from '@/lib/supabase/client'
 import { IconArrowUp, IconArrowDown } from '@/components/ui/icons'
+import {
+  impliedUpProb,
+  isWindowClosed,
+  candleBucketMs,
+  bucketCandles,
+  type ChartType,
+  type Pt,
+  type Candle,
+} from '@/lib/markets/btc-chart'
 
 const BTC_ORANGE = '#F7931A'
 const PROB_BLUE = '#2B50E4'
 const UP_GREEN = '#1F9D6B'
 const DOWN_RED = '#D1495B'
-
-type ChartType = 'prob' | 'price' | 'candle'
 
 interface BtcLiveChartProps {
   marketId: string
@@ -55,19 +62,6 @@ interface BtcLiveChartProps {
   status?: string
 }
 
-interface Pt {
-  t: number
-  price: number
-}
-
-interface Candle {
-  t: number
-  o: number
-  h: number
-  l: number
-  c: number
-}
-
 interface Sibling {
   slug: string
   label: string
@@ -77,22 +71,6 @@ interface Sibling {
 
 const usd = (n: number, dp = 0) =>
   n.toLocaleString('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: dp, maximumFractionDigits: dp })
-
-/**
- * Implied probability that spot finishes ABOVE the strike by window close —
- * logistic of the standardised move (spot − strike) / (σ·√timeLeft). σ is a
- * modest per-√second BTC vol; as timeLeft → 0 the denominator collapses so the
- * chance saturates to 0/1 based on the sign of the move. Clamped to [1, 99]%.
- */
-function impliedUpProb(price: number, reference: number, remainingSec: number): number {
-  if (reference <= 0) return 50
-  const secs = Math.max(remainingSec, 2)
-  // ~0.045%/√s ≈ realistic short-horizon BTC vol; scale keeps the curve lively.
-  const sigma = reference * 0.00045 * Math.sqrt(secs)
-  const z = (price - reference) / (sigma || 1)
-  const p = 1 / (1 + Math.exp(-z))
-  return Math.min(99, Math.max(1, p * 100))
-}
 
 function Tip({ active, payload, label, kind }: {
   active?: boolean; payload?: { value: number }[]; label?: string | number; kind: ChartType
@@ -133,7 +111,7 @@ export function BtcLiveChart({
   const [siblings, setSiblings] = useState<Sibling[]>([])
   const lastPush = useRef<number>(0)
 
-  const windowClosed = status !== 'active' || now >= closeMs
+  const windowClosed = isWindowClosed(status, closeMs, now)
 
   // 1s clock (countdown + freezes the series at the close boundary).
   useEffect(() => {
@@ -282,33 +260,12 @@ export function BtcLiveChart({
   const last = points[points.length - 1]
 
   // ---- Candlesticks: bucket the spot series into ~44 OHLC candles ----------
-  const bucketMs = useMemo(() => {
-    const span = Math.max(1, closeMs - openMs)
-    return Math.max(4000, Math.round(span / 44))
-  }, [openMs, closeMs])
+  const bucketMs = useMemo(() => candleBucketMs(openMs, closeMs, 44), [openMs, closeMs])
 
-  const candles = useMemo<Candle[]>(() => {
-    if (points.length === 0) return []
-    const byBucket = new Map<number, Pt[]>()
-    for (const p of points) {
-      const b = Math.floor((p.t - openMs) / bucketMs)
-      const arr = byBucket.get(b)
-      if (arr) arr.push(p)
-      else byBucket.set(b, [p])
-    }
-    return Array.from(byBucket.entries())
-      .sort((a, b) => a[0] - b[0])
-      .map(([b, pts]) => {
-        const ps = pts.map((x) => x.price)
-        return {
-          t: openMs + b * bucketMs + bucketMs / 2,
-          o: pts[0].price,
-          c: pts[pts.length - 1].price,
-          h: Math.max(...ps),
-          l: Math.min(...ps),
-        }
-      })
-  }, [points, openMs, bucketMs])
+  const candles = useMemo<Candle[]>(
+    () => bucketCandles(points, openMs, closeMs, 44),
+    [points, openMs, closeMs],
+  )
 
   // ---- Probability series: implied UP chance over time ---------------------
   const probPoints = useMemo(
