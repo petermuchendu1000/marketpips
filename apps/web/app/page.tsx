@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import { HeroSection } from '@/components/layout/hero-section'
+import { HomeCategoryBar } from '@/components/layout/home-category-bar'
 import { MarketCard } from '@/components/markets/market-card'
 import { MarketsTicker } from '@/components/markets/markets-ticker'
 import { getCardOptions, type CardOption } from '@/lib/markets/card-options'
@@ -101,6 +102,7 @@ export default async function HomePage() {
 
   return (
     <div style={{ background: 'var(--bg)' }}>
+      <HomeCategoryBar />
       <HeroSection
         featured={featured[0] ?? trending[0] ?? recent[0] ?? null}
         {...(() => {
