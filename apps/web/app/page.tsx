@@ -4,6 +4,7 @@ import { HomeCategoryBar } from '@/components/layout/home-category-bar'
 import { MarketCard } from '@/components/markets/market-card'
 import { FeaturedMarketCard } from '@/components/markets/featured-market-card'
 import { FeaturedCarousel } from '@/components/markets/featured-carousel'
+import { MoversRail } from '@/components/markets/movers-rail'
 import { MarketsTicker } from '@/components/markets/markets-ticker'
 import { getCardOptions, type CardOption } from '@/lib/markets/card-options'
 import { getPriceSeries, type PriceSeries } from '@/lib/markets/price-history'
@@ -32,13 +33,15 @@ const BROWSE_CATEGORIES: { key: MarketCategory; label: string }[] = [
 async function getData() {
   const supabase = await createClient()
 
-  const [{ data: featured }, { data: trending }, { data: recent }, active, volume] = await Promise.all([
+  const [{ data: featured }, { data: trending }, { data: recent }, { data: moversPool }, active, volume] = await Promise.all([
     supabase.from('markets').select('*').eq('status', 'active').eq('is_featured', true)
       .order('featured_order', { ascending: true }).limit(3),
     supabase.from('markets').select('*').eq('status', 'active').eq('is_trending', true)
       .order('total_volume_usd', { ascending: false }).limit(8),
     supabase.from('markets').select('*').eq('status', 'active')
       .order('created_at', { ascending: false }).limit(8),
+    supabase.from('markets').select('*').eq('status', 'active')
+      .order('volume_24h_usd', { ascending: false, nullsFirst: false }).limit(30),
     supabase.from('markets').select('id', { count: 'exact', head: true }).eq('status', 'active'),
     supabase.from('markets').select('total_volume_usd').eq('status', 'active').limit(1000),
   ])
@@ -50,6 +53,7 @@ async function getData() {
   const featuredList = hideSettling((featured ?? []) as Market[])
   const trendingList = hideSettling((trending ?? []) as Market[])
   const recentList = hideSettling((recent ?? []) as Market[])
+  const moversPoolList = hideSettling((moversPool ?? []) as Market[])
 
   // One batched lookup of leading options across everything we'll render, so
   // multiple_choice cards show their front-runner instead of a YES/NO bar.
@@ -59,11 +63,26 @@ async function getData() {
   )
   const { topByMarket, countByMarket } = await getCardOptions(supabase, multiIds)
 
-  // Probability sparkline series for the featured carousel (featured + trending).
-  const carouselIds = Array.from(
-    new Set([...featuredList, ...trendingList].map((m) => m.id)),
+  // Probability sparkline series for the featured carousel (featured + trending)
+  // and the movers pool — one batched query over the union of ids.
+  const seriesIds = Array.from(
+    new Set([...featuredList, ...trendingList, ...moversPoolList].map((m) => m.id)),
   )
-  const seriesByMarket = await getPriceSeries(supabase, carouselIds)
+  const seriesByMarket = await getPriceSeries(supabase, seriesIds)
+
+  // Biggest movers: markets whose implied probability shifted the most (either
+  // direction) over the recorded window, ranked by absolute change.
+  const movers = moversPoolList
+    .map((m) => ({ market: m, change: seriesByMarket.get(m.id)?.changePct ?? 0 }))
+    .filter((x) => Math.abs(x.change) >= 1)
+    .sort((a, b) => Math.abs(b.change) - Math.abs(a.change))
+    .slice(0, 6)
+
+  // Hot topics: highest 24h dollar volume right now.
+  const hotTopics = [...moversPoolList]
+    .filter((m) => (m.volume_24h_usd ?? 0) > 0)
+    .sort((a, b) => (b.volume_24h_usd ?? 0) - (a.volume_24h_usd ?? 0))
+    .slice(0, 6)
 
   return {
     featured: featuredList,
@@ -74,6 +93,8 @@ async function getData() {
     topByMarket,
     countByMarket,
     seriesByMarket,
+    movers,
+    hotTopics,
   }
 }
 
@@ -84,7 +105,7 @@ function fmtCompact(n: number) {
 }
 
 export default async function HomePage() {
-  const { featured, trending, recent, activeCount, totalVolume, topByMarket, countByMarket, seriesByMarket } =
+  const { featured, trending, recent, activeCount, totalVolume, topByMarket, countByMarket, seriesByMarket, movers, hotTopics } =
     await getData()
 
   // Card props for a market: top options (grid rows) + a single front-runner
@@ -169,6 +190,13 @@ export default async function HomePage() {
                 </div>
               ))}
             </FeaturedCarousel>
+          </Section>
+        )}
+
+        {/* Breaking + Hot topics rail */}
+        {(movers.length > 0 || hotTopics.length > 0) && (
+          <Section eyebrow="Live now" title="Movers & hot topics" href="/markets?sort=volume">
+            <MoversRail movers={movers} hotTopics={hotTopics} seriesByMarket={seriesByMarket} />
           </Section>
         )}
 

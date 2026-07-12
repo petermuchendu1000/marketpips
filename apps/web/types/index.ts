@@ -166,6 +166,9 @@ export interface Market {
   total_volume_usd: number
   yes_volume_usd: number
   no_volume_usd: number
+  volume_24h_usd?: number | null
+  trades_24h?: number | null
+  last_trade_at?: string | null
   total_bets: number
   unique_bettors: number
   platform_fee_rate: number
