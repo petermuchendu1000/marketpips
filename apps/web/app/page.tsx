@@ -3,6 +3,7 @@ import { HeroSection } from '@/components/layout/hero-section'
 import { MarketCard } from '@/components/markets/market-card'
 import { MarketsTicker } from '@/components/markets/markets-ticker'
 import { getCardOptions, type CardOption } from '@/lib/markets/card-options'
+import { hideSettling } from '@/lib/markets/settling'
 import type { Market, MarketCategory } from '@/types'
 import {
   IconArrowRight, IconShield, IconCheck, IconTrendUp, IconWallet,
@@ -40,9 +41,11 @@ async function getData() {
 
   const totalVolume = (volume.data ?? []).reduce((s: number, m: { total_volume_usd: number | null }) => s + (m.total_volume_usd ?? 0), 0)
 
-  const featuredList = (featured ?? []) as Market[]
-  const trendingList = (trending ?? []) as Market[]
-  const recentList = (recent ?? []) as Market[]
+  // Drop active-but-past-close rows so a just-closed window never flashes as a
+  // "Settling…" dead-end card in any of the home shelves.
+  const featuredList = hideSettling((featured ?? []) as Market[])
+  const trendingList = hideSettling((trending ?? []) as Market[])
+  const recentList = hideSettling((recent ?? []) as Market[])
 
   // One batched lookup of leading options across everything we'll render, so
   // multiple_choice cards show their front-runner instead of a YES/NO bar.

@@ -9,6 +9,7 @@
 // ---------------------------------------------------------------------------
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { Market } from '@/types'
+import { hideSettling } from './settling'
 
 /**
  * Fetch the currently-live BTC Up/Down windows, ordered for the pin
@@ -25,5 +26,7 @@ export async function getLiveBtcMarkets(supabase: SupabaseClient): Promise<Marke
     .order('closes_at', { ascending: true })
 
   if (error || !data) return []
-  return data as unknown as Market[]
+  // Never pin a just-closed window that hasn't been resolved yet — it would
+  // render as a dead "Settling…" card with no tradeable time left.
+  return hideSettling(data as unknown as Market[])
 }

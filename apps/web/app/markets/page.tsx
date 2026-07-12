@@ -25,6 +25,7 @@ import { CATEGORY_LABELS } from '@/types'
 import type { Market } from '@/types'
 import { getCardOptions } from '@/lib/markets/card-options'
 import { getLiveBtcMarkets } from '@/lib/markets/btc-windows'
+import { hideSettling } from '@/lib/markets/settling'
 import { IconPlus, IconSearch, IconArrowRight } from '@/components/ui/icons'
 
 export const dynamic = 'force-dynamic'
@@ -131,7 +132,9 @@ async function Results({ parsed }: { parsed: ReturnType<typeof parseSearchParams
   })
 
   const payload = (data ?? {}) as { data?: unknown[]; total?: number }
-  let markets = (Array.isArray(payload.data) ? payload.data : []) as Market[]
+  // Hide active-but-past-close windows so they never render as "Settling…" in
+  // the grid (only affects active rows past their close time).
+  let markets = hideSettling((Array.isArray(payload.data) ? payload.data : []) as Market[])
   const total = typeof payload.total === 'number' ? payload.total : 0
   const pagination = buildPagination(total, parsed.page, PER_PAGE)
 

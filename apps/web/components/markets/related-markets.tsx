@@ -2,6 +2,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { MarketCard } from './market-card'
 import { getLeadingOptions } from '@/lib/markets/leading-options'
+import { hideSettling } from '@/lib/markets/settling'
 import type { Market, MarketCategory } from '@/types'
 
 interface RelatedMarketsProps {
@@ -28,7 +29,9 @@ export async function RelatedMarkets({ marketId, category }: RelatedMarketsProps
 
   // Partial `creator` select (id/display_name/username only) → bridge via
   // unknown, matching the convention in app/markets/[slug]/page.tsx.
-  const typed = markets as unknown as Market[]
+  // Hide any active-but-past-close windows so they don't render as "Settling…".
+  const typed = hideSettling(markets as unknown as Market[])
+  if (!typed.length) return null
   const { leadByMarket, countByMarket } = await getLeadingOptions(
     supabase,
     typed.filter((m) => m.resolution_type === 'multiple_choice').map((m) => m.id),
