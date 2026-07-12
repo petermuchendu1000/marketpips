@@ -5,6 +5,7 @@ import { MarketCard } from '@/components/markets/market-card'
 import { FeaturedMarketCard } from '@/components/markets/featured-market-card'
 import { FeaturedCarousel } from '@/components/markets/featured-carousel'
 import { MoversRail } from '@/components/markets/movers-rail'
+import { HomeExplore } from '@/components/markets/home-explore'
 import { MarketsTicker } from '@/components/markets/markets-ticker'
 import { getCardOptions, type CardOption } from '@/lib/markets/card-options'
 import { getPriceSeries, type PriceSeries } from '@/lib/markets/price-history'
@@ -33,7 +34,7 @@ const BROWSE_CATEGORIES: { key: MarketCategory; label: string }[] = [
 async function getData() {
   const supabase = await createClient()
 
-  const [{ data: featured }, { data: trending }, { data: recent }, { data: moversPool }, active, volume] = await Promise.all([
+  const [{ data: featured }, { data: trending }, { data: recent }, { data: moversPool }, { data: allActiveRaw }, active, volume] = await Promise.all([
     supabase.from('markets').select('*').eq('status', 'active').eq('is_featured', true)
       .order('featured_order', { ascending: true }).limit(3),
     supabase.from('markets').select('*').eq('status', 'active').eq('is_trending', true)
@@ -42,6 +43,8 @@ async function getData() {
       .order('created_at', { ascending: false }).limit(8),
     supabase.from('markets').select('*').eq('status', 'active')
       .order('volume_24h_usd', { ascending: false, nullsFirst: false }).limit(30),
+    supabase.from('markets').select('*').eq('status', 'active')
+      .order('total_volume_usd', { ascending: false }).limit(120),
     supabase.from('markets').select('id', { count: 'exact', head: true }).eq('status', 'active'),
     supabase.from('markets').select('total_volume_usd').eq('status', 'active').limit(1000),
   ])
@@ -54,10 +57,16 @@ async function getData() {
   const trendingList = hideSettling((trending ?? []) as Market[])
   const recentList = hideSettling((recent ?? []) as Market[])
   const moversPoolList = hideSettling((moversPool ?? []) as Market[])
+  const allActive = hideSettling((allActiveRaw ?? []) as Market[])
 
-  // One batched lookup of leading options across everything we'll render, so
-  // multiple_choice cards show their front-runner instead of a YES/NO bar.
-  const allShown = [...featuredList, ...trendingList, ...recentList]
+  // Per-category counts for the in-place Explore filter pills.
+  const categoryCounts: Record<string, number> = { all: allActive.length }
+  for (const m of allActive) categoryCounts[m.category] = (categoryCounts[m.category] ?? 0) + 1
+
+  // One batched lookup of leading options across everything we'll render
+  // (including the full Explore set), so multiple_choice cards show their
+  // front-runner instead of a YES/NO bar.
+  const allShown = [...featuredList, ...trendingList, ...recentList, ...allActive]
   const multiIds = Array.from(
     new Set(allShown.filter((m) => m.resolution_type === 'multiple_choice').map((m) => m.id)),
   )
@@ -95,6 +104,8 @@ async function getData() {
     seriesByMarket,
     movers,
     hotTopics,
+    allActive,
+    categoryCounts,
   }
 }
 
@@ -105,8 +116,19 @@ function fmtCompact(n: number) {
 }
 
 export default async function HomePage() {
-  const { featured, trending, recent, activeCount, totalVolume, topByMarket, countByMarket, seriesByMarket, movers, hotTopics } =
+  const { featured, trending, recent, activeCount, totalVolume, topByMarket, countByMarket, seriesByMarket, movers, hotTopics, allActive, categoryCounts } =
     await getData()
+
+  // Client components can't receive Maps as props — flatten the option lookups
+  // (only for the markets the Explore feed will render) into plain objects.
+  const exploreOptions: Record<string, CardOption[]> = {}
+  const exploreOptionCount: Record<string, number> = {}
+  for (const m of allActive) {
+    const top = topByMarket.get(m.id)
+    if (top) exploreOptions[m.id] = top
+    const cnt = countByMarket.get(m.id)
+    if (cnt !== undefined) exploreOptionCount[m.id] = cnt
+  }
 
   // Card props for a market: top options (grid rows) + a single front-runner
   // (the hero card) + option count, all for multiple_choice markets.
@@ -197,6 +219,18 @@ export default async function HomePage() {
         {(movers.length > 0 || hotTopics.length > 0) && (
           <Section eyebrow="Live now" title="Movers & hot topics" href="/markets?sort=volume">
             <MoversRail movers={movers} hotTopics={hotTopics} seriesByMarket={seriesByMarket} />
+          </Section>
+        )}
+
+        {/* Explore — in-place category-filtered feed */}
+        {allActive.length > 0 && (
+          <Section eyebrow="Explore" title="All markets" href="/markets">
+            <HomeExplore
+              markets={allActive}
+              options={exploreOptions}
+              optionCount={exploreOptionCount}
+              counts={categoryCounts}
+            />
           </Section>
         )}
 

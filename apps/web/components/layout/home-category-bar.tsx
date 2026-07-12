@@ -39,6 +39,12 @@ export function HomeCategoryBar() {
   const scroll = (dir: 'left' | 'right') =>
     scrollRef.current?.scrollBy({ left: dir === 'left' ? -280 : 280, behavior: 'smooth' })
 
+  // Drive the in-place Explore feed (components/markets/home-explore.tsx) via a
+  // decoupled window event — no navigation, so the choice filters the grid and
+  // scrolls it into view without a server round-trip.
+  const filterInPlace = (category: string) =>
+    window.dispatchEvent(new CustomEvent('marketpips:home-category', { detail: { category } }))
+
   return (
     <div
       className="sticky z-40"
@@ -72,22 +78,30 @@ export function HomeCategoryBar() {
           aria-label="Browse markets by category"
           className="flex items-center gap-1.5 overflow-x-auto scrollbar-hide py-2.5 flex-1"
         >
-          {PILLS.map((p) => (
-            <Link
-              key={p.key}
-              href={p.kind === 'link' ? p.href : `/markets?category=${p.key}`}
-              className="tab-pill flex-none flex items-center gap-1.5"
-            >
-              {p.kind === 'link' ? (
-                p.icon === 'trending' ? <IconTrendUp size={14} />
-                : p.icon === 'new' ? <IconStar size={14} />
-                : <IconMarkets size={14} />
-              ) : (
+          {PILLS.map((p) =>
+            p.kind === 'link' ? (
+              <Link
+                key={p.key}
+                href={p.href}
+                className="tab-pill flex-none flex items-center gap-1.5"
+              >
+                {p.icon === 'trending' ? <IconTrendUp size={14} />
+                  : p.icon === 'new' ? <IconStar size={14} />
+                  : <IconMarkets size={14} />}
+                <span>{p.label}</span>
+              </Link>
+            ) : (
+              <button
+                key={p.key}
+                type="button"
+                onClick={() => filterInPlace(p.key)}
+                className="tab-pill flex-none flex items-center gap-1.5"
+              >
                 <CategoryIcon category={p.key} size={14} />
-              )}
-              <span>{p.label}</span>
-            </Link>
-          ))}
+                <span>{p.label}</span>
+              </button>
+            ),
+          )}
         </nav>
 
         <button
