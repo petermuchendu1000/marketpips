@@ -44,9 +44,12 @@ import {
   bucketCandles,
   mergeLiveCandle,
   pickGranularity,
+  pastWindows,
+  windowOutcome,
   type ChartType,
   type Pt,
   type Candle,
+  type SeriesWindow,
 } from '@/lib/markets/btc-chart'
 
 const BTC_ORANGE = '#F7931A'
@@ -56,6 +59,10 @@ const DOWN_RED = '#D1495B'
 
 interface BtcLiveChartProps {
   marketId: string
+  /** Current market slug — used to highlight the active row in the Past nav. */
+  slug?: string
+  /** metadata.series_key (e.g. 'btc-up-down-5m') — scopes the Past nav query. */
+  seriesKey?: string
   referencePrice: number
   closesAt: string
   windowSeconds: number
@@ -91,6 +98,8 @@ function Tip({ active, payload, label, kind }: {
 
 export function BtcLiveChart({
   marketId,
+  slug,
+  seriesKey,
   referencePrice,
   closesAt,
   windowSeconds,
@@ -113,6 +122,9 @@ export function BtcLiveChart({
   const [siblings, setSiblings] = useState<Sibling[]>([])
   // Real Coinbase OHLC candles (authoritative pips) for the candlestick view.
   const [realCandles, setRealCandles] = useState<Candle[]>([])
+  // Every window in THIS recurring series (live + resolved) — powers the
+  // "Past ▾" navigator and the window-close successor auto-advance.
+  const [seriesRows, setSeriesRows] = useState<SeriesWindow[]>([])
   const lastPush = useRef<number>(0)
 
   // Coinbase candle granularity chosen for this window length (5M/15M/30M/1H
@@ -153,6 +165,51 @@ export function BtcLiveChart({
         )
       })
   }, [marketId])
+
+  // All windows in THIS series (live + recently resolved) for the Past nav and
+  // the close-without-refresh successor swap. Polled every 20s while live so a
+  // freshly-opened successor and the just-resolved outcome both appear without
+  // a page refresh. Degrades to [] (nav hidden) on any error.
+  useEffect(() => {
+    if (!seriesKey) return
+    const supabase = createClient()
+    let alive = true
+    const load = () => {
+      supabase
+        .from('markets')
+        .select('slug, status, closes_at, resolved_outcome, metadata')
+        .contains('metadata', { series_key: seriesKey })
+        .order('closes_at', { ascending: false })
+        .limit(24)
+        .then(({ data }) => {
+          if (!alive || !data) return
+          setSeriesRows(
+            data.map((m) => {
+              const meta = (m.metadata ?? {}) as Record<string, unknown>
+              return {
+                slug: m.slug as string,
+                status: m.status as string,
+                closesAt: m.closes_at as string,
+                windowSeconds: Number(meta.window_seconds ?? 0),
+                label: String(meta.window_label ?? ''),
+                referencePrice: meta.reference_price != null ? Number(meta.reference_price) : null,
+                settlePrice: meta.settle_price != null ? Number(meta.settle_price) : null,
+                resolvedOutcome: (m.resolved_outcome as string | null) ?? null,
+              }
+            }),
+          )
+        })
+    }
+    load()
+    const id = setInterval(load, 20_000)
+    return () => {
+      alive = false
+      clearInterval(id)
+    }
+  }, [seriesKey, marketId])
+
+  const pastRows = useMemo(() => pastWindows(seriesRows, 10), [seriesRows])
+  const [navOpen, setNavOpen] = useState(false)
 
   const pushPrice = useMemo(() => {
     return (price: number, force = false) => {
@@ -468,6 +525,19 @@ export function BtcLiveChart({
         </>
       )}
 
+      {/* Past-window navigator — browse recently-resolved windows in this
+          series, each marked with its Up/Down outcome (Polymarket "Past ▾"). */}
+      {pastRows.length > 0 && (
+        <PastWindowNav
+          past={pastRows}
+          currentSlug={slug}
+          upLabel={upLabel}
+          downLabel={downLabel}
+          open={navOpen}
+          setOpen={setNavOpen}
+        />
+      )}
+
       {/* Chart — one of three synchronized views. */}
       <div className="h-60 w-full">
         <ResponsiveContainer width="100%" height="100%">
@@ -623,6 +693,135 @@ export function BtcLiveChart({
             : 'Live BTC/USD via Coinbase · settles at the reference price when the window closes'}
       </p>
     </div>
+  )
+}
+
+/* ---------- Past-window navigator ---------- */
+
+function PastWindowNav({
+  past,
+  currentSlug,
+  upLabel,
+  downLabel,
+  open,
+  setOpen,
+}: {
+  past: SeriesWindow[]
+  currentSlug?: string
+  upLabel: string
+  downLabel: string
+  open: boolean
+  setOpen: (v: boolean) => void
+}) {
+  const ref = useRef<HTMLDivElement>(null)
+
+  // Close on outside click / Escape.
+  useEffect(() => {
+    if (!open) return
+    const onDown = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false)
+    }
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setOpen(false)
+    }
+    document.addEventListener('mousedown', onDown)
+    document.addEventListener('keydown', onKey)
+    return () => {
+      document.removeEventListener('mousedown', onDown)
+      document.removeEventListener('keydown', onKey)
+    }
+  }, [open, setOpen])
+
+  // Newest few as inline quick-chips; the full list lives in the dropdown.
+  const chips = past.slice(0, 5)
+
+  return (
+    <div className="mb-2 flex items-center gap-2">
+      <span className="flex-none text-[11px] font-semibold uppercase tracking-wide text-text-muted">Past</span>
+
+      {/* Inline outcome chips (most recent first). */}
+      <div className="flex min-w-0 flex-1 items-center gap-1.5 overflow-x-auto">
+        {chips.map((w) => (
+          <PastChip key={w.slug} w={w} active={w.slug === currentSlug} />
+        ))}
+      </div>
+
+      {/* Dropdown with the full recent history. */}
+      <div ref={ref} className="relative flex-none">
+        <button
+          type="button"
+          aria-haspopup="listbox"
+          aria-expanded={open}
+          onClick={() => setOpen(!open)}
+          className="inline-flex items-center gap-1 rounded-pill border border-hairline px-2.5 py-1 text-xs font-semibold text-text-secondary transition-colors hover:bg-surface-2"
+        >
+          Past
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden className={open ? 'rotate-180 transition-transform' : 'transition-transform'}>
+            <path d="m6 9 6 6 6-6" />
+          </svg>
+        </button>
+
+        {open && (
+          <div
+            role="listbox"
+            aria-label="Past windows"
+            className="absolute right-0 z-20 mt-1 max-h-72 w-64 overflow-y-auto rounded-lg border border-hairline bg-surface p-1 shadow-xl"
+          >
+            {past.map((w) => {
+              const dir = windowOutcome(w)
+              const isUp = dir === 'up'
+              const color = isUp ? UP_GREEN : DOWN_RED
+              const time = format(new Date(w.closesAt), 'HH:mm')
+              const active = w.slug === currentSlug
+              return (
+                <Link
+                  key={w.slug}
+                  href={`/markets/${w.slug}`}
+                  role="option"
+                  aria-selected={active}
+                  className={`flex items-center justify-between gap-2 rounded-md px-2.5 py-2 text-sm transition-colors ${
+                    active ? 'bg-surface-2' : 'hover:bg-surface-2'
+                  }`}
+                >
+                  <span className="flex items-center gap-2">
+                    <span className="inline-block h-2 w-2 flex-none rounded-full" style={{ background: color }} />
+                    <span className="tabular-nums text-text-secondary">{time}</span>
+                  </span>
+                  <span className="flex items-center gap-1.5">
+                    <span className="flex items-center gap-0.5 text-xs font-semibold" style={{ color }}>
+                      {isUp ? <IconArrowUp size={12} /> : <IconArrowDown size={12} />}
+                      {isUp ? upLabel : downLabel}
+                    </span>
+                    {w.settlePrice != null && (
+                      <span className="tabular-nums text-xs text-text-muted">{usd(w.settlePrice, 0)}</span>
+                    )}
+                  </span>
+                </Link>
+              )
+            })}
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+function PastChip({ w, active }: { w: SeriesWindow; active: boolean }) {
+  const dir = windowOutcome(w)
+  const isUp = dir === 'up'
+  const color = isUp ? UP_GREEN : DOWN_RED
+  return (
+    <Link
+      href={`/markets/${w.slug}`}
+      title={`${format(new Date(w.closesAt), 'HH:mm')} · ${isUp ? 'Up' : 'Down'}`}
+      className={`inline-flex flex-none items-center gap-1 rounded-pill border px-2 py-0.5 text-[11px] font-semibold tabular-nums transition-colors ${
+        active ? 'border-transparent bg-surface-2' : 'border-hairline hover:bg-surface-2'
+      }`}
+      style={{ color }}
+    >
+      {isUp ? <IconArrowUp size={11} /> : <IconArrowDown size={11} />}
+      {format(new Date(w.closesAt), 'HH:mm')}
+    </Link>
   )
 }
 
