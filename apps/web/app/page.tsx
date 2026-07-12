@@ -2,8 +2,10 @@ import { createClient } from '@/lib/supabase/server'
 import { HeroSection } from '@/components/layout/hero-section'
 import { HomeCategoryBar } from '@/components/layout/home-category-bar'
 import { MarketCard } from '@/components/markets/market-card'
+import { FeaturedMarketCard } from '@/components/markets/featured-market-card'
 import { MarketsTicker } from '@/components/markets/markets-ticker'
 import { getCardOptions, type CardOption } from '@/lib/markets/card-options'
+import { getPriceSeries, type PriceSeries } from '@/lib/markets/price-history'
 import { hideSettling } from '@/lib/markets/settling'
 import type { Market, MarketCategory } from '@/types'
 import {
@@ -56,6 +58,12 @@ async function getData() {
   )
   const { topByMarket, countByMarket } = await getCardOptions(supabase, multiIds)
 
+  // Probability sparkline series for the featured shelf only (small set).
+  const seriesByMarket = await getPriceSeries(
+    supabase,
+    featuredList.map((m) => m.id),
+  )
+
   return {
     featured: featuredList,
     trending: trendingList,
@@ -64,6 +72,7 @@ async function getData() {
     totalVolume,
     topByMarket,
     countByMarket,
+    seriesByMarket,
   }
 }
 
@@ -74,7 +83,7 @@ function fmtCompact(n: number) {
 }
 
 export default async function HomePage() {
-  const { featured, trending, recent, activeCount, totalVolume, topByMarket, countByMarket } =
+  const { featured, trending, recent, activeCount, totalVolume, topByMarket, countByMarket, seriesByMarket } =
     await getData()
 
   // Card props for a market: top options (grid rows) + a single front-runner
@@ -140,7 +149,14 @@ export default async function HomePage() {
         {featuredGrid.length > 0 && (
           <Section eyebrow="Editor's picks" title="Featured markets" href="/markets?sort=featured">
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {featuredGrid.map(m => <MarketCard key={m.id} market={m} {...cardExtras(m)} />)}
+              {featuredGrid.map(m => (
+                <FeaturedMarketCard
+                  key={m.id}
+                  market={m}
+                  series={seriesByMarket.get(m.id)}
+                  {...cardExtras(m)}
+                />
+              ))}
             </div>
           </Section>
         )}
