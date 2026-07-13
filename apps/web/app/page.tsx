@@ -2,7 +2,6 @@ import { createClient } from '@/lib/supabase/server'
 import { HeroSection } from '@/components/layout/hero-section'
 import { HomeCategoryBar } from '@/components/layout/home-category-bar'
 import { MarketCard } from '@/components/markets/market-card'
-import { FeaturedMarketCard } from '@/components/markets/featured-market-card'
 import { FeaturedCarousel } from '@/components/markets/featured-carousel'
 import { MoversRail } from '@/components/markets/movers-rail'
 import { HomeExplore } from '@/components/markets/home-explore'
@@ -281,12 +280,7 @@ export default async function HomePage() {
                   data-carousel-item
                   className="snap-start flex-none w-[300px] sm:w-[340px]"
                 >
-                  <FeaturedMarketCard
-                    market={m}
-                    series={seriesByMarket.get(m.id)}
-                    optionSeries={optionSeries.get(m.id)}
-                    {...cardExtras(m)}
-                  />
+                  <MarketCard market={m} {...cardExtras(m)} />
                 </div>
               ))}
             </FeaturedCarousel>

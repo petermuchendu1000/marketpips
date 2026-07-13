@@ -4,7 +4,8 @@
 // ------------------------------------------------------------
 // Horizontal, scroll-snapped rail for the featured shelf — the top-of-page
 // "high-heat events" treatment. Renders whatever cards it's handed as children
-// (server-rendered FeaturedMarketCard nodes, so this adds no card JS), and
+// (the canonical Polymarket MarketCard nodes — identical to the grid, just in
+// a horizontal rail), and
 // layers on: prev/next arrows, a scroll-position progress track, keyboard
 // support, and gentle auto-advance that pauses on hover / focus / when the tab
 // is hidden and fully honors prefers-reduced-motion.
