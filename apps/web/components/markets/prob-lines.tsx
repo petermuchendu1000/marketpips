@@ -237,8 +237,20 @@ export function ProbLines({
               strokeLinecap="round"
               strokeLinejoin="round"
             />
-            {/* Polymarket endpoint: solid r=4 dot + static ~2.28x glow at 0.34 opacity. */}
-            {endpointHalo && <circle cx={last[0]} cy={last[1]} r={9} fill={color} opacity={0.34} />}
+            {/* Polymarket endpoint (measured live): solid r=4 dot + a PULSING halo
+                ring — r=4 base scaled up (~3.95x) while fading to 0, origin the dot
+                centre (transform-box:fill-box). Pure CSS, so it animates with zero
+                client JS and freezes to a faint static ring under reduced-motion. */}
+            {endpointHalo && (
+              <circle
+                cx={last[0]}
+                cy={last[1]}
+                r={4}
+                fill={color}
+                className="pm-endpoint-pulse"
+                style={{ transformBox: 'fill-box', transformOrigin: '50% 50%' }}
+              />
+            )}
             <circle cx={last[0]} cy={last[1]} r={4} fill={color} />
           </g>
         )

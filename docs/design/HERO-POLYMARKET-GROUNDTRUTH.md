@@ -73,6 +73,24 @@ Each row (up to 4): `flex items-center justify-between`, `min-h-10`, divider `bo
 - **Gridlines**: 5 horizontal, `stroke: neutral-300 #aeb4bc`, `stroke-width: 1`, **`stroke-dasharray: 1,3`** (dotted), at y = 0/59/118/177/236 (59px apart), x 0→458.
 - **Right Y-axis (%)**: 5 labels auto-domain (e.g. 0/10/20/30/40% or 0/15/30/45/60%). `font-size 12`, `text-anchor start`, `+8px` gap, color `text-secondary #77808d`. Domain rounds up to fit data max.
 - **Bottom X-axis (dates)**: 4–5 ticks, `font-size 12`, `text-anchor middle`, color `neutral-200 #caced3`, `translateY(+12)`, ~104px apart. Formats: monthly / daily (`Jun 21`) — 5-tick daily typical.
+> **CORRECTION (2026-07, re-measured from the pasted live DOM — supersedes the
+> earlier "step" note):** the hero lines are **smooth cubic-bézier `<path>`**
+> (`d` is 400+ `C` commands, **zero `L`** — no step-after), `fill:transparent`,
+> `shape-rendering:geometricPrecision`, `pathLength=1`. Per series there are
+> three stacked paths:
+>   1. **main** — `stroke: COLOR`, `sw 1.75`, `stroke-opacity 1`, `clip-path: inset(-13px -13px -13px -13px)`.
+>   2. **faded history** — `stroke: color-mix(in srgb, COLOR 40%, transparent)`,
+>      `sw 1.75`, dotted `stroke-dasharray "2 2"`, clipped to a short **left**
+>      lead-in (`clip-path: inset(-13px 432px -13px -13px)`).
+>   3. **accent** — `stroke: COLOR`, `sw 2.75`, `stroke-opacity 0` at rest
+>      (a hover/highlight overlay; invisible until interacted with).
+> **Endpoint** (`cx=446`): a solid `r=4` dot (`opacity 1`) **plus a pulsing halo
+> ring** — same `r=4`, `transform-origin:50% 50%; transform-box:fill-box`,
+> animating `scale 1→~3.95` while `opacity 0.34→0`, looping (the two measured
+> frames were scale 2.28/op .34 and scale 3.95/op .011 — i.e. mid- and late-pulse).
+> Colors = `#87BFFF / #4378FF / #FDC503 / #FF7F0E`. Y-axis via visx: `Arial 12`,
+> `weight 400`, `fill text-secondary`, `text-anchor start`, `translateX(8px)`.
+
 - **Data lines** (per series, 3 stacked paths, `fill: transparent`, dense-bezier **step** render):
   1. faded history: `stroke: color-mix(in srgb, COLOR 40%, transparent)`, `stroke-width 1.75`
   2. accent: `stroke: COLOR`, `stroke-width 2.75`

@@ -441,6 +441,10 @@
   @keyframes slide-up-sm { from { transform:translateY(6px); } to { transform:translateY(0); } }
   @keyframes scale-in { from { transform:scale(0.97); opacity:0; } to { transform:scale(1); opacity:1; } }
   @keyframes pulse-dot { 0%,100% { opacity:1; } 50% { opacity:0.35; } }
+  /* Polymarket chart endpoint: a halo ring grows from the dot centre and fades
+     out, looping. Measured live (scale→~3.95, opacity 0.34→0, origin centre). */
+  @keyframes pm-endpoint-pulse { 0% { transform:scale(1); opacity:0.34; } 100% { transform:scale(3.95); opacity:0; } }
+  .pm-endpoint-pulse { transform-box:fill-box; transform-origin:50% 50%; animation:pm-endpoint-pulse 2s ease-out infinite; }
   .animate-fade-in { animation:fade-in var(--dur) ease; }
   .animate-slide-up { animation:slide-up var(--dur-in) var(--ease-out); }
   .animate-scale-in { animation:scale-in var(--dur-micro) ease; }

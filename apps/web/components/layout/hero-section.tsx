@@ -9,7 +9,7 @@
 //   │              Bold 24/600 title                                  │
 //   │  ┌── ranked outcomes (346) ──┐  ┌──── chart block (495) ─────┐  │
 //   │  │ [avatar] name ……… 39%     │  │ ● legend chips              │ │
-//   │  │ ───────── divider ─────── │  │ ┌── stepped multi-line ───┐ │ │
+//   │  │ ───────── divider ─────── │  │ ┌── smooth multi-line ────┐ │ │
 //   │  │ …up to 4 rows             │  │ │  right % axis, dated x  │ │ │
 //   │  │ comment peek              │  │ └─────────────────────────┘ │ │
 //   │  └───────────────────────────┘  └─────────────────────────────┘ │
@@ -209,7 +209,6 @@ function Spotlight({ market, series, comments }: HeroMarket & { comments?: HeroC
               grid
               autoDomain
               axis="right"
-              step
               endpointHalo
               maxLines={series.binary ? 1 : 4}
               fillArea={series.binary}
