@@ -33,6 +33,10 @@ export interface MarketSeries {
   seeded: boolean
   /** First → last delta of the leading line, in percentage points (signed). */
   changePct: number
+  /** ISO timestamp of the earliest recorded point (null when seeded). */
+  startAt: string | null
+  /** ISO timestamp of the latest recorded point (null when seeded). */
+  endAt: string | null
 }
 
 interface MarketRow {
@@ -102,7 +106,13 @@ export async function getOptionSeries(
   // Group history points: per-option (multi) and per-market (binary yes line).
   const optionPoints = new Map<string, number[]>() // key: option id
   const marketYesPoints = new Map<string, number[]>() // key: market id
+  // Track the recorded time window per market so the chart can label its X axis
+  // with real dates (rows arrive ordered ascending, so first=min, last=max).
+  const timeRange = new Map<string, { start: string; end: string }>() // key: market id
   for (const r of (hist as HistRow[]) ?? []) {
+    const range = timeRange.get(r.market_id)
+    if (!range) timeRange.set(r.market_id, { start: r.recorded_at, end: r.recorded_at })
+    else range.end = r.recorded_at
     if (r.market_option_id) {
       const v = r.price ?? r.yes_price
       if (v == null) continue
@@ -138,7 +148,8 @@ export async function getOptionSeries(
       lines.sort((a, b) => b.price - a.price)
       const lead = lines[0]
       const changePct = lead ? Math.round((lead.points[lead.points.length - 1] - lead.points[0]) * 100) : 0
-      out.set(id, { binary: false, lines, seeded, changePct })
+      const range = seeded ? null : timeRange.get(id) ?? null
+      out.set(id, { binary: false, lines, seeded, changePct, startAt: range?.start ?? null, endAt: range?.end ?? null })
     } else {
       const price = Number(m.yes_price ?? 0)
       let points = marketYesPoints.get(id) ?? []
@@ -149,11 +160,14 @@ export async function getOptionSeries(
       }
       points = downsample(points, maxPoints)
       const changePct = Math.round((points[points.length - 1] - points[0]) * 100)
+      const range = seeded ? null : timeRange.get(id) ?? null
       out.set(id, {
         binary: true,
         lines: [{ id, label: 'Yes', price, points }],
         seeded,
         changePct,
+        startAt: range?.start ?? null,
+        endAt: range?.end ?? null,
       })
     }
   }
