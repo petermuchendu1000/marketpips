@@ -1,6 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
 import { HeroSection } from '@/components/layout/hero-section'
-import { HomeCategoryBar } from '@/components/layout/home-category-bar'
 import { MarketCard } from '@/components/markets/market-card'
 import { FeaturedCarousel } from '@/components/markets/featured-carousel'
 import { MoversRail } from '@/components/markets/movers-rail'
@@ -248,7 +247,7 @@ export default async function HomePage() {
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />
-      <HomeCategoryBar />
+      {/* Category rail is now mounted globally in the root layout (SubNav). */}
       <HeroSection items={heroItems} hotTopics={hotTopics} breaking={breaking} comments={heroComments} activity={heroActivity} />
 
       <div className="max-w-[1350px] mx-auto px-4 lg:px-6">

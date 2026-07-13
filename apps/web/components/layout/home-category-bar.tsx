@@ -9,6 +9,7 @@
 // the shared `.tab-pill` class so it tracks the Pip design system + dark mode.
 import { useRef } from 'react'
 import Link from 'next/link'
+import { usePathname } from 'next/navigation'
 import { CATEGORY_LABELS } from '@/types'
 import type { MarketCategory } from '@/types'
 import {
@@ -35,6 +36,11 @@ const PILLS: Pill[] = [...LEAD, ...CATEGORY_PILLS]
 
 export function HomeCategoryBar() {
   const scrollRef = useRef<HTMLDivElement>(null)
+  const pathname = usePathname()
+  // The bar now persists across every page (mounted globally). On the homepage a
+  // category taps the in-place Explore feed; everywhere else there is no such
+  // feed, so it deep-links into the markets grid with the matching filter.
+  const onHome = pathname === '/'
 
   const scroll = (dir: 'left' | 'right') =>
     scrollRef.current?.scrollBy({ left: dir === 'left' ? -280 : 280, behavior: 'smooth' })
@@ -90,7 +96,7 @@ export function HomeCategoryBar() {
                   : <IconMarkets size={14} />}
                 <span>{p.label}</span>
               </Link>
-            ) : (
+            ) : onHome ? (
               <button
                 key={p.key}
                 type="button"
@@ -100,6 +106,15 @@ export function HomeCategoryBar() {
                 <CategoryIcon category={p.key} size={14} />
                 <span>{p.label}</span>
               </button>
+            ) : (
+              <Link
+                key={p.key}
+                href={`/markets?category=${p.key}`}
+                className="tab-pill flex-none flex items-center gap-1.5"
+              >
+                <CategoryIcon category={p.key} size={14} />
+                <span>{p.label}</span>
+              </Link>
             ),
           )}
         </nav>

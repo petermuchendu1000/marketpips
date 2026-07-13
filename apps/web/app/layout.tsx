@@ -4,6 +4,7 @@ import './globals.css'
 import { NextIntlClientProvider } from 'next-intl'
 import { getLocale, getMessages } from 'next-intl/server'
 import { Navbar } from '@/components/layout/navbar'
+import { SubNav } from '@/components/layout/sub-nav'
 import { BottomNav } from '@/components/layout/bottom-nav'
 import { SiteFooter } from '@/components/layout/site-footer'
 import { Providers } from '@/components/layout/providers'
@@ -102,6 +103,9 @@ export default async function RootLayout({ children }: { children: React.ReactNo
           <NextIntlClientProvider locale={locale} messages={messages}>
             <Providers>
               <Navbar />
+              {/* Under-nav category rail — persists across pages (except auth /
+                  admin / offline), so the browse context is never lost. */}
+              <SubNav />
               <main id="main-content" tabIndex={-1}>
                 {children}
               </main>
