@@ -24,7 +24,10 @@ export function HeroCarousel({ slides, titles, autoPlayMs = 7000 }: HeroCarousel
   const [active, setActive] = useState(0)
   const [reduced, setReduced] = useState(false)
   const pausedRef = useRef(false)
-  const dragX = useRef<number | null>(null)
+  const drag = useRef<{ x: number; y: number } | null>(null)
+  // Set when a horizontal swipe just fired, so the click it would otherwise
+  // deliver to the card's full-bleed link is swallowed (no accidental navigate).
+  const swipedRef = useRef(false)
 
   const go = useCallback((i: number) => setActive(((i % n) + n) % n), [n])
   const next = useCallback(() => go(active + 1), [active, go])
@@ -55,14 +58,36 @@ export function HeroCarousel({ slides, titles, autoPlayMs = 7000 }: HeroCarousel
   const pause = () => { pausedRef.current = true }
   const resume = () => { pausedRef.current = false }
 
-  const onPointerDown = (e: React.PointerEvent) => { dragX.current = e.clientX; pause() }
+  const onPointerDown = (e: React.PointerEvent) => {
+    drag.current = { x: e.clientX, y: e.clientY }
+    swipedRef.current = false
+    pause()
+  }
   const onPointerUp = (e: React.PointerEvent) => {
-    if (dragX.current !== null) {
-      const dx = e.clientX - dragX.current
-      if (Math.abs(dx) > 44) (dx < 0 ? next : prev)()
-      dragX.current = null
-    }
+    const start = drag.current
+    drag.current = null
     resume()
+    if (!start) return
+    const dx = e.clientX - start.x
+    const dy = e.clientY - start.y
+    // Horizontal intent only (min 44px travel, and more horizontal than
+    // vertical) so a vertical page scroll never flips the slide.
+    if (Math.abs(dx) > 44 && Math.abs(dx) > Math.abs(dy)) {
+      swipedRef.current = true
+      ;(dx < 0 ? next : prev)()
+    }
+  }
+  // A cancelled pointer (browser took over for a scroll) must reset drag state
+  // and un-pause — otherwise autoplay would stay frozen after a touch scroll.
+  const onPointerCancel = () => { drag.current = null; resume() }
+  // Swallow the synthetic click a horizontal swipe delivers to the card's
+  // full-bleed <Link>, which would otherwise navigate into the market mid-swipe.
+  const onClickCapture = (e: React.MouseEvent) => {
+    if (swipedRef.current) {
+      e.preventDefault()
+      e.stopPropagation()
+      swipedRef.current = false
+    }
   }
 
   const dots = useMemo(() => Array.from({ length: n }, (_, i) => i), [n])
@@ -90,9 +115,15 @@ export function HeroCarousel({ slides, titles, autoPlayMs = 7000 }: HeroCarousel
           auto-sizes to the tallest card (no layout jump between slides). */}
       <div
         className="grid"
-        style={{ gridTemplateAreas: '"stack"' }}
+        // touch-action: pan-y lets the page scroll vertically while RESERVING
+        // horizontal gestures for our swipe handler — without it the browser
+        // consumes the horizontal drag and fires pointercancel (never
+        // pointerup), so swipe navigation silently failed on touch devices.
+        style={{ gridTemplateAreas: '"stack"', touchAction: 'pan-y' }}
         onPointerDown={onPointerDown}
         onPointerUp={onPointerUp}
+        onPointerCancel={onPointerCancel}
+        onClickCapture={onClickCapture}
         aria-live="polite"
       >
         {slides.map((slide, i) => {
@@ -132,16 +163,45 @@ export function HeroCarousel({ slides, titles, autoPlayMs = 7000 }: HeroCarousel
                 aria-selected={i === active}
                 aria-label={`Show market ${i + 1}: ${titles[i] ?? ''}`}
                 onClick={() => go(i)}
-                className="h-1.5 rounded-full transition-all"
-                style={{
-                  width: i === active ? 20 : 8,
-                  background: i === active ? 'var(--pip-500)' : 'var(--hairline-strong)',
-                }}
-              />
+                // Enlarged, comfortable touch target (~28px tall) while the
+                // visible pill stays 6px; -my keeps it from inflating the row.
+                className="grid place-items-center py-2.5 -my-2.5"
+              >
+                <span
+                  className="block h-1.5 rounded-full transition-all"
+                  style={{
+                    width: i === active ? 20 : 8,
+                    background: i === active ? 'var(--pip-500)' : 'var(--hairline-strong)',
+                  }}
+                />
+              </button>
             ))}
           </div>
 
           <div className="flex items-center gap-2">
+            {/* Mobile: compact icon arrows (title labels would overflow a phone).
+                Visible < sm, so touch users always have tap navigation even if
+                a swipe is missed. */}
+            <button
+              type="button"
+              onClick={prev}
+              className="inline-flex h-9 w-9 flex-none items-center justify-center rounded-full transition-colors active:scale-95 sm:hidden"
+              style={{ background: 'var(--surface)', border: '1px solid var(--hairline)', color: 'var(--text-3)' }}
+              aria-label={`Previous market: ${titles[prevIdx] ?? ''}`}
+            >
+              <IconChevronLeft size={16} />
+            </button>
+            <button
+              type="button"
+              onClick={next}
+              className="inline-flex h-9 w-9 flex-none items-center justify-center rounded-full transition-colors active:scale-95 sm:hidden"
+              style={{ background: 'var(--surface)', border: '1px solid var(--hairline)', color: 'var(--text-3)' }}
+              aria-label={`Next market: ${titles[nextIdx] ?? ''}`}
+            >
+              <IconChevronRight size={16} />
+            </button>
+
+            {/* Desktop: labeled prev/next title pills. */}
             <button
               type="button"
               onClick={prev}
