@@ -1,260 +1,206 @@
+// components/layout/hero-section.tsx
+// ------------------------------------------------------------
+// Polymarket-style HERO: a live probability-curve dashboard, not a marketing
+// splash. The centrepiece is a large multi-line chart (one curve per outcome)
+// for a spotlight market — "the data change IS the news". Around it sit the
+// market question, current leading probabilities, volume/traders, a Trade CTA,
+// and a compact rail of other spotlight markets on the right.
+//
+// Fully server-rendered (no client hooks) so it adds ~0 first-load JS.
 import Link from 'next/link'
 import type { Market } from '@/types'
 import { CATEGORY_LABELS } from '@/types'
-import {
-  IconArrowRight, IconShield, IconClock, IconUser, IconTrendUp,
-  IconCheck, CategoryIcon,
-} from '@/components/ui/icons'
+import { ProbLines, LINE_PALETTE } from '@/components/markets/prob-lines'
+import type { MarketSeries } from '@/lib/markets/option-series'
+import { EntityAvatar } from '@/components/ui/entity-avatar'
+import { IconArrowRight, IconClock, IconUser, IconTrendUp, CategoryIcon } from '@/components/ui/icons'
 
-// Currencies we settle in — shown as clean tabular codes, not flag emoji.
-const CURRENCIES = ['KES', 'UGX', 'TZS', 'RWF', 'ZMW', 'ETB', 'BIF']
-const PAYMENTS = ['M-Pesa', 'MTN MoMo', 'Airtel Money', 'PesaPal']
+export interface HeroMarket {
+  market: Market
+  series: MarketSeries
+}
 
 function timeLeft(closes: string) {
   const ms = new Date(closes).getTime() - Date.now()
   if (ms < 0) return 'Closed'
   const d = Math.floor(ms / 86400000)
   const h = Math.floor((ms % 86400000) / 3600000)
-  if (d > 0) return `${d}d ${h}h left`
+  if (d > 0) return `${d}d ${h}h`
   const m = Math.floor((ms % 3600000) / 60000)
-  if (h > 0) return `${h}h ${m}m left`
-  return `${m}m left`
+  if (h > 0) return `${h}h ${m}m`
+  return `${m}m`
 }
 
-// Deterministic, gentle sparkline that resolves to the current probability.
-// Purely visual continuity — carries no fabricated numeric labels.
-function sparkPath(seed: string, end: number, w = 300, h = 44) {
-  let s = 0
-  for (let i = 0; i < seed.length; i++) s = (s * 31 + seed.charCodeAt(i)) >>> 0
-  const n = 24
-  const rnd = () => { s = (s * 1103515245 + 12345) & 0x7fffffff; return s / 0x7fffffff }
-  const pts: number[] = []
-  let v = 0.5
-  for (let i = 0; i < n; i++) {
-    v += (rnd() - 0.5) * 0.12
-    const target = end / 100
-    v += (target - v) * (i / n) * 0.5
-    v = Math.max(0.06, Math.min(0.94, v))
-    pts.push(v)
-  }
-  pts[n - 1] = Math.max(0.06, Math.min(0.94, end / 100))
-  const step = w / (n - 1)
-  const line = pts.map((p, i) => `${i === 0 ? 'M' : 'L'}${(i * step).toFixed(1)},${(h - p * h).toFixed(1)}`).join(' ')
-  const area = `${line} L${w},${h} L0,${h} Z`
-  return { line, area }
+function fmtVol(n: number) {
+  if (n >= 1_000_000) return `$${(n / 1_000_000).toFixed(1)}M`
+  if (n >= 1_000) return `$${(n / 1_000).toFixed(0)}K`
+  return `$${Math.round(n)}`
 }
 
-interface FeaturedExtras {
-  leadingOption?: { label: string; price: number }
-  optionCount?: number
-}
-
-function FeaturedMarketCard({
-  market,
-  leadingOption,
-  optionCount,
-}: { market: Market } & FeaturedExtras) {
+/** The large spotlight panel — question + big multi-line probability chart. */
+function Spotlight({ market, series }: HeroMarket) {
   const cat = CATEGORY_LABELS[market.category] ?? { label: 'Market' }
-  const isMulti = market.resolution_type === 'multiple_choice' && !!leadingOption
-  const yesPct = Math.max(1, Math.min(99, Math.round(market.yes_price * 100)))
-  const noPct = 100 - yesPct
-  const leadPct = leadingOption ? Math.max(1, Math.min(99, Math.round(leadingOption.price * 100))) : 0
-  const headlinePct = isMulti ? leadPct : yesPct
-  const spark = sparkPath(market.id + market.slug, headlinePct)
-  const vol = market.total_volume_usd.toLocaleString(undefined, { maximumFractionDigits: 0 })
+  const ranked = [...series.lines].sort((a, b) => b.price - a.price)
+  const lead = ranked[0]
+  const chg = series.changePct
 
   return (
     <Link
       href={`/markets/${market.slug}`}
-      className="card block p-5 sm:p-6"
-      aria-label={`Featured market: ${market.title}`}
+      className="group relative block overflow-hidden rounded-2xl"
+      style={{ background: 'var(--surface)', border: '1px solid var(--hairline)' }}
+      aria-label={`Spotlight market: ${market.title}`}
     >
-      {/* header */}
-      <div className="flex items-center justify-between gap-3">
-        <span className="badge badge-muted gap-1.5">
-          <CategoryIcon category={market.category} size={12} />
-          {cat.label}
-        </span>
-        <span className="flex items-center gap-2 text-[12px] font-medium" style={{ color: 'var(--text-3)' }}>
-          <span className="flex items-center gap-1.5">
-            <span className="w-[7px] h-[7px] rounded-full animate-pulse-dot" style={{ background: 'var(--yes)' }} />
-            Live
+      <div className="flex flex-col gap-4 p-5 sm:p-7">
+        {/* header row */}
+        <div className="flex items-center justify-between gap-3">
+          <span className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[12px] font-semibold"
+            style={{ background: 'var(--surface-2)', border: '1px solid var(--hairline)', color: 'var(--text-2)' }}>
+            <CategoryIcon category={market.category} size={13} />
+            {cat.label}
           </span>
-          <span aria-hidden>·</span>
-          <span className="flex items-center gap-1"><IconClock size={12} /> {timeLeft(market.closes_at)}</span>
-        </span>
-      </div>
+          <span className="flex items-center gap-2 text-[12px] font-medium" style={{ color: 'var(--text-3)' }}>
+            <span className="flex items-center gap-1.5">
+              <span className="h-[7px] w-[7px] rounded-full animate-pulse-dot" style={{ background: 'var(--yes)' }} />
+              Live
+            </span>
+            <span aria-hidden>·</span>
+            <span className="flex items-center gap-1"><IconClock size={12} /> {timeLeft(market.closes_at)}</span>
+          </span>
+        </div>
 
-      {/* question */}
-      <h3 className="mt-4 text-[1.15rem] font-semibold leading-snug tracking-[-0.01em]" style={{ color: 'var(--text)' }}>
-        {market.title}
-      </h3>
+        {/* question + leading probability */}
+        <div className="flex items-start justify-between gap-4">
+          <h1 className="font-display font-bold leading-[1.08] tracking-[-0.02em]"
+            style={{ fontSize: 'clamp(1.5rem, 3.4vw, 2.4rem)', color: 'var(--text)' }}>
+            {market.title}
+          </h1>
+          {lead && (
+            <div className="flex-none text-right">
+              <div className="font-mono font-bold leading-none tracking-[-0.02em]"
+                style={{ fontSize: 'clamp(1.8rem, 4vw, 2.8rem)', color: 'var(--text)' }}>
+                {Math.round(lead.price * 100)}%
+              </div>
+              <div className="mt-1 text-[12px] font-medium" style={{ color: 'var(--text-3)' }}>
+                {series.binary ? 'Yes' : lead.label}
+              </div>
+              {chg !== 0 && (
+                <div className="mt-0.5 text-[12px] font-semibold"
+                  style={{ color: chg > 0 ? 'var(--yes)' : 'var(--no)' }}>
+                  {chg > 0 ? '▲' : '▼'} {Math.abs(chg)} pt
+                </div>
+              )}
+            </div>
+          )}
+        </div>
 
-      {/* probability lead */}
-      <div className="mt-4 flex items-baseline gap-2.5">
-        <span className="font-mono text-[2.6rem] leading-none font-semibold tracking-[-0.03em]" style={{ color: 'var(--text)' }}>
-          {headlinePct}<span className="text-[1.4rem]">%</span>
-        </span>
-        <span className="min-w-0 truncate text-sm" style={{ color: 'var(--text-3)' }}>
-          {isMulti ? leadingOption!.label : 'chance\u00A0·\u00A0Yes'}
-        </span>
-      </div>
-
-      {/* probability bar */}
-      <div className="mt-4">
-        <div
-          className="prob-bar"
-          role="img"
-          aria-label={
-            isMulti
-              ? `Leading option ${leadingOption!.label}, ${leadPct} percent`
-              : `Yes ${yesPct} percent, No ${noPct} percent`
-          }
-        >
-          <div
-            className="prob-bar-fill"
-            style={{ width: `${headlinePct}%`, ...(isMulti ? { background: 'var(--pip-500)' } : null) }}
+        {/* big multi-line probability chart — one curve per outcome */}
+        <div className="relative">
+          <ProbLines
+            lines={series.lines}
+            binary={series.binary}
+            width={720}
+            height={240}
+            grid
+            fillArea
+            strokeWidth={2.25}
+            className="h-[180px] w-full sm:h-[240px]"
           />
         </div>
-        {isMulti ? (
-          <div className="mt-2 flex items-center justify-between text-[12px]">
-            <span className="truncate" style={{ color: 'var(--pip-text)' }}>{leadingOption!.label} {leadPct}%</span>
-            {optionCount ? <span style={{ color: 'var(--text-3)' }}>{optionCount} options</span> : null}
-          </div>
-        ) : (
-          <div className="mt-2 flex items-center justify-between text-[12px]">
-            <span className="price-yes">Yes {yesPct}%</span>
-            <span className="price-no">No {noPct}%</span>
-          </div>
-        )}
-      </div>
 
-      {/* call to action */}
-      {isMulti ? (
-        <div className="mt-4">
-          <span className="btn btn-primary w-full text-center">
-            View {optionCount ?? 'all'} options <IconArrowRight size={14} />
+        {/* legend — top outcomes with current probability */}
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+          {ranked.slice(0, series.binary ? 1 : 4).map((o, i) => (
+            <span key={o.id || o.label} className="flex items-center gap-1.5 text-[13px]">
+              <span className="h-2.5 w-2.5 flex-none rounded-[3px]"
+                style={{ background: series.binary ? 'var(--yes)' : LINE_PALETTE[i % LINE_PALETTE.length] }} aria-hidden />
+              <span className="max-w-[16ch] truncate font-medium" style={{ color: 'var(--text-2)' }}>{o.label}</span>
+              <span className="font-mono font-bold tabular-nums" style={{ color: 'var(--text)' }}>{Math.round(o.price * 100)}%</span>
+            </span>
+          ))}
+          {!series.binary && ranked.length > 4 && (
+            <span className="text-[12px] font-medium" style={{ color: 'var(--text-3)' }}>+{ranked.length - 4} more</span>
+          )}
+        </div>
+
+        {/* footer: stats + CTA */}
+        <div className="flex items-center justify-between gap-3 pt-1" style={{ borderTop: '1px solid var(--hairline)' }}>
+          <div className="flex items-center gap-4 pt-3 text-[12px]" style={{ color: 'var(--text-3)' }}>
+            <span className="flex items-center gap-1.5"><IconTrendUp size={13} /> {fmtVol(market.total_volume_usd)} Vol.</span>
+            <span className="flex items-center gap-1.5"><IconUser size={13} /> {market.unique_bettors.toLocaleString()} traders</span>
+          </div>
+          <span className="btn btn-primary mt-3 gap-1.5">
+            Trade <IconArrowRight size={15} />
           </span>
         </div>
-      ) : (
-        <div className="mt-4 grid grid-cols-2 gap-2.5">
-          <span className="btn-yes text-center">Buy Yes</span>
-          <span className="btn-no text-center">Buy No</span>
+      </div>
+    </Link>
+  )
+}
+
+/** A compact spotlight row for the right rail. */
+function MiniSpotlight({ market, series }: HeroMarket) {
+  const ranked = [...series.lines].sort((a, b) => b.price - a.price)
+  const lead = ranked[0]
+  return (
+    <Link
+      href={`/markets/${market.slug}`}
+      className="group flex items-center gap-3 rounded-xl p-3 transition-colors"
+      style={{ background: 'var(--surface)', border: '1px solid var(--hairline)' }}
+    >
+      <EntityAvatar name={market.title} imageUrl={market.cover_image_url} size={38} className="flex-none" />
+      <div className="min-w-0 flex-1">
+        <p className="line-clamp-2 text-[13px] font-semibold leading-snug" style={{ color: 'var(--text)' }}>
+          {market.title}
+        </p>
+        <div className="mt-1 flex items-center gap-2 text-[11px]" style={{ color: 'var(--text-3)' }}>
+          <IconTrendUp size={11} /> {fmtVol(market.total_volume_usd)}
         </div>
-      )}
-
-      {/* sparkline */}
-      <svg className="mt-5 w-full" height={44} viewBox="0 0 300 44" preserveAspectRatio="none" aria-hidden="true">
-        <path d={spark.area} fill="var(--pip-500)" opacity="0.09" />
-        <path d={spark.line} fill="none" stroke="var(--pip-500)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-      </svg>
-
-      {/* footer */}
-      <div className="mt-4 pt-4 flex items-center justify-between text-[12px]" style={{ borderTop: '1px solid var(--hairline)', color: 'var(--text-3)' }}>
-        <span className="flex items-center gap-1.5"><IconTrendUp size={12} /> ${vol} volume</span>
-        <span className="flex items-center gap-1.5"><IconUser size={12} /> {market.unique_bettors.toLocaleString()} traders</span>
+      </div>
+      <div className="flex flex-none flex-col items-end gap-1">
+        <div className="h-8 w-16">
+          <ProbLines lines={series.lines} binary={series.binary} width={64} height={32} strokeWidth={1.75} maxLines={4} />
+        </div>
+        {lead && (
+          <span className="font-mono text-[12px] font-bold tabular-nums" style={{ color: 'var(--text)' }}>
+            {Math.round(lead.price * 100)}%
+          </span>
+        )}
       </div>
     </Link>
   )
 }
 
 export function HeroSection({
-  featured,
-  leadingOption,
-  optionCount,
-}: { featured?: Market | null } & FeaturedExtras) {
+  spotlight,
+  others = [],
+}: {
+  spotlight?: HeroMarket | null
+  others?: HeroMarket[]
+}) {
+  if (!spotlight) return null
+
   return (
-    <section className="relative overflow-hidden">
-      {/* subtle brand wash — a single restrained Pip-Blue radial, no green glow */}
-      <div
-        aria-hidden
-        className="pointer-events-none absolute inset-0"
-        style={{ background: 'radial-gradient(1100px 460px at 82% -10%, var(--pip-100), transparent 60%)', opacity: 0.7 }}
-      />
+    <section className="relative">
+      <div className="relative mx-auto max-w-6xl px-5 py-6 sm:px-8 sm:py-9">
+        <div className="grid grid-cols-1 gap-5 lg:grid-cols-[1.7fr_1fr]">
+          <Spotlight {...spotlight} />
 
-      <div className="relative max-w-6xl mx-auto px-5 sm:px-8">
-        <div className="grid grid-cols-1 lg:grid-cols-[1.05fr_0.95fr] gap-10 lg:gap-14 items-center py-14 sm:py-20">
-
-          {/* Left — value proposition */}
-          <div>
-            <span className="inline-flex items-center gap-2 text-[12px] font-semibold uppercase tracking-[0.12em]" style={{ color: 'var(--pip-text)' }}>
-              <span className="w-[7px] h-[7px] rounded-full animate-pulse-dot" style={{ background: 'var(--pip-500)' }} />
-              Live markets · East Africa
-            </span>
-
-            <h1 className="mt-5 font-display font-bold leading-[1.04] tracking-[-0.03em]"
-              style={{ fontSize: 'clamp(2.4rem, 6vw, 3.9rem)', color: 'var(--text)' }}>
-              The clearest view of<br />
-              <span style={{ color: 'var(--pip-text)' }}>what happens next.</span>
-            </h1>
-
-            <p className="mt-6 text-[1.05rem] sm:text-[1.2rem] leading-relaxed max-w-[34ch]" style={{ color: 'var(--text-2)' }}>
-              Trade real-world outcomes — elections, the economy, sports and more.
-              Live probabilities you can read at a glance. Settled in KES, funded by M-Pesa.
-            </p>
-
-            <div className="mt-8 flex flex-wrap gap-3">
-              <Link href="/markets" className="btn btn-primary btn-lg">
-                Explore markets <IconArrowRight size={16} />
-              </Link>
-              <Link href="#how-it-works" className="btn btn-secondary btn-lg">
-                How it works
-              </Link>
-            </div>
-
-            <div className="mt-8 pt-6 flex flex-wrap gap-x-6 gap-y-3" style={{ borderTop: '1px solid var(--hairline)' }}>
-              {[
-                { icon: <IconShield size={15} />, label: 'Regulated & KYC-protected' },
-                { icon: <IconCheck size={15} />, label: 'Transparent resolution' },
-                { icon: <IconTrendUp size={15} />, label: 'LMSR fair pricing' },
-              ].map(t => (
-                <span key={t.label} className="flex items-center gap-2 text-[13px] font-medium" style={{ color: 'var(--text-2)' }}>
-                  <span style={{ color: 'var(--pip-text)' }}>{t.icon}</span>
-                  {t.label}
-                </span>
-              ))}
-            </div>
-          </div>
-
-          {/* Right — live featured market */}
-          {featured ? (
-            <FeaturedMarketCard market={featured} leadingOption={leadingOption} optionCount={optionCount} />
-          ) : (
-            <div className="card p-6" style={{ color: 'var(--text-3)' }}>
-              <div className="flex items-center gap-2 text-[12px] font-medium">
-                <span className="w-[7px] h-[7px] rounded-full animate-pulse-dot" style={{ background: 'var(--yes)' }} />
-                Live markets loading…
+          {others.length > 0 && (
+            <aside className="flex flex-col gap-3">
+              <h2 className="text-[12px] font-semibold uppercase tracking-[0.12em]" style={{ color: 'var(--text-3)' }}>
+                Also moving now
+              </h2>
+              <div className="flex flex-col gap-3">
+                {others.map((o) => (
+                  <MiniSpotlight key={o.market.id} {...o} />
+                ))}
               </div>
-              <div className="mt-4 space-y-3">
-                <div className="skeleton h-5 w-4/5" />
-                <div className="skeleton h-12 w-1/2" />
-                <div className="skeleton h-2 w-full rounded-full" />
-                <div className="grid grid-cols-2 gap-2.5 pt-1">
-                  <div className="skeleton h-11" /><div className="skeleton h-11" />
-                </div>
-              </div>
-            </div>
+              <Link href="/markets" className="btn btn-secondary mt-auto w-full justify-center gap-1.5">
+                Browse all markets <IconArrowRight size={15} />
+              </Link>
+            </aside>
           )}
-        </div>
-
-        {/* Settlement currencies + payment rails — clean, no emoji */}
-        <div className="pb-10 flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-8">
-          <div className="flex items-center gap-3">
-            <span className="text-[12px] font-semibold uppercase tracking-[0.1em]" style={{ color: 'var(--text-3)' }}>Settles in</span>
-            <div className="flex flex-wrap gap-1.5">
-              {CURRENCIES.map(c => (
-                <span key={c} className="font-mono text-[12px] px-2 py-1 rounded" style={{ background: 'var(--surface-2)', border: '1px solid var(--hairline)', color: 'var(--text-2)' }}>{c}</span>
-              ))}
-            </div>
-          </div>
-          <div className="flex items-center gap-3">
-            <span className="text-[12px] font-semibold uppercase tracking-[0.1em]" style={{ color: 'var(--text-3)' }}>Fund with</span>
-            <div className="flex flex-wrap gap-1.5">
-              {PAYMENTS.map(p => (
-                <span key={p} className="text-[12px] font-medium px-2.5 py-1 rounded" style={{ background: 'var(--surface)', border: '1px solid var(--hairline)', color: 'var(--text-2)' }}>{p}</span>
-              ))}
-            </div>
-          </div>
         </div>
       </div>
     </section>
