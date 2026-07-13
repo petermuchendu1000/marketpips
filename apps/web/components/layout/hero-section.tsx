@@ -205,13 +205,13 @@ function Spotlight({ market, series, comments, activity }: HeroMarket & { commen
       {/* full-bleed overlay link — inner controls opt back in via z-index */}
       <Link href={`/markets/${market.slug}`} className="absolute inset-0 z-0" aria-label={`Open market: ${market.title}`} />
 
-      <div className="relative z-10 flex flex-1 flex-col p-5">
+      <div className="relative z-10 flex flex-1 flex-col p-4 sm:p-5">
         {/* header: event icon + breadcrumb/title + actions.
             The share/bookmark actions sit on the CATEGORY baseline (not the
             title's), so the headline can use the full column width and wrap into
             fewer lines on narrow (mobile) widths instead of being squeezed by
             the icons in the top-right. */}
-        <div className="flex items-start gap-4">
+        <div className="flex items-start gap-3 sm:gap-4">
           <EntityAvatar
             name={market.title}
             imageUrl={market.cover_image_url}
@@ -228,8 +228,9 @@ function Spotlight({ market, series, comments, activity }: HeroMarket & { commen
               </div>
               <MarketCardActions slug={market.slug} title={market.title} />
             </div>
+            {/* Desktop keeps the title beside the 56px event icon (Polymarket parity). */}
             <h1
-              className="mt-0.5 font-semibold"
+              className="mt-0.5 hidden font-semibold lg:block"
               style={{ fontSize: 24, lineHeight: '32px', letterSpacing: 'normal', color: 'var(--text)' }}
             >
               {market.title}
@@ -237,43 +238,88 @@ function Spotlight({ market, series, comments, activity }: HeroMarket & { commen
           </div>
         </div>
 
+        {/* Mobile title — spans the FULL card width starting from the left edge,
+            so it fills the dead space under the event icon and can stretch across
+            more of the card instead of being squeezed into the narrow column
+            beside the 56px favicon. */}
+        <h1
+          className="mt-2 text-balance font-semibold lg:hidden"
+          style={{ fontSize: 22, lineHeight: '28px', letterSpacing: '-0.2px', color: 'var(--text)' }}
+        >
+          {market.title}
+        </h1>
+
         {/* body: ranked outcomes (40%) | chart (flex-1) — mirrors PM's flex row */}
-        <div className="mt-1 flex flex-col-reverse gap-5 lg:flex-row lg:gap-6">
+        <div className="mt-2 flex flex-col-reverse gap-3 lg:mt-1 lg:flex-row lg:gap-6">
           {/* outcomes — 40% width like Polymarket */}
           <div className="flex min-w-0 flex-col gap-4 lg:w-[40%]">
-            <div className="flex flex-col gap-2">
-              {series.binary ? (
-                <BinaryRows yesPct={yesPct} />
-              ) : (
-                ranked.slice(0, 4).map((o) => (
+            {/* Outcomes / options.
+                DESKTOP keeps Polymarket's vertical ranked list (parity).
+                MOBILE lays the options out HORIZONTALLY — a 2-col grid for
+                multi-outcome markets, side-by-side Yes/No CTA buttons for binary
+                — with tighter type + spacing to save vertical space and keep
+                every detail (incl. the tappable Yes/No CTA) visible. */}
+            {series.binary ? (
+              <>
+                {/* Desktop: Yes/No probability rows (measured PM parity). */}
+                <div className="hidden flex-col gap-2 lg:flex">
+                  <BinaryRows yesPct={yesPct} />
+                </div>
+                {/* Mobile: horizontal Yes/No CTA buttons — each carries its %. */}
+                <div className="grid grid-cols-2 gap-2 lg:hidden">
+                  <Link
+                    href={`/markets/${market.slug}?side=yes`}
+                    className="btn btn-yes pointer-events-auto relative z-10 justify-center gap-1.5 py-2 text-[13px]"
+                    aria-label={`Buy Yes — ${yesPct}%`}
+                  >
+                    Yes <span className="font-mono font-bold tabular-nums">{yesPct}%</span>
+                  </Link>
+                  <Link
+                    href={`/markets/${market.slug}?side=no`}
+                    className="btn btn-no pointer-events-auto relative z-10 justify-center gap-1.5 py-2 text-[13px]"
+                    aria-label={`Buy No — ${100 - yesPct}%`}
+                  >
+                    No <span className="font-mono font-bold tabular-nums">{100 - yesPct}%</span>
+                  </Link>
+                </div>
+              </>
+            ) : (
+              <div className="grid grid-cols-2 gap-x-3 gap-y-1 lg:flex lg:flex-col lg:gap-2">
+                {ranked.slice(0, 4).map((o) => (
                   <div
                     key={o.id || o.label}
-                    className="flex min-h-10 items-center justify-between gap-3 pb-2"
+                    className="flex min-h-0 items-center justify-between gap-2 pb-1 lg:min-h-10 lg:gap-3 lg:pb-2"
                     style={{ borderBottom: '1px solid var(--hairline-soft)' }}
                   >
                     <div className="flex min-w-0 flex-1 items-center gap-1.5">
                       {o.imageUrl && (
-                        <EntityAvatar name={o.label} imageUrl={o.imageUrl} size={30} shape="squircle" className="flex-none" />
+                        <>
+                          <EntityAvatar name={o.label} imageUrl={o.imageUrl} size={22} shape="squircle" className="flex-none lg:hidden" />
+                          <EntityAvatar name={o.label} imageUrl={o.imageUrl} size={30} shape="squircle" className="hidden flex-none lg:block" />
+                        </>
                       )}
-                      <span className="truncate" style={{ fontSize: 15, fontWeight: 450, lineHeight: '22.5px', color: 'var(--text)', letterSpacing: '-0.15px' }}>
+                      <span className="truncate text-[13px] font-normal leading-tight lg:text-[15px] lg:leading-[22.5px]" style={{ color: 'var(--text)', letterSpacing: '-0.15px' }}>
                         {o.label}
                       </span>
                     </div>
-                    <span className="flex-none tabular-nums font-semibold" style={{ fontSize: 20, lineHeight: '24px', color: 'var(--text)', letterSpacing: '-0.2px' }}>
+                    <span className="flex-none tabular-nums text-[15px] font-semibold leading-tight lg:text-[20px] lg:leading-6" style={{ color: 'var(--text)', letterSpacing: '-0.2px' }}>
                       {Math.round(o.price * 100)}%
                     </span>
                   </div>
-                ))
-              )}
-              {!series.binary && ranked.length > 4 && (
-                <span className="mt-1 text-[13px] font-medium" style={{ color: 'var(--text-3)' }}>
-                  +{ranked.length - 4} more outcomes
-                </span>
-              )}
-            </div>
+                ))}
+                {ranked.length > 4 && (
+                  <span className="col-span-2 mt-0.5 text-[12px] font-medium lg:mt-1 lg:text-[13px]" style={{ color: 'var(--text-3)' }}>
+                    +{ranked.length - 4} more outcomes
+                  </span>
+                )}
+              </div>
+            )}
 
-            {/* trader activity — fills the left column (esp. binary's 2 rows). */}
-            <TraderActivity items={feed} max={series.binary ? 5 : 2} />
+            {/* Trader activity — DESKTOP only. Removed on mobile to keep the card
+                compact and every key detail (Yes/No CTA, chart) visible. */}
+            <div className="hidden min-h-0 flex-1 flex-col lg:flex">
+              <TraderActivity items={feed} max={series.binary ? 5 : 2} />
+            </div>
           </div>
 
           {/* chart + legend */}
