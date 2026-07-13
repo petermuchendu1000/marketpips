@@ -77,31 +77,9 @@ function timeLeft(closes: string, now: number) {
   return `${s}s`
 }
 
-/** Semicircular probability gauge (binary / up-down header). */
-function ProbGauge({ pct, label }: { pct: number; label: string }) {
-  const clamped = Math.max(0, Math.min(100, Math.round(pct)))
-  const R = 26
-  const semi = Math.PI * R
-  const dash = (clamped / 100) * semi
-  return (
-    <div className="relative flex-none" style={{ width: 66, height: 40 }} aria-hidden>
-      <svg width="66" height="36" viewBox="0 0 66 36" fill="none">
-        <path d="M7 31 A26 26 0 0 1 59 31" stroke="var(--hairline)" strokeWidth={6} strokeLinecap="round" />
-        <path
-          d="M7 31 A26 26 0 0 1 59 31"
-          stroke="var(--yes)"
-          strokeWidth={6}
-          strokeLinecap="round"
-          strokeDasharray={`${dash} ${semi}`}
-        />
-      </svg>
-      <div className="absolute inset-x-0 top-[11px] text-center leading-none">
-        <div className="font-mono text-[15px] font-bold" style={{ color: 'var(--text)' }}>{clamped}%</div>
-        <div className="mt-0.5 text-[10px] font-semibold uppercase tracking-wide" style={{ color: 'var(--text-3)' }}>{label}</div>
-      </div>
-    </div>
-  )
-}
+/** Semicircular probability gauge — REMOVED (redundant with the Yes/No
+ * buttons, which already carry each side's probability). Kept intentionally
+ * deleted; the header now gives the full width to the market title. */
 
 /**
  * Bitcoin brand chip for the recurring Up/Down cards — a self-contained SVG
@@ -184,7 +162,6 @@ export function MarketCard({
         >
           <TitleContent title={market.title} query={query} />
         </h3>
-        {!isMulti && <ProbGauge pct={yesPct} label={yesLabel} />}
       </div>
 
       {/* Body */}
