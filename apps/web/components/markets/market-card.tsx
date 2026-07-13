@@ -21,7 +21,7 @@ import { CATEGORY_LABELS } from '@/types'
 import { splitHighlight } from '@/lib/search'
 import {
   IconClock, IconUser, IconTrendUp, IconArrowUp, IconArrowDown,
-  IconBookmark, CategoryIcon,
+  IconBookmark, IconComments, CategoryIcon,
 } from '@/components/ui/icons'
 import { EntityAvatar } from '@/components/ui/entity-avatar'
 import type { CardOption } from '@/lib/markets/card-options'
@@ -77,9 +77,51 @@ function timeLeft(closes: string, now: number) {
   return `${s}s`
 }
 
-/** Semicircular probability gauge — REMOVED (redundant with the Yes/No
- * buttons, which already carry each side's probability). Kept intentionally
- * deleted; the header now gives the full width to the market title. */
+/**
+ * Circular "chance" gauge — Polymarket's signature binary-card element (see
+ * docs/design/MARKET-CARD-POLYMARKET-PARITY-2026-07.md §3a). A neutral track +
+ * an arc swept clockwise from 12 o'clock to `pct`, in the YES color, with the
+ * percentage centered inside. It reads the implied probability pre-attentively
+ * (arc length = chance) before any text is parsed. Pure SVG, no client JS.
+ * Color is never the only signal — the number is always present (WCAG 1.4.1).
+ */
+function ChanceGauge({
+  pct, label, size = 44, className,
+}: { pct: number; label: string; size?: number; className?: string }) {
+  const stroke = 4
+  const r = (size - stroke) / 2
+  const cx = size / 2
+  const circ = 2 * Math.PI * r
+  const clamped = Math.max(0, Math.min(100, pct))
+  const dash = (clamped / 100) * circ
+  return (
+    <span
+      className={`pointer-events-none relative grid flex-none place-items-center ${className ?? ''}`}
+      style={{ width: size, height: size }}
+    >
+      <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} role="img" aria-label={`${pct}% chance ${label}`}>
+        <circle cx={cx} cy={cx} r={r} fill="none" stroke="var(--hairline)" strokeWidth={stroke} />
+        <circle
+          cx={cx}
+          cy={cx}
+          r={r}
+          fill="none"
+          stroke="var(--yes)"
+          strokeWidth={stroke}
+          strokeLinecap="round"
+          strokeDasharray={`${dash.toFixed(2)} ${(circ - dash).toFixed(2)}`}
+          transform={`rotate(-90 ${cx} ${cx})`}
+        />
+      </svg>
+      <span
+        className="absolute font-mono font-bold tabular-nums"
+        style={{ fontSize: size >= 44 ? 12 : 10.5, color: 'var(--text)', letterSpacing: '-0.3px' }}
+      >
+        {pct}%
+      </span>
+    </span>
+  )
+}
 
 /**
  * Bitcoin brand chip for the recurring Up/Down cards — a self-contained SVG
@@ -162,6 +204,10 @@ export function MarketCard({
         >
           <TitleContent title={market.title} query={query} />
         </h3>
+        {/* Binary/up-down: Polymarket's circular chance gauge, right of the title. */}
+        {!isMulti && (
+          <ChanceGauge pct={yesPct} label={yesLabel} size={compact ? 38 : 44} className="mt-0.5" />
+        )}
       </div>
 
       {/* Body */}
@@ -179,21 +225,21 @@ export function MarketCard({
                   <EntityAvatar name={o.label} imageUrl={o.imageUrl} size={22} shape="circle" />
                   <span className="truncate text-[13px] font-medium" style={{ color: 'var(--text)' }}>{o.label}</span>
                 </span>
-                <span className="pointer-events-none font-mono text-[13px] font-bold tabular-nums" style={{ color: 'var(--text)' }}>
+                <span className="pointer-events-none min-w-[2.5ch] text-right font-mono text-[13px] font-bold tabular-nums" style={{ color: 'var(--text)' }}>
                   {pct}%
                 </span>
                 <span className="flex flex-none gap-1.5">
                   <Link
                     href={sideHref('yes', o.id || undefined)}
-                    className="btn btn-yes btn-sm pointer-events-auto px-3"
-                    aria-label={`Buy Yes on ${o.label}`}
+                    className="pill-side pill-yes pointer-events-auto"
+                    aria-label={`Buy ${yesLabel} on ${o.label}`}
                   >
                     {yesLabel}
                   </Link>
                   <Link
                     href={sideHref('no', o.id || undefined)}
-                    className="btn btn-no btn-sm pointer-events-auto px-3"
-                    aria-label={`Buy No on ${o.label}`}
+                    className="pill-side pill-no pointer-events-auto"
+                    aria-label={`Buy ${noLabel} on ${o.label}`}
                   >
                     {noLabel}
                   </Link>
@@ -215,18 +261,18 @@ export function MarketCard({
           <Link
             href={sideHref('yes')}
             className="btn btn-yes pointer-events-auto w-full justify-center gap-1.5 py-2 text-[13px]"
-            aria-label={`Buy ${yesLabel} at ${yesPct}%`}
+            aria-label={`Buy ${yesLabel} at ${yesPct} cents`}
           >
             {isUpDown && <IconArrowUp size={14} />} {yesLabel}
-            <span className="font-mono font-bold tabular-nums">{yesPct}%</span>
+            <span className="font-mono font-bold tabular-nums">{yesPct}¢</span>
           </Link>
           <Link
             href={sideHref('no')}
             className="btn btn-no pointer-events-auto w-full justify-center gap-1.5 py-2 text-[13px]"
-            aria-label={`Buy ${noLabel} at ${100 - yesPct}%`}
+            aria-label={`Buy ${noLabel} at ${100 - yesPct} cents`}
           >
             {isUpDown && <IconArrowDown size={14} />} {noLabel}
-            <span className="font-mono font-bold tabular-nums">{100 - yesPct}%</span>
+            <span className="font-mono font-bold tabular-nums">{100 - yesPct}¢</span>
           </Link>
         </div>
       )}
@@ -278,7 +324,13 @@ export function MarketCard({
           )}
         </div>
         <div className="flex items-center gap-2.5 pt-2" style={{ color: 'var(--text-muted)' }}>
-          <span className="flex items-center gap-1 text-[11px]">
+          {market.comment_count > 0 && (
+            <span className="flex items-center gap-1 text-[11px]" title={`${market.comment_count} comments`}>
+              <IconComments size={11} />
+              {market.comment_count.toLocaleString()}
+            </span>
+          )}
+          <span className="flex items-center gap-1 text-[11px]" title={`${market.unique_bettors} traders`}>
             <IconUser size={11} />
             {market.unique_bettors.toLocaleString()}
           </span>

@@ -130,10 +130,10 @@ export function FeaturedMarketCard({ market, series, optionSeries, options, opti
                   <EntityAvatar name={o.label} imageUrl={o.imageUrl} size={22} shape="circle" />
                   <span className="truncate text-[13px] font-medium" style={{ color: 'var(--text)' }}>{o.label}</span>
                 </span>
-                <span className="pointer-events-none font-mono text-[13px] font-bold tabular-nums" style={{ color: 'var(--text)' }}>{pct}%</span>
+                <span className="pointer-events-none min-w-[2.5ch] text-right font-mono text-[13px] font-bold tabular-nums" style={{ color: 'var(--text)' }}>{pct}%</span>
                 <span className="flex flex-none gap-1.5">
-                  <Link href={sideHref('yes', o.id || undefined)} className="btn btn-yes btn-sm pointer-events-auto px-3" aria-label={`Buy Yes on ${o.label}`}>Yes</Link>
-                  <Link href={sideHref('no', o.id || undefined)} className="btn btn-no btn-sm pointer-events-auto px-3" aria-label={`Buy No on ${o.label}`}>No</Link>
+                  <Link href={sideHref('yes', o.id || undefined)} className="pill-side pill-yes pointer-events-auto" aria-label={`Buy ${yesLabel} on ${o.label}`}>{yesLabel}</Link>
+                  <Link href={sideHref('no', o.id || undefined)} className="pill-side pill-no pointer-events-auto" aria-label={`Buy ${noLabel} on ${o.label}`}>{noLabel}</Link>
                 </span>
               </div>
             )
