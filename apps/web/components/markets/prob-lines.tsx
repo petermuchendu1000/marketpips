@@ -5,9 +5,12 @@
 // outcomes (Polymarket's "event" chart). Pure inline SVG — no chart lib, no
 // client hooks — so it renders on the server and adds ~0 first-load JS.
 //
-// The y-domain is fixed to 0–100% so every curve is directly comparable
-// (a 40% line always sits at the same height as another market's 40% line).
-// Color is decorative; the legend / labels carry the meaning, never hue alone.
+// By default the y-domain is fixed to 0–100% so every curve is directly
+// comparable (a 40% line always sits at the same height as another market's
+// 40% line). The hero opts into `autoDomain` to zoom the y-axis to the data
+// range (Polymarket-style, e.g. 0–40% for a four-horse race) with a right-hand
+// axis and real dated x-axis ticks. Color is decorative; the legend / labels
+// carry the meaning, never hue alone.
 import type { OptionLine } from '@/lib/markets/option-series'
 
 // Brand-led categorical palette (shared with the detail-page outcomes chart).
@@ -22,7 +25,7 @@ interface ProbLinesProps {
   binary?: boolean
   width?: number
   height?: number
-  /** Draw horizontal 25/50/75% gridlines + % axis labels (hero mode). */
+  /** Draw horizontal gridlines + % axis labels (hero mode). */
   grid?: boolean
   /** Cap how many lines to draw (rest are dropped, ranked by current price). */
   maxLines?: number
@@ -30,6 +33,12 @@ interface ProbLinesProps {
   strokeWidth?: number
   /** Show a filled area under a single (binary) line. */
   fillArea?: boolean
+  /** Zoom the y-axis to the data range (with nice ticks) instead of a fixed 0–100%. */
+  autoDomain?: boolean
+  /** Which side to place the % axis labels on (default 'left'). */
+  axis?: 'left' | 'right'
+  /** Real date labels for the x-axis (evenly distributed across the width). */
+  xLabels?: string[]
 }
 
 /** Smooth Catmull-Rom-ish path (midpoint cubic bézier) for organic curves. */
@@ -42,6 +51,21 @@ function smoothPath(xy: readonly (readonly [number, number])[]): string {
   }, '')
 }
 
+/** Pick a "nice" domain + tick levels (in [0,1]) covering [min,max]. */
+function niceDomain(min: number, max: number): { lo: number; hi: number; ticks: number[] } {
+  // Guarantee a readable minimum span so near-flat data isn't a zero-height band.
+  const pad = Math.max((max - min) * 0.12, 0.03)
+  let lo = Math.max(0, min - pad)
+  let hi = Math.min(1, max + pad)
+  const steps = [0.05, 0.1, 0.2, 0.25]
+  const step = steps.find((s) => (hi - lo) / s <= 5) ?? 0.25
+  lo = Math.max(0, Math.floor(lo / step) * step)
+  hi = Math.min(1, Math.ceil(hi / step) * step)
+  const ticks: number[] = []
+  for (let v = lo; v <= hi + 1e-9; v += step) ticks.push(Math.round(v * 1000) / 1000)
+  return { lo, hi, ticks }
+}
+
 export function ProbLines({
   lines,
   binary = false,
@@ -52,21 +76,39 @@ export function ProbLines({
   className,
   strokeWidth = 2,
   fillArea = false,
+  autoDomain = false,
+  axis = 'left',
+  xLabels,
 }: ProbLinesProps) {
   const drawn = [...lines].sort((a, b) => b.price - a.price).slice(0, maxLines)
   if (drawn.length === 0) return null
 
-  const padL = grid ? 34 : 4
-  const padR = 8
+  const axisRight = axis === 'right'
+  const showXLabels = grid && !!xLabels && xLabels.length > 0
+  const axisW = grid ? 34 : 4
+  const padL = grid && !axisRight ? axisW : 4
+  const padR = grid && axisRight ? axisW : 8
   const padT = 8
-  const padB = grid ? 20 : 6
+  const padB = showXLabels ? 22 : grid ? 20 : 6
   const w = width - padL - padR
   const h = height - padT - padB
 
-  // Fixed 0–100% probability domain (with a small breathing margin).
-  const yMin = 0
-  const yMax = 1
-  const span = yMax - yMin
+  // Y domain: fixed 0–100% (default) or zoomed to the data range (autoDomain).
+  let yMin = 0
+  let yMax = 1
+  let gridLevels = [0.25, 0.5, 0.75]
+  if (autoDomain) {
+    let dmin = 1
+    let dmax = 0
+    for (const l of drawn) for (const p of l.points) { if (p < dmin) dmin = p; if (p > dmax) dmax = p }
+    if (dmax <= dmin) { dmin = Math.max(0, dmin - 0.05); dmax = Math.min(1, dmax + 0.05) }
+    const nd = niceDomain(dmin, dmax)
+    yMin = nd.lo
+    yMax = nd.hi
+    // Drop the extreme ticks (they hug the frame) to keep the axis uncluttered.
+    gridLevels = nd.ticks
+  }
+  const span = yMax - yMin || 1
   const yOf = (p: number) => padT + (1 - (Math.max(yMin, Math.min(yMax, p)) - yMin) / span) * h
 
   const maxLen = Math.max(...drawn.map((l) => l.points.length), 2)
@@ -77,7 +119,8 @@ export function ProbLines({
     return padL + ((i + offset) / (maxLen - 1)) * w
   }
 
-  const gridLevels = [0.25, 0.5, 0.75]
+  const labelX = axisRight ? width - padR + 5 : padL - 6
+  const labelAnchor = axisRight ? 'start' : 'end'
 
   return (
     <svg
@@ -102,9 +145,9 @@ export function ProbLines({
                 strokeDasharray="3 4"
               />
               <text
-                x={padL - 6}
+                x={labelX}
                 y={yOf(lv) + 3}
-                textAnchor="end"
+                textAnchor={labelAnchor}
                 fontSize="9"
                 fill="var(--text-3)"
                 fontFamily="var(--font-mono, monospace)"
@@ -144,6 +187,29 @@ export function ProbLines({
           </g>
         )
       })}
+
+      {showXLabels && (
+        <g aria-hidden>
+          {xLabels!.map((lbl, i) => {
+            const t = xLabels!.length > 1 ? i / (xLabels!.length - 1) : 0
+            const x = padL + t * w
+            const anchor = i === 0 ? 'start' : i === xLabels!.length - 1 ? 'end' : 'middle'
+            return (
+              <text
+                key={`${lbl}-${i}`}
+                x={x}
+                y={height - 6}
+                textAnchor={anchor}
+                fontSize="9"
+                fill="var(--text-3)"
+                fontFamily="var(--font-mono, monospace)"
+              >
+                {lbl}
+              </text>
+            )
+          })}
+        </g>
+      )}
     </svg>
   )
 }
