@@ -121,7 +121,7 @@ function Spotlight({ market, series, comments }: HeroMarket & { comments?: HeroC
         </div>
 
         {/* title */}
-        <h1 className="font-display font-bold tracking-[-0.01em]"
+        <h1 className="font-display font-semibold tracking-[-0.01em]"
           style={{ fontSize: 'clamp(1.25rem, 2vw, 1.6rem)', lineHeight: 1.15, color: 'var(--text)' }}>
           {market.title}
         </h1>
@@ -139,7 +139,7 @@ function Spotlight({ market, series, comments }: HeroMarket & { comments?: HeroC
                   <span className="min-w-0 flex-1 truncate text-[14px] font-semibold" style={{ color: 'var(--text)' }}>
                     {o.label}
                   </span>
-                  <span className="font-mono text-[18px] font-bold tabular-nums tracking-[-0.02em]" style={{ color: 'var(--text)' }}>
+                  <span className="font-mono text-[18px] font-semibold tabular-nums tracking-[-0.02em]" style={{ color: 'var(--text)' }}>
                     {Math.round(o.price * 100)}%
                   </span>
                 </div>
@@ -175,7 +175,7 @@ function Spotlight({ market, series, comments }: HeroMarket & { comments?: HeroC
                   <span className="h-2 w-2 flex-none rounded-full"
                     style={{ background: series.binary ? 'var(--yes)' : LINE_PALETTE[i % LINE_PALETTE.length] }} aria-hidden />
                   <span className="font-medium" style={{ color: 'var(--text-3)' }}>{series.binary ? 'Yes' : o.label}</span>
-                  <span className="font-mono font-bold tabular-nums" style={{ color: 'var(--text)' }}>
+                  <span className="font-mono font-semibold tabular-nums" style={{ color: 'var(--text)' }}>
                     {(o.price * 100).toFixed(1)}%
                   </span>
                 </span>
@@ -234,7 +234,7 @@ function BinaryRows({ yesPct }: { yesPct: number }) {
         <div key={r.label} className="flex items-center gap-2.5 py-2">
           <span className="h-2.5 w-2.5 flex-none rounded-[3px]" style={{ background: r.color }} aria-hidden />
           <span className="min-w-0 flex-1 text-[14px] font-semibold" style={{ color: 'var(--text)' }}>{r.label}</span>
-          <span className="font-mono text-[18px] font-bold tabular-nums tracking-[-0.02em]" style={{ color: r.text }}>
+          <span className="font-mono text-[18px] font-semibold tabular-nums tracking-[-0.02em]" style={{ color: r.text }}>
             {r.pct}%
           </span>
         </div>
