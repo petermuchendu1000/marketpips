@@ -55,10 +55,15 @@ export function FeaturedMarketCard({ market, series, optionSeries, options, opti
   // single Yes-line series when only that is available.
   const change = optionSeries?.changePct ?? series?.changePct ?? 0
   const up = change >= 0
-  // Show the multi-line chart when we have per-option curves worth drawing:
-  // any real recorded history, or a multi-outcome market (flat lines still
-  // convey how many outcomes there are and their current levels).
-  const showLines = !!optionSeries && (!optionSeries.seeded || optionSeries.lines.length > 1)
+  // A chart ALWAYS renders (option-series seeds a flat line at the current
+  // probability when there's no history yet), so every card shares the same
+  // vertical rhythm and no card is left with an empty chart void. Prefer the
+  // per-option lines whenever we have any; the single Yes-line sparkline is the
+  // fallback, and a flat baseline at the current level is the last resort.
+  const showLines = !!optionSeries && optionSeries.lines.length > 0
+  // The trend delta pill is only honest when we have REAL recorded movement —
+  // never for a freshly-seeded flat line (which would read a misleading "+0pt").
+  const hasTrend = (!!optionSeries && !optionSeries.seeded) || (!!series && series.points.length > 1)
 
   return (
     <div className="market-card group relative flex flex-col gap-3.5">
@@ -70,7 +75,7 @@ export function FeaturedMarketCard({ market, series, optionSeries, options, opti
           <CategoryIcon category={market.category} size={13} />
           {cat.label}
         </span>
-        {(showLines || (series && series.points.length > 1)) && (
+        {hasTrend && (
           <span
             className="inline-flex items-center gap-1 font-mono text-[12px] font-bold tabular-nums"
             style={{ color: up ? 'var(--yes-700)' : 'var(--no-700)' }}
@@ -96,10 +101,12 @@ export function FeaturedMarketCard({ market, series, optionSeries, options, opti
       </div>
 
       {/* Probability chart — one line per outcome (multi) or a single tinted
-          Yes curve (binary). Falls back to the legacy sparkline if only the
-          single-series data is present. */}
-      {showLines ? (
-        <div className="pointer-events-none relative z-10 -mx-1">
+          Yes curve (binary), always rendered. The band is `flex-1` and centers
+          its chart, so it soaks up the extra height on shorter (binary) cards
+          in the equal-height carousel: no mid-card void, and the outcome
+          controls + footer stay pinned tight to the bottom. */}
+      <div className="pointer-events-none relative z-10 -mx-1 flex min-h-[56px] flex-1 items-center">
+        {showLines ? (
           <ProbLines
             lines={optionSeries!.lines}
             binary={optionSeries!.binary}
@@ -109,14 +116,12 @@ export function FeaturedMarketCard({ market, series, optionSeries, options, opti
             strokeWidth={2}
             className="h-14 w-full"
           />
-        </div>
-      ) : (
-        series && series.points.length > 1 && (
-          <div className="pointer-events-none relative z-10 -mx-1">
-            <ProbSparkline points={series.points} width={320} height={56} className="w-full h-14" />
-          </div>
-        )
-      )}
+        ) : series && series.points.length > 1 ? (
+          <ProbSparkline points={series.points} width={320} height={56} className="h-14 w-full" />
+        ) : (
+          <ProbSparkline points={[yesPct / 100, yesPct / 100]} width={320} height={56} className="h-14 w-full" />
+        )}
+      </div>
 
       {/* Body: outcomes */}
       {isMulti && rows.length > 0 ? (
