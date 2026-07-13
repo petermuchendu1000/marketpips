@@ -188,15 +188,18 @@ function Spotlight({ market, series, comments, activity }: HeroMarket & { commen
 
   return (
     <div
-      className="group relative flex h-full flex-col overflow-hidden"
+      // Height is only capped on desktop (lg), where the two-column layout fits
+      // within 480–500px. On mobile the card stacks vertically (chart, outcomes,
+      // activity, footer) and MUST grow to fit its content — a fixed max-height
+      // + overflow-hidden previously clipped the footer volume/CTA and the
+      // trailing outcome rows.
+      className="group relative flex h-full flex-col overflow-hidden lg:min-h-[480px] lg:max-h-[500px]"
       style={{
         background: 'var(--surface)',
         // Polymarket parity (live-measured): blue-tinted hairline + blue-500/7 shadow.
         border: '1px solid rgba(37,99,235,0.10)', // blue-600/10
         borderRadius: 18,
         boxShadow: '0 4px 16px 0 rgba(59,130,246,0.07)', // blue-500/7
-        minHeight: 'min(480px, 60vh)',
-        maxHeight: 500,
       }}
     >
       {/* full-bleed overlay link — inner controls opt back in via z-index */}
