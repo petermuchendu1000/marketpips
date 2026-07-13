@@ -65,6 +65,10 @@ interface ProbLinesProps {
   step?: boolean
   /** Soft halo behind each line's endpoint dot (hero polish). */
   endpointHalo?: boolean
+  /** Fade each line's older (left) history to 35% opacity, solid on the right (PM look). */
+  fadeHistory?: boolean
+  /** Salt to keep per-line gradient ids unique across multiple charts on a page. */
+  idSalt?: string
 }
 
 /** Smooth Catmull-Rom-ish path (midpoint cubic bézier) for organic curves. */
@@ -117,6 +121,8 @@ export function ProbLines({
   xLabels,
   step = false,
   endpointHalo = false,
+  fadeHistory = false,
+  idSalt = '',
 }: ProbLinesProps) {
   const drawn = [...lines].sort((a, b) => b.price - a.price).slice(0, maxLines)
   if (drawn.length === 0) return null
@@ -212,13 +218,21 @@ export function ProbLines({
           fillArea && binary
             ? `${d} L ${last[0].toFixed(2)} ${(padT + h).toFixed(2)} L ${xy[0][0].toFixed(2)} ${(padT + h).toFixed(2)} Z`
             : null
+        const useGrad = fadeHistory && !binary
+        const gradId = `pl-${idSalt || 'x'}-${li}`
         return (
           <g key={line.id || `${line.label}-${li}`}>
             {areaD && <path d={areaD} fill={color} opacity={0.1} />}
+            {useGrad && (
+              <linearGradient id={gradId} gradientUnits="userSpaceOnUse" x1={padL} y1={0} x2={width - padR} y2={0}>
+                <stop offset="0" stopColor={color} stopOpacity={0.35} />
+                <stop offset="0.22" stopColor={color} stopOpacity={1} />
+              </linearGradient>
+            )}
             <path
               d={d}
               fill="none"
-              stroke={color}
+              stroke={useGrad ? `url(#${gradId})` : color}
               strokeWidth={strokeWidth}
               strokeLinecap="round"
               strokeLinejoin="round"

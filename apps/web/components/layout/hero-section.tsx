@@ -188,7 +188,7 @@ function Spotlight({ market, series, comments }: HeroMarket & { comments?: HeroC
               {(series.binary ? ranked.slice(0, 1) : ranked.slice(0, 4)).map((o, i) => (
                 <span key={o.id || o.label} className="flex items-center gap-1.5 whitespace-nowrap">
                   <span
-                    className="h-2.5 w-2.5 flex-none rounded-full"
+                    className="h-1 w-4 flex-none rounded-full"
                     style={{ background: series.binary ? 'var(--yes)' : LINE_PALETTE[i % LINE_PALETTE.length] }}
                     aria-hidden
                   />
@@ -215,6 +215,8 @@ function Spotlight({ market, series, comments }: HeroMarket & { comments?: HeroC
               fillArea={series.binary}
               xLabels={ticks}
               strokeWidth={1.75}
+              fadeHistory
+              idSalt={market.id}
               className="w-full"
             />
           </div>
@@ -223,14 +225,14 @@ function Spotlight({ market, series, comments }: HeroMarket & { comments?: HeroC
         {/* footer: volume + close date */}
         <div
           className="mt-auto flex items-center justify-between gap-3 border-t pt-3"
-          style={{ borderColor: 'var(--hairline)', color: 'var(--text-3)' }}
+          style={{ borderColor: 'var(--hairline)', color: 'var(--ink-300)' }}
         >
           <span className="font-medium" style={{ fontSize: 13, letterSpacing: '-0.1px' }}>
             {fmtVol(market.total_volume_usd ?? 0)} Vol
           </span>
           {market.closes_at && (
             <span className="truncate font-medium" style={{ fontSize: 13, letterSpacing: '-0.1px' }}>
-              Ends {fmtDate(market.closes_at)} · <span style={{ color: 'var(--text-2)' }}>MarketPips</span>
+              Ends {fmtDate(market.closes_at)} · <span style={{ color: 'var(--text-3)' }}>MarketPips</span>
             </span>
           )}
         </div>
