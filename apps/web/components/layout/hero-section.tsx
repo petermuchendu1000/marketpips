@@ -28,9 +28,17 @@ import { EntityAvatar } from '@/components/ui/entity-avatar'
 import { HeroCarousel } from '@/components/layout/hero-carousel'
 import { MarketCardActions } from '@/components/markets/market-card-actions'
 import {
-  IconArrowRight, IconFire, IconChevronRight,
-  CategoryIcon, IconMpesa, IconTrophy,
+  IconArrowRight, IconFire, IconChevronRight, IconArrowUp, IconArrowDown,
+  CategoryIcon, IconMpesa,
 } from '@/components/ui/icons'
+
+export interface BreakingItem {
+  market: Market
+  /** Signed 24h/window change in percentage points. */
+  change: number
+  /** Current leading probability, 0–100. */
+  pct: number
+}
 
 export interface HeroMarket {
   market: Market
@@ -286,6 +294,53 @@ function PromoCard({
   )
 }
 
+function BreakingNews({ items }: { items: BreakingItem[] }) {
+  if (items.length === 0) return null
+  return (
+    <div className="rounded-xl p-4" style={{ background: 'var(--surface)', border: '1px solid var(--hairline)' }}>
+      <div className="mb-1 flex items-center justify-between">
+        <h3 className="flex items-center gap-1 text-[15px] font-bold" style={{ color: 'var(--text)' }}>
+          Breaking News <IconChevronRight size={15} style={{ color: 'var(--text-3)' }} />
+        </h3>
+      </div>
+      <ol className="flex flex-col">
+        {items.slice(0, 3).map((it, i) => {
+          const up = it.change >= 0
+          const delta = `${Math.abs(Math.round(it.change))}%`
+          return (
+            <li key={it.market.id}>
+              <Link
+                href={`/markets/${it.market.slug}`}
+                className="-mx-1.5 flex items-start gap-3 rounded-lg px-1.5 py-2.5 transition-colors hover:bg-[var(--surface-2)]"
+              >
+                <span className="w-4 flex-none pt-0.5 text-[13px] font-semibold" style={{ color: 'var(--text-3)' }}>{i + 1}</span>
+                <span
+                  className="min-w-0 flex-1 text-[14px] font-medium leading-snug"
+                  style={{ color: 'var(--text)', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}
+                >
+                  {it.market.title}
+                </span>
+                <span className="flex flex-none flex-col items-end">
+                  <span className="tabular-nums font-semibold leading-none" style={{ fontSize: 18, color: 'var(--text)', letterSpacing: '-0.2px' }}>
+                    {Math.round(it.pct)}%
+                  </span>
+                  <span
+                    className="mt-1 flex items-center gap-0.5 tabular-nums text-[12px] font-semibold"
+                    style={{ color: up ? 'var(--yes)' : 'var(--no)' }}
+                  >
+                    {up ? <IconArrowUp size={11} /> : <IconArrowDown size={11} />}
+                    {delta}
+                  </span>
+                </span>
+              </Link>
+            </li>
+          )
+        })}
+      </ol>
+    </div>
+  )
+}
+
 function HotTopics({ topics }: { topics: Market[] }) {
   if (topics.length === 0) return null
   return (
@@ -315,7 +370,7 @@ function HotTopics({ topics }: { topics: Market[] }) {
   )
 }
 
-function HeroRail({ hotTopics }: { hotTopics: Market[] }) {
+function HeroRail({ hotTopics, breaking }: { hotTopics: Market[]; breaking: BreakingItem[] }) {
   return (
     <aside className="flex flex-col gap-3">
       <PromoCard
@@ -326,14 +381,7 @@ function HeroRail({ hotTopics }: { hotTopics: Market[] }) {
         cta="How it works"
         href="/#how-it-works"
       />
-      <PromoCard
-        tint="brass"
-        icon={<IconTrophy size={20} />}
-        title="New to MarketPips?"
-        body="Create a free account and place your first prediction in under a minute."
-        cta="Get started"
-        href="/auth/register"
-      />
+      <BreakingNews items={breaking} />
       <HotTopics topics={hotTopics} />
       <Link href="/markets" className="btn btn-secondary w-full justify-center gap-1.5" style={{ borderRadius: 'var(--r-pill)' }}>
         Explore all markets <IconArrowRight size={15} />
@@ -347,10 +395,12 @@ function HeroRail({ hotTopics }: { hotTopics: Market[] }) {
 export function HeroSection({
   items = [],
   hotTopics = [],
+  breaking = [],
   comments = {},
 }: {
   items?: HeroMarket[]
   hotTopics?: Market[]
+  breaking?: BreakingItem[]
   comments?: Record<string, HeroComment[]>
 }) {
   if (items.length === 0) return null
@@ -365,7 +415,7 @@ export function HeroSection({
       <div className="relative mx-auto max-w-6xl px-5 py-6 sm:px-8 sm:py-8">
         <div className="grid grid-cols-1 gap-5 lg:grid-cols-[1.7fr_1fr]">
           <HeroCarousel slides={slides} titles={titles} />
-          <HeroRail hotTopics={hotTopics} />
+          <HeroRail hotTopics={hotTopics} breaking={breaking} />
         </div>
       </div>
     </section>

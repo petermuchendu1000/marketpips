@@ -113,6 +113,14 @@ async function getData() {
     .sort((a, b) => Math.abs(b.change) - Math.abs(a.change))
     .slice(0, 6)
 
+  // Breaking News: the biggest movers with their current leading probability,
+  // for the rail's ranked list (question + % + signed delta).
+  const breaking = movers.map(({ market, change }) => {
+    const s = seriesByMarket.get(market.id)
+    const lead = s?.lines?.[0]?.price ?? market.yes_price ?? 0
+    return { market, change, pct: Math.round(lead * 100) }
+  })
+
   // Hot topics: highest 24h dollar volume right now.
   const hotTopics = [...moversPoolList]
     .filter((m) => (m.volume_24h_usd ?? 0) > 0)
@@ -130,6 +138,7 @@ async function getData() {
     seriesByMarket,
     movers,
     hotTopics,
+    breaking,
     allActive,
     categoryCounts,
     heroMarkets,
@@ -146,7 +155,7 @@ function fmtCompact(n: number) {
 }
 
 export default async function HomePage() {
-  const { featured, trending, recent, activeCount, totalVolume, topByMarket, countByMarket, seriesByMarket, movers, hotTopics, allActive, categoryCounts, heroMarkets, heroSeries, heroComments, optionSeries } =
+  const { featured, trending, recent, activeCount, totalVolume, topByMarket, countByMarket, seriesByMarket, movers, hotTopics, breaking, allActive, categoryCounts, heroMarkets, heroSeries, heroComments, optionSeries } =
     await getData()
 
   // Build the hero carousel items, pairing each market with its per-option
@@ -239,7 +248,7 @@ export default async function HomePage() {
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />
       <HomeCategoryBar />
-      <HeroSection items={heroItems} hotTopics={hotTopics} comments={heroComments} />
+      <HeroSection items={heroItems} hotTopics={hotTopics} breaking={breaking} comments={heroComments} />
 
       {/* Live ticker */}
       {tickerMarkets.length > 0 && <MarketsTicker markets={tickerMarkets} />}
