@@ -6,7 +6,6 @@ import { FeaturedMarketCard } from '@/components/markets/featured-market-card'
 import { FeaturedCarousel } from '@/components/markets/featured-carousel'
 import { MoversRail } from '@/components/markets/movers-rail'
 import { HomeExplore } from '@/components/markets/home-explore'
-import { MarketsTicker } from '@/components/markets/markets-ticker'
 import { getCardOptions, type CardOption } from '@/lib/markets/card-options'
 import { getPriceSeries, type PriceSeries } from '@/lib/markets/price-history'
 import { getOptionSeries, type MarketSeries } from '@/lib/markets/option-series'
@@ -195,10 +194,6 @@ export default async function HomePage() {
     return { options: top, leadingOption: top?.[0], optionCount: countByMarket.get(m.id) }
   }
 
-  const tickerMarkets = [...trending, ...recent]
-    .filter((m, i, arr) => arr.findIndex(x => x.id === m.id) === i)
-    .slice(0, 12)
-
   const featuredGrid = featured.slice(0, 3)
   const trendingGrid = trending.filter(m => !featuredGrid.some(f => f.id === m.id)).slice(0, 8)
 
@@ -256,9 +251,6 @@ export default async function HomePage() {
       />
       <HomeCategoryBar />
       <HeroSection items={heroItems} hotTopics={hotTopics} breaking={breaking} comments={heroComments} activity={heroActivity} />
-
-      {/* Live ticker */}
-      {tickerMarkets.length > 0 && <MarketsTicker markets={tickerMarkets} />}
 
       <div className="max-w-[1600px] mx-auto px-4 lg:px-6">
 
