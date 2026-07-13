@@ -21,6 +21,7 @@
 // width×height) and scales uniformly via CSS width:100%;height:auto, so lines
 // AND text stay crisp at every container width, exactly like the live site.
 import type { OptionLine } from '@/lib/markets/option-series'
+import { niceDomain } from '@/lib/markets/chart-domain'
 
 // Categorical palette — measured from Polymarket's live hero chart, then
 // extended with harmonious hues for markets with >4 outcomes.
@@ -89,23 +90,6 @@ function stepPath(xy: readonly (readonly [number, number])[]): string {
     // horizontal to the new x at the OLD y, then vertical to the new y
     return `${acc} L ${x.toFixed(2)} ${y0.toFixed(2)} L ${x.toFixed(2)} ${y.toFixed(2)}`
   }, '')
-}
-
-/** Pick a "nice" domain covering [min,max] with EXACTLY 5 tick levels (in [0,1]).
- *  Polymarket's hero chart always draws 5 horizontal gridlines (4 equal
- *  divisions), so we pin the tick count to 5 rather than letting it vary. */
-function niceDomain(min: number, max: number): { lo: number; hi: number; ticks: number[] } {
-  // Guarantee a readable minimum span so near-flat data isn't a zero-height band.
-  const pad = Math.max((max - min) * 0.12, 0.03)
-  let lo = Math.max(0, min - pad)
-  let hi = Math.min(1, max + pad)
-  const steps = [0.05, 0.1, 0.15, 0.2, 0.25]
-  const step = steps.find((s) => (hi - lo) / s <= 4) ?? 0.25
-  lo = Math.max(0, Math.floor(lo / step) * step)
-  hi = Math.min(1, lo + step * 4)
-  const ticks: number[] = []
-  for (let k = 0; k <= 4; k++) ticks.push(Math.round((lo + ((hi - lo) * k) / 4) * 1000) / 1000)
-  return { lo, hi, ticks }
 }
 
 export function ProbLines({
