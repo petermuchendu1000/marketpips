@@ -12,12 +12,16 @@ import { CATEGORY_LABELS } from '@/types'
 import { EntityAvatar } from '@/components/ui/entity-avatar'
 import { CategoryIcon, IconTrendUp, IconArrowDown } from '@/components/ui/icons'
 import { ProbSparkline } from '@/components/markets/prob-sparkline'
+import { ProbLines } from '@/components/markets/prob-lines'
 import type { CardOption } from '@/lib/markets/card-options'
 import type { PriceSeries } from '@/lib/markets/price-history'
+import type { MarketSeries } from '@/lib/markets/option-series'
 
 interface FeaturedMarketCardProps {
   market: Market
   series?: PriceSeries
+  /** Per-option probability series → one chart line per outcome. */
+  optionSeries?: MarketSeries
   options?: CardOption[]
   optionCount?: number
 }
@@ -32,7 +36,7 @@ function fmtDate(iso: string) {
   return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
 }
 
-export function FeaturedMarketCard({ market, series, options, optionCount }: FeaturedMarketCardProps) {
+export function FeaturedMarketCard({ market, series, optionSeries, options, optionCount }: FeaturedMarketCardProps) {
   const cat = CATEGORY_LABELS[market.category] ?? { label: 'Other' }
   const yesPct = Math.round(market.yes_price * 100)
   const isMulti = market.resolution_type === 'multiple_choice'
@@ -47,8 +51,14 @@ export function FeaturedMarketCard({ market, series, options, optionCount }: Fea
 
   const rows = (options ?? []).slice(0, 4)
   const moreCount = (optionCount ?? rows.length) - rows.length
-  const change = series?.changePct ?? 0
+  // Prefer the per-option series for the delta + chart; fall back to the
+  // single Yes-line series when only that is available.
+  const change = optionSeries?.changePct ?? series?.changePct ?? 0
   const up = change >= 0
+  // Show the multi-line chart when we have per-option curves worth drawing:
+  // any real recorded history, or a multi-outcome market (flat lines still
+  // convey how many outcomes there are and their current levels).
+  const showLines = !!optionSeries && (!optionSeries.seeded || optionSeries.lines.length > 1)
 
   return (
     <div className="market-card group relative flex flex-col gap-3.5">
@@ -60,7 +70,7 @@ export function FeaturedMarketCard({ market, series, options, optionCount }: Fea
           <CategoryIcon category={market.category} size={13} />
           {cat.label}
         </span>
-        {series && series.points.length > 1 && (
+        {(showLines || (series && series.points.length > 1)) && (
           <span
             className="inline-flex items-center gap-1 font-mono text-[12px] font-bold tabular-nums"
             style={{ color: up ? 'var(--yes-700)' : 'var(--no-700)' }}
@@ -85,11 +95,27 @@ export function FeaturedMarketCard({ market, series, options, optionCount }: Fea
         )}
       </div>
 
-      {/* Probability sparkline */}
-      {series && series.points.length > 1 && (
+      {/* Probability chart — one line per outcome (multi) or a single tinted
+          Yes curve (binary). Falls back to the legacy sparkline if only the
+          single-series data is present. */}
+      {showLines ? (
         <div className="pointer-events-none relative z-10 -mx-1">
-          <ProbSparkline points={series.points} width={320} height={56} className="w-full h-14" />
+          <ProbLines
+            lines={optionSeries!.lines}
+            binary={optionSeries!.binary}
+            width={320}
+            height={56}
+            fillArea={optionSeries!.binary}
+            strokeWidth={2}
+            className="h-14 w-full"
+          />
         </div>
+      ) : (
+        series && series.points.length > 1 && (
+          <div className="pointer-events-none relative z-10 -mx-1">
+            <ProbSparkline points={series.points} width={320} height={56} className="w-full h-14" />
+          </div>
+        )
       )}
 
       {/* Body: outcomes */}

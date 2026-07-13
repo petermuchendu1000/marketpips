@@ -11,7 +11,9 @@ import type { Market } from '@/types'
 import { EntityAvatar } from '@/components/ui/entity-avatar'
 import { CategoryIcon, IconTrendUp, IconArrowDown, IconFire } from '@/components/ui/icons'
 import { ProbSparkline } from '@/components/markets/prob-sparkline'
+import { ProbLines } from '@/components/markets/prob-lines'
 import type { PriceSeries } from '@/lib/markets/price-history'
+import type { MarketSeries } from '@/lib/markets/option-series'
 
 interface Mover { market: Market; change: number }
 
@@ -19,6 +21,23 @@ interface MoversRailProps {
   movers: Mover[]
   hotTopics: Market[]
   seriesByMarket: Map<string, PriceSeries>
+  /** Per-option series → one mini line per outcome (falls back to sparkline). */
+  optionSeriesByMarket?: Map<string, MarketSeries>
+}
+
+/** Mini trend chart: one line per outcome when available, else a single spark. */
+function MiniTrend({ option, series }: { option?: MarketSeries; series?: PriceSeries }) {
+  if (option && (!option.seeded || option.lines.length > 1)) {
+    return (
+      <span className="hidden flex-none sm:block" style={{ width: 64, height: 28 }}>
+        <ProbLines lines={option.lines} binary={option.binary} width={64} height={28} strokeWidth={1.5} maxLines={4} />
+      </span>
+    )
+  }
+  if (series && series.points.length > 1) {
+    return <ProbSparkline points={series.points} width={64} height={28} className="flex-none hidden sm:block" />
+  }
+  return null
 }
 
 function fmtVol(n: number) {
@@ -40,7 +59,7 @@ function PanelHead({ icon, title, sub }: { icon: React.ReactNode; title: string;
   )
 }
 
-export function MoversRail({ movers, hotTopics, seriesByMarket }: MoversRailProps) {
+export function MoversRail({ movers, hotTopics, seriesByMarket, optionSeriesByMarket }: MoversRailProps) {
   if (movers.length === 0 && hotTopics.length === 0) return null
 
   return (
@@ -67,7 +86,7 @@ export function MoversRail({ movers, hotTopics, seriesByMarket }: MoversRailProp
                       </span>
                     </span>
                     {series && series.points.length > 1 && (
-                      <ProbSparkline points={series.points} width={64} height={28} className="flex-none hidden sm:block" />
+                      <MiniTrend option={optionSeriesByMarket?.get(market.id)} series={series} />
                     )}
                     <span className="flex flex-none items-center gap-1 font-mono text-[13px] font-bold tabular-nums"
                       style={{ color: up ? 'var(--yes-700)' : 'var(--no-700)' }}>

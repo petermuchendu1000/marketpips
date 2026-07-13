@@ -86,7 +86,20 @@ async function getData() {
     (m, i, arr) => arr.findIndex((x) => x.id === m.id) === i,
   )
   const heroMarkets = heroPool.slice(0, 4)
-  const heroSeries = await getOptionSeries(supabase, heroMarkets.map((m) => m.id))
+
+  // One batched per-option series lookup covering every card that draws a chart:
+  // the hero, the featured carousel, and the Breaking/Hot movers rail. This is
+  // what makes each card's chart show ONE LINE PER OUTCOME.
+  const chartIds = Array.from(
+    new Set([
+      ...heroMarkets.map((m) => m.id),
+      ...featuredList.map((m) => m.id),
+      ...trendingList.map((m) => m.id),
+      ...moversPoolList.map((m) => m.id),
+    ]),
+  )
+  const optionSeries = await getOptionSeries(supabase, chartIds)
+  const heroSeries = optionSeries
 
   // Biggest movers: markets whose implied probability shifted the most (either
   // direction) over the recorded window, ranked by absolute change.
@@ -117,6 +130,7 @@ async function getData() {
     categoryCounts,
     heroMarkets,
     heroSeries,
+    optionSeries,
   }
 }
 
@@ -127,7 +141,7 @@ function fmtCompact(n: number) {
 }
 
 export default async function HomePage() {
-  const { featured, trending, recent, activeCount, totalVolume, topByMarket, countByMarket, seriesByMarket, movers, hotTopics, allActive, categoryCounts, heroMarkets, heroSeries } =
+  const { featured, trending, recent, activeCount, totalVolume, topByMarket, countByMarket, seriesByMarket, movers, hotTopics, allActive, categoryCounts, heroMarkets, heroSeries, optionSeries } =
     await getData()
 
   // Build the hero spotlight (first market) + rail (next few), pairing each
@@ -221,6 +235,7 @@ export default async function HomePage() {
                   <FeaturedMarketCard
                     market={m}
                     series={seriesByMarket.get(m.id)}
+                    optionSeries={optionSeries.get(m.id)}
                     {...cardExtras(m)}
                   />
                 </div>
@@ -232,7 +247,7 @@ export default async function HomePage() {
         {/* Breaking + Hot topics rail */}
         {(movers.length > 0 || hotTopics.length > 0) && (
           <Section eyebrow="Live now" title="Movers & hot topics" href="/markets?sort=volume">
-            <MoversRail movers={movers} hotTopics={hotTopics} seriesByMarket={seriesByMarket} />
+            <MoversRail movers={movers} hotTopics={hotTopics} seriesByMarket={seriesByMarket} optionSeriesByMarket={optionSeries} />
           </Section>
         )}
 
