@@ -226,8 +226,11 @@ export function ProbLines({
             {areaD && <path d={areaD} fill={color} opacity={0.1} />}
             {useGrad && (
               <linearGradient id={gradId} gradientUnits="userSpaceOnUse" x1={padL} y1={0} x2={width - padR} y2={0}>
-                <stop offset="0" stopColor={color} stopOpacity={0.35} />
-                <stop offset="0.22" stopColor={color} stopOpacity={1} />
+                {/* PM parity: main path is SOLID full-length; only a short dotted
+                    lead-in at the very left fades (color-mix 40%). So we reach full
+                    opacity by ~6% and start at the measured 0.4. */}
+                <stop offset="0" stopColor={color} stopOpacity={0.4} />
+                <stop offset="0.06" stopColor={color} stopOpacity={1} />
               </linearGradient>
             )}
             <path
