@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from 'next'
-import { Hanken_Grotesk, IBM_Plex_Mono } from 'next/font/google'
+import { Inter, Geist_Mono } from 'next/font/google'
 import './globals.css'
 import { NextIntlClientProvider } from 'next-intl'
 import { getLocale, getMessages } from 'next-intl/server'
@@ -11,18 +11,18 @@ import { ThemeProvider } from '@/components/layout/theme-provider'
 import { WebVitals } from '@/components/perf/web-vitals'
 import { ServiceWorkerRegister } from '@/components/perf/service-worker-register'
 
-// UI typeface — refined humanist grotesque (headings + body)
-const hanken = Hanken_Grotesk({
+// UI typeface — Inter (variable, full 100–900 range), Polymarket's primary UI face.
+// Loaded as a variable font so every weight (incl. 490/500/600) is available.
+const inter = Inter({
   subsets: ['latin'],
-  variable: '--font-hanken',
+  variable: '--font-inter',
   display: 'swap',
-  weight: ['400', '500', '600', '700'],
 })
 
-// Numerics — Bloomberg-grade tabular monospace for prices/probabilities
-const plexMono = IBM_Plex_Mono({
+// Numerics — Geist Mono for tabular prices/probabilities (Polymarket parity).
+const geistMono = Geist_Mono({
   subsets: ['latin'],
-  variable: '--font-plex',
+  variable: '--font-geist-mono',
   display: 'swap',
   weight: ['400', '500', '600'],
 })
@@ -89,8 +89,8 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   const messages = await getMessages()
 
   return (
-    <html lang={locale} suppressHydrationWarning>
-      <body className={`${hanken.variable} ${plexMono.variable} antialiased`}>
+    <html lang={locale} className={`${inter.variable} ${geistMono.variable}`} suppressHydrationWarning>
+      <body className="antialiased">
         {/* Skip-to-content: first focusable element, visible on keyboard focus (WCAG 2.4.1). */}
         <a href="#main-content" className="skip-link">
           Skip to main content

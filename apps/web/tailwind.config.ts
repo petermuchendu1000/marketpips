@@ -3,7 +3,7 @@ import type { Config } from 'tailwindcss'
 /**
  * MarketPips — "Pip" design system Tailwind theme.
  * Colors/radii mirror app/globals.css tokens. Fonts come from next/font
- * (--font-hanken UI, --font-plex numerics). Green/red are DESATURATED
+ * (--font-inter UI, --font-geist-mono numerics). Green/red are DESATURATED
  * market semantics (YES/NO), never neon; brand is Pip Blue.
  */
 const config: Config = {
@@ -16,9 +16,9 @@ const config: Config = {
   theme: {
     extend: {
       fontFamily: {
-        sans:    ['var(--font-hanken)', 'system-ui', '-apple-system', 'sans-serif'],
-        display: ['var(--font-hanken)', 'system-ui', 'sans-serif'],
-        mono:    ['var(--font-plex)', 'ui-monospace', 'SFMono-Regular', 'monospace'],
+        sans:    ['var(--font-inter)', 'system-ui', '-apple-system', 'sans-serif'],
+        display: ['var(--font-inter)', 'system-ui', 'sans-serif'],
+        mono:    ['var(--font-geist-mono)', 'ui-monospace', 'SFMono-Regular', 'monospace'],
       },
       colors: {
         // Brand — Pip Blue

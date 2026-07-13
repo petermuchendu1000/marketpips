@@ -23,7 +23,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
             border: '1px solid var(--hairline)',
             borderRadius: '12px',
             fontSize: '14px',
-            fontFamily: 'var(--font-hanken), system-ui, sans-serif',
+            fontFamily: 'var(--font-inter), system-ui, sans-serif',
             boxShadow: 'var(--e3)',
           },
           success: {

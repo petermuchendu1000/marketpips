@@ -5,8 +5,8 @@
 /* ============================================================
    MarketPips — "Pip" Design System (source of truth)
    Institutional fintech. Bloomberg × Stripe × Linear. Never casino.
-   Fonts (Hanken Grotesk / IBM Plex Mono) are injected by next/font
-   as --font-hanken / --font-plex in layout.tsx.
+   Fonts (Inter variable / Geist Mono) are injected by next/font
+   as --font-inter / --font-geist-mono in layout.tsx (Polymarket parity).
    ============================================================ */
 @layer base {
   :root {
@@ -50,8 +50,8 @@
     --ease-out:cubic-bezier(.2,0,0,1); --ease-move:cubic-bezier(.4,0,.2,1);
 
     /* ---- Type ---- */
-    --font-ui:var(--font-hanken),-apple-system,"Segoe UI",Roboto,sans-serif;
-    --font-mono:var(--font-plex),ui-monospace,SFMono-Regular,Menlo,monospace;
+    --font-ui:var(--font-inter),-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    --font-mono:var(--font-geist-mono),ui-monospace,SFMono-Regular,Menlo,monospace;
 
     /* ---- Layout ---- */
     --maxw:1200px; --maxw-wide:1320px;
@@ -138,7 +138,8 @@
     color:var(--text);
     font-family:var(--font-ui);
     font-size:16px;
-    line-height:1.6;
+    line-height:1.5;
+    letter-spacing:-0.011em;
     -webkit-font-smoothing:antialiased;
     -moz-osx-font-smoothing:grayscale;
     text-rendering:optimizeLegibility;
@@ -164,9 +165,9 @@
    TYPOGRAPHY HELPERS
    ============================================================ */
 @layer components {
-  .font-display { font-family:var(--font-ui); font-weight:700; letter-spacing:-0.02em; }
-  .font-mono { font-family:var(--font-mono); font-variant-numeric:tabular-nums; letter-spacing:-0.01em; }
-  .mono { font-family:var(--font-mono); font-variant-numeric:tabular-nums; letter-spacing:-0.01em; }
+  .font-display { font-family:var(--font-ui); font-weight:600; letter-spacing:-0.02em; }
+  .font-mono { font-family:var(--font-mono); font-variant-numeric:tabular-nums; }
+  .mono { font-family:var(--font-mono); font-variant-numeric:tabular-nums; }
 }
 
 /* ============================================================
