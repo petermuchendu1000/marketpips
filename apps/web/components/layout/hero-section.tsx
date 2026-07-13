@@ -131,33 +131,29 @@ function Spotlight({ market, series, comments }: HeroMarket & { comments?: HeroC
           <MarketCardActions slug={market.slug} title={market.title} />
         </div>
 
-        {/* body: ranked outcomes | chart */}
-        <div className="mt-4 grid grid-cols-1 gap-6 md:grid-cols-[minmax(0,300fr)_560fr]">
-          {/* outcomes */}
-          <div className="flex min-w-0 flex-col">
-            <div className="flex flex-col">
+        {/* body: ranked outcomes (40%) | chart (flex-1) — mirrors PM's flex row */}
+        <div className="mt-1 flex flex-col-reverse gap-5 lg:flex-row lg:gap-6">
+          {/* outcomes — 40% width like Polymarket */}
+          <div className="flex min-w-0 flex-col gap-4 lg:w-[40%]">
+            <div className="flex flex-col gap-2">
               {series.binary ? (
                 <BinaryRows yesPct={yesPct} />
               ) : (
-                ranked.slice(0, 4).map((o, i) => (
+                ranked.slice(0, 4).map((o) => (
                   <div
                     key={o.id || o.label}
-                    className="flex min-h-[40px] items-center gap-3 py-[7px]"
-                    style={i > 0 ? { borderTop: '1px solid var(--hairline)' } : undefined}
+                    className="flex min-h-10 items-center justify-between gap-3 pb-2"
+                    style={{ borderBottom: '1px solid var(--hairline)' }}
                   >
-                    {o.imageUrl && (
-                      <EntityAvatar name={o.label} imageUrl={o.imageUrl} size={30} shape="squircle" className="flex-none" />
-                    )}
-                    <span
-                      className="min-w-0 flex-1 truncate font-medium"
-                      style={{ fontSize: 15, color: 'var(--text)', letterSpacing: '-0.15px' }}
-                    >
-                      {o.label}
-                    </span>
-                    <span
-                      className="tabular-nums font-semibold"
-                      style={{ fontSize: 20, color: 'var(--text)', letterSpacing: '-0.2px' }}
-                    >
+                    <div className="flex min-w-0 flex-1 items-center gap-2">
+                      {o.imageUrl && (
+                        <EntityAvatar name={o.label} imageUrl={o.imageUrl} size={30} shape="squircle" className="flex-none" />
+                      )}
+                      <span className="truncate font-medium" style={{ fontSize: 15, color: 'var(--text)', letterSpacing: '-0.15px' }}>
+                        {o.label}
+                      </span>
+                    </div>
+                    <span className="flex-none tabular-nums font-semibold" style={{ fontSize: 26, lineHeight: 1, color: 'var(--text)', letterSpacing: '-0.4px' }}>
                       {Math.round(o.price * 100)}%
                     </span>
                   </div>
@@ -187,7 +183,7 @@ function Spotlight({ market, series, comments }: HeroMarket & { comments?: HeroC
           </div>
 
           {/* chart + legend */}
-          <div className="flex min-w-0 flex-col gap-2.5">
+          <div className="flex min-w-0 flex-1 flex-col gap-2.5">
             <div className="flex flex-row flex-wrap items-center gap-x-5 gap-y-1.5">
               {(series.binary ? ranked.slice(0, 1) : ranked.slice(0, 4)).map((o, i) => (
                 <span key={o.id || o.label} className="flex items-center gap-1.5 whitespace-nowrap">
@@ -251,17 +247,19 @@ function BinaryRows({ yesPct }: { yesPct: number }) {
   ]
   return (
     <>
-      {rows.map((r, i) => (
+      {rows.map((r) => (
         <div
           key={r.label}
-          className="flex min-h-[40px] items-center gap-3 py-[7px]"
-          style={i > 0 ? { borderTop: '1px solid var(--hairline)' } : undefined}
+          className="flex min-h-10 items-center justify-between gap-3 pb-2"
+          style={{ borderBottom: '1px solid var(--hairline)' }}
         >
-          <span className="h-[18px] w-[18px] flex-none rounded-[5px]" style={{ background: r.color }} aria-hidden />
-          <span className="min-w-0 flex-1 font-medium" style={{ fontSize: 15, color: 'var(--text)', letterSpacing: '-0.15px' }}>
-            {r.label}
-          </span>
-          <span className="tabular-nums font-semibold" style={{ fontSize: 20, color: 'var(--text)', letterSpacing: '-0.2px' }}>
+          <div className="flex min-w-0 flex-1 items-center gap-2">
+            <span className="h-[18px] w-[18px] flex-none rounded-[5px]" style={{ background: r.color }} aria-hidden />
+            <span className="truncate font-medium" style={{ fontSize: 15, color: 'var(--text)', letterSpacing: '-0.15px' }}>
+              {r.label}
+            </span>
+          </div>
+          <span className="flex-none tabular-nums font-semibold" style={{ fontSize: 26, lineHeight: 1, color: 'var(--text)', letterSpacing: '-0.4px' }}>
             {r.pct}%
           </span>
         </div>
@@ -412,8 +410,8 @@ export function HeroSection({
 
   return (
     <section className="relative">
-      <div className="relative mx-auto max-w-[1280px] px-5 py-6 sm:px-8 sm:py-8">
-        <div className="grid grid-cols-1 gap-5 lg:grid-cols-[2fr_1fr]">
+      <div className="relative mx-auto max-w-[1400px] px-5 py-6 sm:px-8 sm:py-8">
+        <div className="grid grid-cols-1 gap-5 lg:grid-cols-[2.35fr_1fr]">
           <HeroCarousel slides={slides} titles={titles} />
           <HeroRail hotTopics={hotTopics} breaking={breaking} />
         </div>
