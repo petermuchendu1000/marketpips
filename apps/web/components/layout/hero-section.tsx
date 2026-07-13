@@ -203,7 +203,11 @@ function Spotlight({ market, series, comments, activity }: HeroMarket & { commen
       <Link href={`/markets/${market.slug}`} className="absolute inset-0 z-0" aria-label={`Open market: ${market.title}`} />
 
       <div className="relative z-10 flex flex-1 flex-col p-5">
-        {/* header: event icon + breadcrumb/title + actions */}
+        {/* header: event icon + breadcrumb/title + actions.
+            The share/bookmark actions sit on the CATEGORY baseline (not the
+            title's), so the headline can use the full column width and wrap into
+            fewer lines on narrow (mobile) widths instead of being squeezed by
+            the icons in the top-right. */}
         <div className="flex items-start gap-4">
           <EntityAvatar
             name={market.title}
@@ -214,9 +218,12 @@ function Spotlight({ market, series, comments, activity }: HeroMarket & { commen
             className="mt-0.5 flex-none"
           />
           <div className="min-w-0 flex-1">
-            <div className="flex items-center gap-1 truncate" style={{ fontSize: 14, fontWeight: 540, lineHeight: '20px', letterSpacing: '-0.09px', color: 'var(--text-3)' }}>
-              <span className="truncate">{cat.label}</span>
-              {sub && <><span aria-hidden>·</span><span className="truncate">{sub}</span></>}
+            <div className="flex items-start gap-2">
+              <div className="flex min-w-0 flex-1 items-center gap-1 truncate" style={{ fontSize: 14, fontWeight: 540, lineHeight: '20px', letterSpacing: '-0.09px', color: 'var(--text-3)' }}>
+                <span className="truncate">{cat.label}</span>
+                {sub && <><span aria-hidden>·</span><span className="truncate">{sub}</span></>}
+              </div>
+              <MarketCardActions slug={market.slug} title={market.title} />
             </div>
             <h1
               className="mt-0.5 font-semibold"
@@ -225,7 +232,6 @@ function Spotlight({ market, series, comments, activity }: HeroMarket & { commen
               {market.title}
             </h1>
           </div>
-          <MarketCardActions slug={market.slug} title={market.title} />
         </div>
 
         {/* body: ranked outcomes (40%) | chart (flex-1) — mirrors PM's flex row */}
