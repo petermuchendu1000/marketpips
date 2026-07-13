@@ -171,12 +171,28 @@ function Spotlight({ market, series, comments }: HeroMarket & { comments?: HeroC
             {comments && comments.length > 0 && (
               <div className="mt-3 flex flex-col gap-2 border-t pt-3" style={{ borderColor: 'var(--hairline-soft)' }}>
                 {comments.slice(0, 2).map((c) => (
-                  <div key={c.id} className="flex items-start gap-2">
-                    <EntityAvatar name={c.author} size={22} shape="circle" className="mt-0.5 flex-none" />
-                    <p className="min-w-0 flex-1 truncate text-[13px] leading-snug" style={{ color: 'var(--text-3)' }}>
-                      <span className="font-semibold" style={{ color: 'var(--text-2)' }}>{c.author}</span>{' '}
-                      {c.content}
-                    </p>
+                  <div key={c.id} className="flex items-start gap-1.5">
+                    {/* PM comment peek (measured): 20px circle avatar, author on its
+                        own line (13/400 primary), body clamped to 2 lines (12/400
+                        secondary). */}
+                    <EntityAvatar name={c.author} size={20} shape="circle" className="flex-none" />
+                    <div className="flex min-w-0 flex-col gap-0.5">
+                      <p className="truncate" style={{ fontSize: 13, lineHeight: '16px', color: 'var(--text)' }}>{c.author}</p>
+                      <p
+                        className="min-w-0"
+                        style={{
+                          fontSize: 12,
+                          lineHeight: '16px',
+                          color: 'var(--text-3)',
+                          display: '-webkit-box',
+                          WebkitLineClamp: 2,
+                          WebkitBoxOrient: 'vertical',
+                          overflow: 'hidden',
+                        }}
+                      >
+                        {c.content}
+                      </p>
+                    </div>
                   </div>
                 ))}
               </div>

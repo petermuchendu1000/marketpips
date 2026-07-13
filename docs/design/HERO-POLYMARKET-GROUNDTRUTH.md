@@ -64,9 +64,15 @@ Each row (up to 4): `flex items-center justify-between`, `min-h-10`, divider `bo
 - Binary markets: Yes/No color chip (green `#42c772` / red `#e23939`) instead of avatar.
 
 ### 4b. Comment / news peek (below outcomes) — Element 4
-- author line: `13px / 16px, weight 400, ls -0.1px, #18181b`.
-- comment body: `12px / 16px, weight 400, ls -0.1px, #77808d`, clamped.
-- news variant: source avatar + `AP News · 4d ago` then a 2-line headline (same 12/16 secondary).
+Measured live (exact classes):
+- **comment variant**: row `flex items-start gap-1.5`; **20px** circle avatar
+  (`rounded-full size-5`); column `flex-col gap-0.5`:
+  - author: `text-body-sm font-normal text-text` → **13px, weight 400, text-primary** (NOT bold).
+  - body: `text-body-xs font-normal text-text-secondary line-clamp-2` → **12px, weight 400, #77808d, 2-line clamp**.
+- **news variant**: row `flex items-center`; **12px** `rounded-[2px]` source logo
+  (`size-3`); `AP News` `text-body-xs font-normal text-text-secondary` then `・`
+  + `5d ago` (`text-body-xs text-text-tertiary`); headline `text-body-sm
+  font-normal text-text-primary line-clamp-1 lg:line-clamp-2` (**13px primary, 2-line on lg**).
 
 ## 5. Chart (right) — Element 5  ← crown jewel
 - **SVG 496 × 276** (height varies 276/300/306 per slide); plot area **446 × 236** inside `<g transform="translate(0,10)">`. ~50px right gutter for % labels.
@@ -132,9 +138,9 @@ Variants: ghost (`bg-button-ghost-bg`, `hover:bg-black/5`), outline (`border-but
 | Card shell | close | border → blue-600/10; shadow → blue-500/7 (0 4px 16px); min-h min(480px,60vh); max-h 500px |
 | Header typography | ✅ matches | (verify colors map to #0e0f11 / #77808d) |
 | Icon | ✅ 56px squircle | radius → ~9px (rounded-md), not full squircle |
-| Outcome rows | ✅ close | name color #18181b; divider neutral-100 |
-| Comment peek | ✅ present | confirm 13/12 sizes + colors |
-| Chart (ProbLines) | ⚠ diverges | sw 2.5→1.75(+2.75 accent); dims 560×300→496×276; gridlines dashed 1,3 neutral-300; colors → #87BFFF/#4378FF/#FDC503/#FF7F0E; endpoint halo scale(2.28) op .34; faded color-mix history; right-axis +8px; x labels neutral-200 |
+| Outcome rows | ✅ done | divider → --hairline-soft (neutral-100 #e6e8ea) |
+| Comment peek | ✅ done | 20px avatar; author 13/400 primary; body 12/400 secondary, 2-line clamp |
+| Chart (ProbLines) | ✅ done | smooth bézier (not step); sw 1.75; 496×276; gridlines dashed 1,3 neutral-300 @op .5 + crispEdges; palette #87BFFF/#4378FF/#FDC503/#FF7F0E; pulsing endpoint halo (scale→3.95, op .34→0); solid lines w/ short fade lead-in; right-axis +8px; legend 8px dot + inline value; icon radius 9px |
 | Footer | ✅ close | color → #aeb4bc; "Ends … · Polymarket" |
 | Carousel dots/pills | ✅ present | active dot elongated; prev/next show adjacent titles |
 | Rail | ✅ present | promo=blue app card; verify Breaking/Hot specs |
