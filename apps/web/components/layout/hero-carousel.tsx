@@ -145,7 +145,7 @@ export function HeroCarousel({ slides, titles, autoPlayMs = 7000 }: HeroCarousel
             <button
               type="button"
               onClick={prev}
-              className="group hidden items-center gap-1.5 rounded-pill px-3 py-1.5 text-[12px] font-medium transition-colors sm:inline-flex"
+              className="group hidden items-center gap-1.5 rounded-pill px-3 py-1.5 text-[14px] font-medium transition-colors hover:border-[var(--hairline-strong)] sm:inline-flex"
               style={{ background: 'var(--surface)', border: '1px solid var(--hairline)', color: 'var(--text-3)' }}
               aria-label={`Previous: ${titles[prevIdx] ?? ''}`}
             >
@@ -155,7 +155,7 @@ export function HeroCarousel({ slides, titles, autoPlayMs = 7000 }: HeroCarousel
             <button
               type="button"
               onClick={next}
-              className="group hidden items-center gap-1.5 rounded-pill px-3 py-1.5 text-[12px] font-medium transition-colors sm:inline-flex"
+              className="group hidden items-center gap-1.5 rounded-pill px-3 py-1.5 text-[14px] font-medium transition-colors hover:border-[var(--hairline-strong)] sm:inline-flex"
               style={{ background: 'var(--surface)', border: '1px solid var(--hairline)', color: 'var(--text-3)' }}
               aria-label={`Next: ${titles[nextIdx] ?? ''}`}
             >
