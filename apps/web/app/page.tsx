@@ -11,6 +11,7 @@ import { getCardOptions, type CardOption } from '@/lib/markets/card-options'
 import { getPriceSeries, type PriceSeries } from '@/lib/markets/price-history'
 import { getOptionSeries, type MarketSeries } from '@/lib/markets/option-series'
 import { getSpotlightComments } from '@/lib/markets/spotlight-comments'
+import { getSpotlightActivity } from '@/lib/markets/spotlight-activity'
 import { hideSettling } from '@/lib/markets/settling'
 import type { Market, MarketCategory } from '@/types'
 import {
@@ -104,6 +105,9 @@ async function getData() {
 
   // Top couple of comments for the hero spotlight markets (comment peek).
   const heroComments = await getSpotlightComments(supabase, heroMarkets.map((m) => m.id))
+  // Blended trader-activity feed (recent trades + comments) for the hero left
+  // column — fills the space binary markets leave below two Yes/No rows.
+  const heroActivity = await getSpotlightActivity(supabase, heroMarkets.map((m) => m.id))
 
   // Biggest movers: markets whose implied probability shifted the most (either
   // direction) over the recorded window, ranked by absolute change.
@@ -146,6 +150,7 @@ async function getData() {
     heroMarkets,
     heroSeries,
     heroComments,
+    heroActivity,
     optionSeries,
   }
 }
@@ -157,7 +162,7 @@ function fmtCompact(n: number) {
 }
 
 export default async function HomePage() {
-  const { featured, trending, recent, activeCount, totalVolume, topByMarket, countByMarket, seriesByMarket, movers, hotTopics, breaking, allActive, categoryCounts, heroMarkets, heroSeries, heroComments, optionSeries } =
+  const { featured, trending, recent, activeCount, totalVolume, topByMarket, countByMarket, seriesByMarket, movers, hotTopics, breaking, allActive, categoryCounts, heroMarkets, heroSeries, heroComments, heroActivity, optionSeries } =
     await getData()
 
   // Build the hero carousel items, pairing each market with its per-option
@@ -250,7 +255,7 @@ export default async function HomePage() {
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />
       <HomeCategoryBar />
-      <HeroSection items={heroItems} hotTopics={hotTopics} breaking={breaking} comments={heroComments} />
+      <HeroSection items={heroItems} hotTopics={hotTopics} breaking={breaking} comments={heroComments} activity={heroActivity} />
 
       {/* Live ticker */}
       {tickerMarkets.length > 0 && <MarketsTicker markets={tickerMarkets} />}

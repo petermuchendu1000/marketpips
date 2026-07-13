@@ -24,6 +24,7 @@ import type { Market } from '@/types'
 import { CATEGORY_LABELS } from '@/types'
 import { ProbLines, LINE_PALETTE } from '@/components/markets/prob-lines'
 import type { MarketSeries } from '@/lib/markets/option-series'
+import type { HeroActivityItem } from '@/lib/markets/spotlight-activity'
 import { EntityAvatar } from '@/components/ui/entity-avatar'
 import { HeroCarousel } from '@/components/layout/hero-carousel'
 import { MarketCardActions } from '@/components/markets/market-card-actions'
@@ -83,12 +84,107 @@ function dateTicks(startAt: string | null, endAt: string | null): string[] | und
 
 /* --------------------------- spotlight card --------------------------- */
 
-function Spotlight({ market, series, comments }: HeroMarket & { comments?: HeroComment[] }) {
+/** Compact relative time (12s / 4m / 3h / 2d / 5mo / 1y). */
+function fmtRelative(iso: string) {
+  const t = new Date(iso).getTime()
+  if (!Number.isFinite(t)) return ''
+  const s = Math.max(1, Math.round((Date.now() - t) / 1000))
+  if (s < 60) return `${s}s`
+  const m = Math.round(s / 60)
+  if (m < 60) return `${m}m`
+  const h = Math.round(m / 60)
+  if (h < 24) return `${h}h`
+  const d = Math.round(h / 24)
+  if (d < 30) return `${d}d`
+  const mo = Math.round(d / 30)
+  if (mo < 12) return `${mo}mo`
+  return `${Math.round(mo / 12)}y`
+}
+
+/** One activity row — a trade ("bought Yes · $X") or a comment. */
+function ActivityRow({ item }: { item: HeroActivityItem }) {
+  const when = fmtRelative(item.at)
+  if (item.kind === 'trade') {
+    const isYes = item.side === 'yes'
+    const verb = item.action === 'sell' ? 'sold' : 'bought'
+    return (
+      <li className="flex items-center gap-2">
+        <EntityAvatar name={item.author} imageUrl={item.avatarUrl} size={20} shape="circle" className="flex-none" />
+        <span className="min-w-0 flex-1 truncate" style={{ fontSize: 13, color: 'var(--text-2)' }}>
+          <span className="font-semibold" style={{ color: 'var(--text)' }}>{item.author}</span>{' '}
+          {verb}{' '}
+          <span className="font-semibold" style={{ color: isYes ? 'var(--yes)' : 'var(--no)' }}>
+            {isYes ? 'Yes' : 'No'}
+          </span>
+          {item.amountUsd ? <>{' · '}{fmtVol(item.amountUsd)}</> : null}
+        </span>
+        <span className="flex-none tabular-nums" style={{ fontSize: 12, color: 'var(--text-3)' }}>{when}</span>
+      </li>
+    )
+  }
+  return (
+    <li className="flex items-start gap-2">
+      <EntityAvatar name={item.author} imageUrl={item.avatarUrl} size={20} shape="circle" className="mt-0.5 flex-none" />
+      <div className="flex min-w-0 flex-col gap-0.5">
+        <div className="flex items-center gap-1.5">
+          <span className="truncate" style={{ fontSize: 13, color: 'var(--text)' }}>{item.author}</span>
+          <span className="flex-none tabular-nums" style={{ fontSize: 12, color: 'var(--text-3)' }}>{when}</span>
+        </div>
+        <p
+          className="min-w-0"
+          style={{
+            fontSize: 12,
+            lineHeight: '16px',
+            color: 'var(--text-3)',
+            display: '-webkit-box',
+            WebkitLineClamp: 2,
+            WebkitBoxOrient: 'vertical',
+            overflow: 'hidden',
+          }}
+        >
+          {item.content}
+        </p>
+      </div>
+    </li>
+  )
+}
+
+/** Live trader-activity feed that fills the left column (esp. binary markets,
+ *  which otherwise leave dead space below two Yes/No rows). Grows to fill. */
+function TraderActivity({ items, max }: { items?: HeroActivityItem[]; max: number }) {
+  if (!items || items.length === 0) return null
+  return (
+    <div
+      className="mt-1 flex min-h-0 flex-1 flex-col gap-2.5 border-t pt-3"
+      style={{ borderColor: 'var(--hairline-soft)' }}
+    >
+      <span
+        className="font-semibold uppercase"
+        style={{ fontSize: 11, letterSpacing: '0.05em', color: 'var(--text-3)' }}
+      >
+        Activity
+      </span>
+      <ul className="flex flex-col gap-2.5">
+        {items.slice(0, max).map((it) => (
+          <ActivityRow key={it.id} item={it} />
+        ))}
+      </ul>
+    </div>
+  )
+}
+
+
+function Spotlight({ market, series, comments, activity }: HeroMarket & { comments?: HeroComment[]; activity?: HeroActivityItem[] }) {
   const cat = CATEGORY_LABELS[market.category] ?? { label: 'Market', emoji: '🔮' }
   const sub = prettyTag(market.tags?.[0])
   const ranked = [...series.lines].sort((a, b) => b.price - a.price)
   const yesPct = Math.round((market.yes_price ?? 0) * 100)
   const ticks = dateTicks(series.startAt, series.endAt)
+  // Prefer the live trade+comment feed; fall back to plain comments (no time).
+  const feed: HeroActivityItem[] =
+    activity && activity.length > 0
+      ? activity
+      : (comments ?? []).map((c) => ({ id: c.id, kind: 'comment' as const, author: c.author, content: c.content, at: '' }))
 
   return (
     <div
@@ -167,36 +263,8 @@ function Spotlight({ market, series, comments }: HeroMarket & { comments?: HeroC
               )}
             </div>
 
-            {/* comment peek */}
-            {comments && comments.length > 0 && (
-              <div className="mt-3 flex flex-col gap-2 border-t pt-3" style={{ borderColor: 'var(--hairline-soft)' }}>
-                {comments.slice(0, 2).map((c) => (
-                  <div key={c.id} className="flex items-start gap-1.5">
-                    {/* PM comment peek (measured): 20px circle avatar, author on its
-                        own line (13/400 primary), body clamped to 2 lines (12/400
-                        secondary). */}
-                    <EntityAvatar name={c.author} size={20} shape="circle" className="flex-none" />
-                    <div className="flex min-w-0 flex-col gap-0.5">
-                      <p className="truncate" style={{ fontSize: 13, lineHeight: '16px', color: 'var(--text)' }}>{c.author}</p>
-                      <p
-                        className="min-w-0"
-                        style={{
-                          fontSize: 12,
-                          lineHeight: '16px',
-                          color: 'var(--text-3)',
-                          display: '-webkit-box',
-                          WebkitLineClamp: 2,
-                          WebkitBoxOrient: 'vertical',
-                          overflow: 'hidden',
-                        }}
-                      >
-                        {c.content}
-                      </p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
+            {/* trader activity — fills the left column (esp. binary's 2 rows). */}
+            <TraderActivity items={feed} max={series.binary ? 5 : 2} />
           </div>
 
           {/* chart + legend */}
@@ -245,9 +313,20 @@ function Spotlight({ market, series, comments }: HeroMarket & { comments?: HeroC
           className="mt-auto flex items-center justify-between gap-3 border-t pt-3"
           style={{ borderColor: 'var(--hairline-soft)', color: 'var(--ink-300)' }}
         >
-          <span className="font-medium" style={{ fontSize: 13, letterSpacing: '-0.1px' }}>
-            {fmtVol(market.total_volume_usd ?? 0)} Vol
-          </span>
+          <div className="flex items-center gap-3">
+            <span className="font-medium" style={{ fontSize: 13, letterSpacing: '-0.1px' }}>
+              {fmtVol(market.total_volume_usd ?? 0)} Vol
+            </span>
+            {/* Primary CTA — jumps into the market's trade panel. z-10 so it wins
+                over the card's full-bleed overlay link. */}
+            <Link
+              href={`/markets/${market.slug}`}
+              className="relative z-10 inline-flex items-center gap-1 rounded-full px-3 py-1 font-semibold transition-transform active:scale-[97%]"
+              style={{ fontSize: 13, background: 'var(--pip-500)', color: '#fff' }}
+            >
+              Predict <IconArrowRight size={13} />
+            </Link>
+          </div>
           {market.closes_at && (
             <span className="truncate font-medium" style={{ fontSize: 13, letterSpacing: '-0.1px' }}>
               Ends {fmtDate(market.closes_at)} · <span style={{ color: 'var(--text-3)' }}>MarketPips</span>
@@ -415,16 +494,18 @@ export function HeroSection({
   hotTopics = [],
   breaking = [],
   comments = {},
+  activity = {},
 }: {
   items?: HeroMarket[]
   hotTopics?: Market[]
   breaking?: BreakingItem[]
   comments?: Record<string, HeroComment[]>
+  activity?: Record<string, HeroActivityItem[]>
 }) {
   if (items.length === 0) return null
 
   const slides = items.map((it) => (
-    <Spotlight key={it.market.id} market={it.market} series={it.series} comments={comments[it.market.id]} />
+    <Spotlight key={it.market.id} market={it.market} series={it.series} comments={comments[it.market.id]} activity={activity[it.market.id]} />
   ))
   const titles = items.map((it) => it.market.title)
 
