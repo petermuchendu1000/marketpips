@@ -188,7 +188,8 @@ export function ProbLines({
                 stroke="var(--hairline-strong)"
                 strokeWidth={1}
                 strokeDasharray="1 3"
-                strokeLinecap="round"
+                strokeOpacity={0.5}
+                shapeRendering="crispEdges"
               />
               <text
                 x={labelX}
