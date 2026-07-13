@@ -84,10 +84,11 @@ export function Navbar() {
       <nav className={`navbar transition-shadow ${scrolled ? 'shadow-lg' : ''}`}>
         <div className="max-w-[1350px] mx-auto px-4 lg:px-6 h-14 flex items-center gap-3">
 
-          {/* Logo */}
-          <Link href="/" className="flex items-center gap-2 mr-2 flex-shrink-0">
+          {/* Logo + company name — the name now sits next to the mark on every
+              breakpoint (previously hidden on the smallest screens). */}
+          <Link href="/" className="flex items-center gap-2 mr-1 sm:mr-2 flex-shrink-0" aria-label="MarketPips home">
             <LogoMark size={28} />
-            <span className="font-display text-[15px] font-bold tracking-tight hidden xs:block" style={{ color: 'var(--text)' }}>
+            <span className="font-display text-[15px] font-bold tracking-tight" style={{ color: 'var(--text)' }}>
               MarketPips
             </span>
           </Link>
@@ -133,8 +134,11 @@ export function Navbar() {
               <IconSearch size={18} className="text-[var(--text-secondary)]" />
             </button>
 
-            {/* Light/dark switch — always available (guests + members). */}
-            <ThemeToggle />
+            {/* Light/dark switch — desktop only; on mobile it lives in the
+                "More" menu to declutter the top bar. */}
+            <span className="hidden md:inline-flex">
+              <ThemeToggle />
+            </span>
 
             {!loading && (
               <>
@@ -153,18 +157,20 @@ export function Navbar() {
                       <span className="text-[10px] opacity-70">{preferredCurrency}</span>
                     </button>
 
-                    {/* Notifications */}
+                    {/* Notifications — desktop only; on mobile it lives in the
+                        "More" menu to declutter the top bar. */}
                     <Link
                       href="/notifications"
-                      className="relative p-2 rounded-lg hover:bg-[var(--bg-tertiary)] transition-colors"
+                      className="relative hidden md:inline-flex p-2 rounded-lg hover:bg-[var(--bg-tertiary)] transition-colors"
                       aria-label="Notifications"
                     >
                       <IconBell size={17} className="text-[var(--text-secondary)]" />
                       <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full animate-pulse-dot" style={{ background: 'var(--pip-500)' }} />
                     </Link>
 
-                    {/* User menu */}
-                    <div className="relative" ref={menuRef}>
+                    {/* User (profile) menu — desktop only; on mobile the profile
+                        actions live in the "More" menu to declutter the top bar. */}
+                    <div className="relative hidden md:block" ref={menuRef}>
                       <button
                         onClick={() => setUserMenuOpen(v => !v)}
                         className="flex items-center gap-1.5 p-1 rounded-lg hover:bg-[var(--bg-tertiary)] transition-colors"
@@ -258,20 +264,50 @@ export function Navbar() {
                   {link.icon}{link.label}
                 </Link>
               ))}
+              {/* Theme toggle — available to guests + members (moved off the bar). */}
+              <div className="flex items-center justify-between px-3 py-2 rounded-lg">
+                <span className="text-sm font-medium text-[var(--text-secondary)]">Theme</span>
+                <ThemeToggle />
+              </div>
+
               {user && (
                 <>
-                  <Link href="/portfolio" className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-[var(--text-secondary)]">
-                    <IconPortfolio size={15} />Portfolio
-                  </Link>
+                  <div className="my-1 border-t border-[var(--border)]" />
+                  {/* Balance (was in the desktop profile dropdown). */}
+                  <div className="flex items-center justify-between px-3 py-2">
+                    <span className="text-xs text-[var(--text-muted)]">Balance</span>
+                    <span className="font-mono font-bold text-sm" style={{ color: 'var(--text)' }}>
+                      {currencyInfo?.symbol}{balance.toLocaleString()} {preferredCurrency}
+                    </span>
+                  </div>
                   <Link href="/notifications" className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-[var(--text-secondary)]">
                     <IconBell size={15} />Notifications
                   </Link>
-                  <div className="pt-2 border-t border-[var(--border)]">
+                  <Link href="/portfolio" className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-[var(--text-secondary)]">
+                    <IconPortfolio size={15} />Portfolio
+                  </Link>
+                  <Link href="/profile" className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-[var(--text-secondary)]">
+                    <IconUser size={15} />Profile
+                  </Link>
+                  <Link href="/kyc" className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-[var(--text-secondary)]">
+                    <IconShield size={15} />Verify Identity
+                  </Link>
+                  <Link href="/settings" className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-[var(--text-secondary)]">
+                    <IconSettings size={15} />Settings
+                  </Link>
+                  <div className="pt-2 mt-1 border-t border-[var(--border)]">
                     <button
                       onClick={() => { setDepositOpen(true); setMenuOpen(false) }}
                       className="w-full btn btn-primary btn-sm mb-2"
                     >
                       <IconDeposit size={14} /> Deposit Funds
+                    </button>
+                    <button
+                      onClick={signOut}
+                      className="flex w-full items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium"
+                      style={{ color: 'var(--no-700)' }}
+                    >
+                      <IconLogOut size={15} />Sign out
                     </button>
                   </div>
                 </>
