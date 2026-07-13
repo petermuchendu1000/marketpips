@@ -132,7 +132,7 @@ function Spotlight({ market, series, comments }: HeroMarket & { comments?: HeroC
         </div>
 
         {/* body: ranked outcomes | chart */}
-        <div className="mt-4 grid grid-cols-1 gap-6 md:grid-cols-[minmax(0,346fr)_495fr]">
+        <div className="mt-4 grid grid-cols-1 gap-6 md:grid-cols-[minmax(0,300fr)_560fr]">
           {/* outcomes */}
           <div className="flex min-w-0 flex-col">
             <div className="flex flex-col">
@@ -187,12 +187,12 @@ function Spotlight({ market, series, comments }: HeroMarket & { comments?: HeroC
           </div>
 
           {/* chart + legend */}
-          <div className="flex min-w-0 flex-col gap-2">
-            <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5">
+          <div className="flex min-w-0 flex-col gap-2.5">
+            <div className="flex flex-row flex-wrap items-center gap-x-5 gap-y-1.5">
               {(series.binary ? ranked.slice(0, 1) : ranked.slice(0, 4)).map((o, i) => (
                 <span key={o.id || o.label} className="flex items-center gap-1.5 whitespace-nowrap">
                   <span
-                    className="h-2 w-2 flex-none rounded-full"
+                    className="h-2.5 w-2.5 flex-none rounded-full"
                     style={{ background: series.binary ? 'var(--yes)' : LINE_PALETTE[i % LINE_PALETTE.length] }}
                     aria-hidden
                   />
@@ -208,8 +208,8 @@ function Spotlight({ market, series, comments }: HeroMarket & { comments?: HeroC
             <ProbLines
               lines={series.lines}
               binary={series.binary}
-              width={495}
-              height={264}
+              width={560}
+              height={300}
               grid
               autoDomain
               axis="right"
@@ -218,7 +218,7 @@ function Spotlight({ market, series, comments }: HeroMarket & { comments?: HeroC
               maxLines={series.binary ? 1 : 4}
               fillArea={series.binary}
               xLabels={ticks}
-              strokeWidth={2}
+              strokeWidth={2.5}
               className="w-full"
             />
           </div>
@@ -412,8 +412,8 @@ export function HeroSection({
 
   return (
     <section className="relative">
-      <div className="relative mx-auto max-w-6xl px-5 py-6 sm:px-8 sm:py-8">
-        <div className="grid grid-cols-1 gap-5 lg:grid-cols-[1.7fr_1fr]">
+      <div className="relative mx-auto max-w-[1280px] px-5 py-6 sm:px-8 sm:py-8">
+        <div className="grid grid-cols-1 gap-5 lg:grid-cols-[2fr_1fr]">
           <HeroCarousel slides={slides} titles={titles} />
           <HeroRail hotTopics={hotTopics} breaking={breaking} />
         </div>
