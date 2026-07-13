@@ -29,7 +29,7 @@ import { HeroCarousel } from '@/components/layout/hero-carousel'
 import { MarketCardActions } from '@/components/markets/market-card-actions'
 import {
   IconArrowRight, IconFire, IconChevronRight, IconArrowUp, IconArrowDown,
-  CategoryIcon, IconMpesa,
+  IconMpesa,
 } from '@/components/ui/icons'
 
 export interface BreakingItem {
@@ -114,15 +114,12 @@ function Spotlight({ market, series, comments }: HeroMarket & { comments?: HeroC
             className="mt-0.5 flex-none"
           />
           <div className="min-w-0 flex-1">
-            <div className="flex items-center gap-1.5 text-[14px] font-medium leading-none" style={{ color: 'var(--text-3)', letterSpacing: '-0.09px' }}>
-              <span className="inline-flex items-center gap-1.5">
-                <CategoryIcon category={market.category} size={13} />
-                {cat.label}
-              </span>
+            <div className="flex items-center gap-1 truncate" style={{ fontSize: 14, fontWeight: 540, lineHeight: '20px', letterSpacing: '-0.09px', color: 'var(--text-3)' }}>
+              <span className="truncate">{cat.label}</span>
               {sub && <><span aria-hidden>·</span><span className="truncate">{sub}</span></>}
             </div>
             <h1
-              className="mt-1.5 font-semibold"
+              className="mt-0.5 font-semibold"
               style={{ fontSize: 24, lineHeight: '32px', letterSpacing: 'normal', color: 'var(--text)' }}
             >
               {market.title}
@@ -145,15 +142,15 @@ function Spotlight({ market, series, comments }: HeroMarket & { comments?: HeroC
                     className="flex min-h-10 items-center justify-between gap-3 pb-2"
                     style={{ borderBottom: '1px solid var(--hairline)' }}
                   >
-                    <div className="flex min-w-0 flex-1 items-center gap-2">
+                    <div className="flex min-w-0 flex-1 items-center gap-1.5">
                       {o.imageUrl && (
                         <EntityAvatar name={o.label} imageUrl={o.imageUrl} size={30} shape="squircle" className="flex-none" />
                       )}
-                      <span className="truncate font-medium" style={{ fontSize: 15, color: 'var(--text)', letterSpacing: '-0.15px' }}>
+                      <span className="truncate" style={{ fontSize: 15, fontWeight: 450, lineHeight: '22.5px', color: 'var(--text)', letterSpacing: '-0.15px' }}>
                         {o.label}
                       </span>
                     </div>
-                    <span className="flex-none tabular-nums font-semibold" style={{ fontSize: 26, lineHeight: 1, color: 'var(--text)', letterSpacing: '-0.4px' }}>
+                    <span className="flex-none tabular-nums font-semibold" style={{ fontSize: 20, lineHeight: '24px', color: 'var(--text)', letterSpacing: '-0.2px' }}>
                       {Math.round(o.price * 100)}%
                     </span>
                   </div>
@@ -253,13 +250,13 @@ function BinaryRows({ yesPct }: { yesPct: number }) {
           className="flex min-h-10 items-center justify-between gap-3 pb-2"
           style={{ borderBottom: '1px solid var(--hairline)' }}
         >
-          <div className="flex min-w-0 flex-1 items-center gap-2">
+          <div className="flex min-w-0 flex-1 items-center gap-1.5">
             <span className="h-[18px] w-[18px] flex-none rounded-[5px]" style={{ background: r.color }} aria-hidden />
-            <span className="truncate font-medium" style={{ fontSize: 15, color: 'var(--text)', letterSpacing: '-0.15px' }}>
+            <span className="truncate" style={{ fontSize: 15, fontWeight: 450, lineHeight: '22.5px', color: 'var(--text)', letterSpacing: '-0.15px' }}>
               {r.label}
             </span>
           </div>
-          <span className="flex-none tabular-nums font-semibold" style={{ fontSize: 26, lineHeight: 1, color: 'var(--text)', letterSpacing: '-0.4px' }}>
+          <span className="flex-none tabular-nums font-semibold" style={{ fontSize: 20, lineHeight: '24px', color: 'var(--text)', letterSpacing: '-0.2px' }}>
             {r.pct}%
           </span>
         </div>
