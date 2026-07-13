@@ -23,6 +23,8 @@ export interface OptionLine {
   price: number
   /** Chronological probability points in [0,1] (oldest first). */
   points: number[]
+  /** Entity image (candidate photo, team crest, logo) when stored. */
+  imageUrl?: string | null
 }
 
 export interface MarketSeries {
@@ -51,6 +53,7 @@ interface OptionRow {
   price: number | null
   yes_price: number | null
   display_order: number | null
+  image_url: string | null
 }
 interface HistRow {
   market_id: string
@@ -83,7 +86,7 @@ export async function getOptionSeries(
     supabase.from('markets').select('id, resolution_type, yes_price').in('id', marketIds),
     supabase
       .from('market_options')
-      .select('id, market_id, label, price, yes_price, display_order')
+      .select('id, market_id, label, price, yes_price, display_order, image_url')
       .in('market_id', marketIds),
     supabase
       .from('price_history')
@@ -143,7 +146,7 @@ export async function getOptionSeries(
           seeded = true
           points = [price, price]
         }
-        return { id: o.id, label: o.label, price, points: downsample(points, maxPoints) }
+        return { id: o.id, label: o.label, price, points: downsample(points, maxPoints), imageUrl: o.image_url }
       })
       lines.sort((a, b) => b.price - a.price)
       const lead = lines[0]

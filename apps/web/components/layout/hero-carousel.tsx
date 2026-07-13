@@ -69,6 +69,9 @@ export function HeroCarousel({ slides, titles, autoPlayMs = 7000 }: HeroCarousel
   if (n === 0) return null
 
   return (
+    // The carousel region legitimately owns Left/Right arrow navigation per the
+    // WAI-ARIA APG carousel pattern; the disable is scoped to that intent.
+    // eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions
     <div
       className="flex flex-col gap-3"
       role="group"

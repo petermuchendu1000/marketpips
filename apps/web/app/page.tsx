@@ -10,6 +10,7 @@ import { MarketsTicker } from '@/components/markets/markets-ticker'
 import { getCardOptions, type CardOption } from '@/lib/markets/card-options'
 import { getPriceSeries, type PriceSeries } from '@/lib/markets/price-history'
 import { getOptionSeries, type MarketSeries } from '@/lib/markets/option-series'
+import { getSpotlightComments } from '@/lib/markets/spotlight-comments'
 import { hideSettling } from '@/lib/markets/settling'
 import type { Market, MarketCategory } from '@/types'
 import {
@@ -101,6 +102,9 @@ async function getData() {
   const optionSeries = await getOptionSeries(supabase, chartIds)
   const heroSeries = optionSeries
 
+  // Top couple of comments for the hero spotlight markets (comment peek).
+  const heroComments = await getSpotlightComments(supabase, heroMarkets.map((m) => m.id))
+
   // Biggest movers: markets whose implied probability shifted the most (either
   // direction) over the recorded window, ranked by absolute change.
   const movers = moversPoolList
@@ -130,6 +134,7 @@ async function getData() {
     categoryCounts,
     heroMarkets,
     heroSeries,
+    heroComments,
     optionSeries,
   }
 }
@@ -141,20 +146,18 @@ function fmtCompact(n: number) {
 }
 
 export default async function HomePage() {
-  const { featured, trending, recent, activeCount, totalVolume, topByMarket, countByMarket, seriesByMarket, movers, hotTopics, allActive, categoryCounts, heroMarkets, heroSeries, optionSeries } =
+  const { featured, trending, recent, activeCount, totalVolume, topByMarket, countByMarket, seriesByMarket, movers, hotTopics, allActive, categoryCounts, heroMarkets, heroSeries, heroComments, optionSeries } =
     await getData()
 
-  // Build the hero spotlight (first market) + rail (next few), pairing each
-  // market with its per-option probability series. Markets missing a series
-  // are skipped so the hero always has real curves to draw.
+  // Build the hero carousel items, pairing each market with its per-option
+  // probability series. Markets missing a series are skipped so every slide
+  // always has real curves to draw.
   const heroItems = heroMarkets
     .map((m) => {
       const series = heroSeries.get(m.id)
       return series ? { market: m, series } : null
     })
     .filter((x): x is { market: Market; series: MarketSeries } => x !== null)
-  const heroSpotlight = heroItems[0] ?? null
-  const heroOthers = heroItems.slice(1, 4)
 
   // Client components can't receive Maps as props — flatten the option lookups
   // (only for the markets the Explore feed will render) into plain objects.
@@ -198,7 +201,7 @@ export default async function HomePage() {
   return (
     <div style={{ background: 'var(--bg)' }}>
       <HomeCategoryBar />
-      <HeroSection spotlight={heroSpotlight} others={heroOthers} />
+      <HeroSection items={heroItems} hotTopics={hotTopics} comments={heroComments} />
 
       {/* Live ticker */}
       {tickerMarkets.length > 0 && <MarketsTicker markets={tickerMarkets} />}
