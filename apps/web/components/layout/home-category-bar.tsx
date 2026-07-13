@@ -56,7 +56,7 @@ export function HomeCategoryBar() {
         borderBottom: '1px solid var(--hairline)',
       }}
     >
-      <div className="max-w-7xl mx-auto px-4 relative flex items-center gap-1">
+      <div className="max-w-[1600px] mx-auto px-4 lg:px-6 relative flex items-center gap-1">
         <button
           type="button"
           onClick={() => scroll('left')}

@@ -187,19 +187,14 @@ function BoardRow({
     >
       <span className="pointer-events-none flex min-w-0 flex-1 items-center gap-2">
         {showAvatar && <EntityAvatar name={option.label} imageUrl={option.imageUrl} size={20} shape="circle" />}
-        <span className="truncate text-[13.5px] font-normal" style={{ color: 'var(--text-primary)' }}>{option.label}</span>
+        <span className="truncate text-[14px] font-normal" style={{ color: 'var(--text-primary)' }}>{option.label}</span>
       </span>
       <span className="flex flex-none items-center gap-1.5">
-        <span className="min-w-[2.5ch] text-right text-[15px] font-semibold tabular-nums" style={{ color: 'var(--text-primary)' }}>
-          {pct}%
-        </span>
         <Link href={sideHref('yes', option.id || undefined)} className="mbtn mbtn-yes pointer-events-auto" aria-label={`Buy ${yesLabel} on ${option.label} — ${pct}% chance`}>
-          <span className="mbtn-rest">{yesLabel}</span>
-          <span className="mbtn-hover tabular-nums">{pct}%</span>
+          {yesLabel} <span className="mbtn-pct">{pct}%</span>
         </Link>
         <Link href={sideHref('no', option.id || undefined)} className="mbtn mbtn-no pointer-events-auto" aria-label={`Buy ${noLabel} on ${option.label} — ${noPct}% chance`}>
-          <span className="mbtn-rest">{noLabel}</span>
-          <span className="mbtn-hover tabular-nums">{noPct}%</span>
+          {noLabel} <span className="mbtn-pct">{noPct}%</span>
         </Link>
       </span>
     </div>

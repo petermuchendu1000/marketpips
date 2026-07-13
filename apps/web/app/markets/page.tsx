@@ -88,7 +88,7 @@ export default async function MarketsPage(
   const key = `${parsed.q}|${parsed.category ?? ''}|${parsed.status}|${parsed.sort}|${parsed.page}`
 
   return (
-    <div className="max-w-6xl mx-auto px-5 sm:px-8 py-8 sm:py-10">
+    <div className="max-w-[1600px] mx-auto px-4 lg:px-6 py-8 sm:py-10">
       {/* Header */}
       <div className="flex items-start justify-between gap-4 mb-6">
         <div>
