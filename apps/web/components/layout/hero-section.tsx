@@ -114,6 +114,7 @@ function Spotlight({ market, series, comments }: HeroMarket & { comments?: HeroC
             imageUrl={market.cover_image_url}
             size={56}
             shape="squircle"
+            radius={9}
             className="mt-0.5 flex-none"
           />
           <div className="min-w-0 flex-1">
@@ -187,16 +188,18 @@ function Spotlight({ market, series, comments }: HeroMarket & { comments?: HeroC
             <div className="flex flex-row flex-wrap items-center gap-x-5 gap-y-1.5">
               {(series.binary ? ranked.slice(0, 1) : ranked.slice(0, 4)).map((o, i) => (
                 <span key={o.id || o.label} className="flex items-center gap-1.5 whitespace-nowrap">
+                  {/* PM legend swatch (measured): 8×8 round dot in the line color. */}
                   <span
-                    className="h-1 w-4 flex-none rounded-full"
+                    className="h-2 w-2 flex-none rounded-full"
                     style={{ background: series.binary ? 'var(--yes)' : LINE_PALETTE[i % LINE_PALETTE.length] }}
                     aria-hidden
                   />
-                  <span className="font-medium" style={{ fontSize: 13, color: 'var(--text-3)' }}>
+                  {/* name (text-secondary 13/400) with value inline (neutral-800, 600). */}
+                  <span style={{ fontSize: 13, lineHeight: '16px', color: 'var(--text-3)' }}>
                     {series.binary ? 'Yes' : o.label}
-                  </span>
-                  <span className="tabular-nums font-semibold" style={{ fontSize: 13, color: 'var(--text-2)', letterSpacing: '-0.1px' }}>
-                    {(o.price * 100).toFixed(1)}%
+                    <span className="ml-0.5 tabular-nums font-semibold" style={{ color: 'var(--text-2)' }}>
+                      {(o.price * 100).toFixed(1)}%
+                    </span>
                   </span>
                 </span>
               ))}

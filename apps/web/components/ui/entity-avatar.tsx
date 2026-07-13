@@ -22,6 +22,8 @@ interface EntityAvatarProps {
   size?: number
   /** Corner style: soft square (logos) or circle (people). */
   shape?: 'squircle' | 'circle'
+  /** Explicit corner radius in px — overrides the squircle default (ignored for circle). */
+  radius?: number
   className?: string
 }
 
@@ -30,11 +32,12 @@ export function EntityAvatar({
   imageUrl,
   size = 40,
   shape = 'squircle',
+  radius: radiusOverride,
   className = '',
 }: EntityAvatarProps) {
   const [failed, setFailed] = useState(false)
   const mono = monogram(name)
-  const radius = shape === 'circle' ? '9999px' : `${Math.round(size * 0.22)}px`
+  const radius = shape === 'circle' ? '9999px' : `${radiusOverride ?? Math.round(size * 0.22)}px`
   const showImage = isHttpUrl(imageUrl) && !failed
 
   const base: React.CSSProperties = {
