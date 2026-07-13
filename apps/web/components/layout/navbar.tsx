@@ -82,7 +82,7 @@ export function Navbar() {
   return (
     <>
       <nav className={`navbar transition-shadow ${scrolled ? 'shadow-lg' : ''}`}>
-        <div className="max-w-[1600px] mx-auto px-4 lg:px-6 h-14 flex items-center gap-3">
+        <div className="max-w-[1350px] mx-auto px-4 lg:px-6 h-14 flex items-center gap-3">
 
           {/* Logo */}
           <Link href="/" className="flex items-center gap-2 mr-2 flex-shrink-0">

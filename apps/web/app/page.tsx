@@ -251,7 +251,7 @@ export default async function HomePage() {
       <HomeCategoryBar />
       <HeroSection items={heroItems} hotTopics={hotTopics} breaking={breaking} comments={heroComments} activity={heroActivity} />
 
-      <div className="max-w-[1600px] mx-auto px-4 lg:px-6">
+      <div className="max-w-[1350px] mx-auto px-4 lg:px-6">
 
         {/* Category browse */}
         <Section eyebrow="Browse" title="Markets across every domain">

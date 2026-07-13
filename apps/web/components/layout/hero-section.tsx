@@ -520,7 +520,7 @@ export function HeroSection({
 
   return (
     <section className="relative">
-      <div className="relative mx-auto max-w-[1400px] px-5 py-6 sm:px-8 sm:py-8">
+      <div className="relative mx-auto max-w-[1350px] px-4 py-6 lg:px-6 sm:py-8">
         <div className="grid grid-cols-1 gap-5 lg:grid-cols-[2.35fr_1fr]">
           <HeroCarousel slides={slides} titles={titles} />
           <HeroRail hotTopics={hotTopics} breaking={breaking} />

@@ -170,3 +170,16 @@ export const IconMoon = icon(<><path d="M20 14.5A8 8 0 019.5 4a1 1 0 00-1.3-1.2A
 // Bookmark (watchlist affordance on the market card footer) — same 24px grid
 // and 1.75 stroke as the rest of the set; a clean tag with the notched foot.
 export const IconBookmark = icon(<><path d="M6 4.5h12a1 1 0 011 1V20l-7-4-7 4V5.5a1 1 0 011-1z"/></>)
+// Rewards (gift) — traced 1:1 from Polymarket's card-footer icon (viewBox 0 0 18
+// 18): a ribboned gift box. Opens the "Earn rewards by placing limit orders"
+// affordance on reward-eligible markets.
+export const IconGift = icon(
+  <>
+    <line x1="9" y1="5.25" x2="9" y2="16.25"/>
+    <path d="M3.75,3.5c0-.966,.784-1.75,1.75-1.75,2.589,0,3.5,3.5,3.5,3.5h-3.5c-.966,0-1.75-.784-1.75-1.75Z"/>
+    <path d="M12.5,5.25h-3.5s.911-3.5,3.5-3.5c.966,0,1.75,.784,1.75,1.75s-.784,1.75-1.75,1.75Z"/>
+    <path d="M14.25,8.25v6c0,1.105-.895,2-2,2H5.75c-1.105,0-2-.895-2-2v-6"/>
+    <rect x="1.75" y="5.25" width="14.5" height="3" rx="1" ry="1"/>
+  </>,
+  '0 0 18 18',
+)

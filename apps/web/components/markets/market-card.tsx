@@ -24,7 +24,7 @@ import Link from 'next/link'
 import type { Market } from '@/types'
 import { CATEGORY_LABELS } from '@/types'
 import { splitHighlight } from '@/lib/search'
-import { IconArrowUp, IconArrowDown, IconBookmark } from '@/components/ui/icons'
+import { IconArrowUp, IconArrowDown, IconBookmark, IconGift } from '@/components/ui/icons'
 import { EntityAvatar } from '@/components/ui/entity-avatar'
 import type { CardOption } from '@/lib/markets/card-options'
 import { useClientClock } from '@/hooks/use-client-clock'
@@ -334,7 +334,8 @@ export function MarketCard({
             </span>
           )}
         </div>
-        <div className="flex flex-none items-center">
+        <div className="flex flex-none items-center gap-2.5">
+          <IconGift size={16} strokeWidth={1.5} aria-label="Rewards available on this market" />
           <IconBookmark size={15} />
         </div>
       </div>

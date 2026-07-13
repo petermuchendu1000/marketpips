@@ -241,15 +241,19 @@
     min-height:180px; height:100%;
     padding-top:12px;                 /* pt-3 */
     background:var(--surface);
-    border:1px solid var(--hairline);
+    /* Polymarket parity: NO hairline border — cards float on the white page via
+       a soft TWO-LAYER shadow (Tailwind shadow-md tinted black/4) alone. A solid
+       hairline made our cards look boxed/flat; PM's depth (and the perceived
+       bg↔element separation) comes entirely from this soft shadow. */
+    border:1px solid transparent;
     border-radius:14px;               /* PM rounded-xl ≈ 15px */
-    box-shadow:0 2px 4px rgba(10,12,16,.04);
+    box-shadow:0 4px 6px -1px rgba(0,0,0,.04), 0 2px 4px -2px rgba(0,0,0,.04);
     overflow:hidden;
     transition:transform var(--dur) var(--ease-out), box-shadow var(--dur) var(--ease-out), border-color var(--dur);
     cursor:pointer;
     isolation:isolate;
   }
-  .market-card:hover { transform:translateY(-1px); box-shadow:0 6px 16px rgba(10,12,16,.09); border-color:var(--hairline-strong); }
+  .market-card:hover { transform:translateY(-1px); box-shadow:0 4px 6px -1px rgba(0,0,0,.08), 0 2px 4px -2px rgba(0,0,0,.08); }
 
   /* ---- Market-card candidate-row Yes/No micro-buttons ----
      The side label AND its price live INSIDE the button ("Yes 52%" / "No 48%"),
