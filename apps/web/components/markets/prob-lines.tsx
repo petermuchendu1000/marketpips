@@ -1,23 +1,42 @@
 // components/markets/prob-lines.tsx
 // ------------------------------------------------------------
-// Dependency-free, server-rendered multi-line probability chart. Draws ONE
-// smooth curve PER OPTION so the number of lines always equals the number of
-// outcomes (Polymarket's "event" chart). Pure inline SVG — no chart lib, no
-// client hooks — so it renders on the server and adds ~0 first-load JS.
+// Dependency-free, server-rendered multi-line probability chart. Draws ONE line
+// PER OPTION so the number of lines always equals the number of outcomes
+// (Polymarket's "event" chart). Pure inline SVG — no chart lib, no client hooks
+// — so it renders on the server and adds ~0 first-load JS.
 //
-// By default the y-domain is fixed to 0–100% so every curve is directly
-// comparable (a 40% line always sits at the same height as another market's
-// 40% line). The hero opts into `autoDomain` to zoom the y-axis to the data
-// range (Polymarket-style, e.g. 0–40% for a four-horse race) with a right-hand
-// axis and real dated x-axis ticks. Color is decorative; the legend / labels
-// carry the meaning, never hue alone.
+// Two rendering modes (see docs/design/HERO-POLYMARKET-GROUNDTRUTH.md §2b):
+//   • smooth (default)  — organic midpoint-bézier curves (detail pages).
+//   • step   (step=true)— Polymarket's orderbook-style STEP-AFTER lines: the
+//                         value holds flat then jumps, mirroring a live mid.
+//
+// Y-domain is fixed 0–100% by default (so a 40% line is always at the same
+// height); the hero opts into `autoDomain` to zoom to the data range with a
+// right-hand axis + real dated x-axis. Color is decorative — the legend and
+// labels carry meaning, never hue alone.
+//
+// IMPORTANT (fidelity): we DO NOT use preserveAspectRatio="none". That was the
+// root cause of the earlier axis-text distortion — non-uniform scaling stretched
+// every glyph. Instead the SVG keeps its natural aspect ratio (viewBox matches
+// width×height) and scales uniformly via CSS width:100%;height:auto, so lines
+// AND text stay crisp at every container width, exactly like the live site.
 import type { OptionLine } from '@/lib/markets/option-series'
 
-// Brand-led categorical palette (shared with the detail-page outcomes chart).
+// Categorical palette — measured from Polymarket's live hero chart, then
+// extended with harmonious hues for markets with >4 outcomes.
 export const LINE_PALETTE = [
-  'var(--pip-500)', 'var(--yes)', '#7c6cf0', '#e0973b',
-  '#3aa5c2', '#c2557a', '#5b8def', '#9a8c5c',
-  '#4bb37b', '#d06a4a', '#8a6cf0', '#b0983a',
+  '#2E6BE6', // blue
+  '#FDC503', // gold
+  '#FF7F0E', // orange
+  '#87BFFF', // light blue
+  '#7C4DFF', // violet
+  '#12A150', // green
+  '#E5484D', // red
+  '#00B8D9', // teal
+  '#C2557A', // magenta
+  '#9A8C5C', // brass
+  '#5B8DEF', // periwinkle
+  '#D06A4A', // terracotta
 ]
 
 interface ProbLinesProps {
@@ -39,6 +58,10 @@ interface ProbLinesProps {
   axis?: 'left' | 'right'
   /** Real date labels for the x-axis (evenly distributed across the width). */
   xLabels?: string[]
+  /** Polymarket-style step-after lines (flat hold, then jump). */
+  step?: boolean
+  /** Soft halo behind each line's endpoint dot (hero polish). */
+  endpointHalo?: boolean
 }
 
 /** Smooth Catmull-Rom-ish path (midpoint cubic bézier) for organic curves. */
@@ -51,13 +74,23 @@ function smoothPath(xy: readonly (readonly [number, number])[]): string {
   }, '')
 }
 
+/** Step-after path: hold the previous y, jump vertically, then advance x. */
+function stepPath(xy: readonly (readonly [number, number])[]): string {
+  return xy.reduce((acc, [x, y], i, arr) => {
+    if (i === 0) return `M ${x.toFixed(2)} ${y.toFixed(2)}`
+    const [, y0] = arr[i - 1]
+    // horizontal to the new x at the OLD y, then vertical to the new y
+    return `${acc} L ${x.toFixed(2)} ${y0.toFixed(2)} L ${x.toFixed(2)} ${y.toFixed(2)}`
+  }, '')
+}
+
 /** Pick a "nice" domain + tick levels (in [0,1]) covering [min,max]. */
 function niceDomain(min: number, max: number): { lo: number; hi: number; ticks: number[] } {
   // Guarantee a readable minimum span so near-flat data isn't a zero-height band.
   const pad = Math.max((max - min) * 0.12, 0.03)
   let lo = Math.max(0, min - pad)
   let hi = Math.min(1, max + pad)
-  const steps = [0.05, 0.1, 0.2, 0.25]
+  const steps = [0.05, 0.1, 0.15, 0.2, 0.25]
   const step = steps.find((s) => (hi - lo) / s <= 5) ?? 0.25
   lo = Math.max(0, Math.floor(lo / step) * step)
   hi = Math.min(1, Math.ceil(hi / step) * step)
@@ -79,17 +112,20 @@ export function ProbLines({
   autoDomain = false,
   axis = 'left',
   xLabels,
+  step = false,
+  endpointHalo = false,
 }: ProbLinesProps) {
   const drawn = [...lines].sort((a, b) => b.price - a.price).slice(0, maxLines)
   if (drawn.length === 0) return null
 
   const axisRight = axis === 'right'
   const showXLabels = grid && !!xLabels && xLabels.length > 0
-  const axisW = grid ? 34 : 4
-  const padL = grid && !axisRight ? axisW : 4
+  // Room for the % axis labels (right/left) — Arial ~12px, "60%" ≈ 26px.
+  const axisW = grid ? 30 : 4
+  const padL = grid && !axisRight ? axisW : 6
   const padR = grid && axisRight ? axisW : 8
-  const padT = 8
-  const padB = showXLabels ? 22 : grid ? 20 : 6
+  const padT = 10
+  const padB = showXLabels ? 24 : grid ? 20 : 6
   const w = width - padL - padR
   const h = height - padT - padB
 
@@ -105,7 +141,6 @@ export function ProbLines({
     const nd = niceDomain(dmin, dmax)
     yMin = nd.lo
     yMax = nd.hi
-    // Drop the extreme ticks (they hug the frame) to keep the axis uncluttered.
     gridLevels = nd.ticks
   }
   const span = yMax - yMin || 1
@@ -121,15 +156,16 @@ export function ProbLines({
 
   const labelX = axisRight ? width - padR + 5 : padL - 6
   const labelAnchor = axisRight ? 'start' : 'end'
+  const axisFont = 'system-ui, -apple-system, Arial, sans-serif'
 
   return (
     <svg
       width="100%"
       viewBox={`0 0 ${width} ${height}`}
       className={className}
-      preserveAspectRatio="none"
       role="img"
       aria-label={`Probability over time for ${drawn.map((l) => l.label).join(', ')}`}
+      style={{ height: 'auto', display: 'block', overflow: 'visible' }}
     >
       {grid && (
         <g aria-hidden>
@@ -142,15 +178,16 @@ export function ProbLines({
                 y2={yOf(lv)}
                 stroke="var(--hairline)"
                 strokeWidth={1}
-                strokeDasharray="3 4"
+                strokeDasharray="2 5"
+                strokeLinecap="round"
               />
               <text
                 x={labelX}
-                y={yOf(lv) + 3}
+                y={yOf(lv) + 4}
                 textAnchor={labelAnchor}
-                fontSize="9"
+                fontSize="11.5"
                 fill="var(--text-3)"
-                fontFamily="var(--font-mono, monospace)"
+                fontFamily={axisFont}
               >
                 {Math.round(lv * 100)}%
               </text>
@@ -166,7 +203,7 @@ export function ProbLines({
             : 'var(--no)'
           : LINE_PALETTE[li % LINE_PALETTE.length]
         const xy = line.points.map((p, i) => [xOf(i, line.points.length), yOf(p)] as const)
-        const d = smoothPath(xy)
+        const d = step ? stepPath(xy) : smoothPath(xy)
         const last = xy[xy.length - 1]
         const areaD =
           fillArea && binary
@@ -183,7 +220,8 @@ export function ProbLines({
               strokeLinecap="round"
               strokeLinejoin="round"
             />
-            <circle cx={last[0]} cy={last[1]} r={strokeWidth + 1.5} fill={color} />
+            {endpointHalo && <circle cx={last[0]} cy={last[1]} r={strokeWidth + 4} fill={color} opacity={0.18} />}
+            <circle cx={last[0]} cy={last[1]} r={strokeWidth + 1} fill={color} />
           </g>
         )
       })}
@@ -200,9 +238,9 @@ export function ProbLines({
                 x={x}
                 y={height - 6}
                 textAnchor={anchor}
-                fontSize="9"
+                fontSize="11.5"
                 fill="var(--text-3)"
-                fontFamily="var(--font-mono, monospace)"
+                fontFamily={axisFont}
               >
                 {lbl}
               </text>
