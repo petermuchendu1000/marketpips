@@ -58,6 +58,15 @@ const config: Config = {
           muted:     'var(--text-3)',
         },
       },
+      // TEXT color overrides only (bg-/border- keep the base fill colors).
+      // Semantic Yes/No as small text must clear WCAG AA 4.5:1 on every themed
+      // surface; the base #1F9D6B/#D1495B only reach ~3.2-4.4:1 as text. Point
+      // the text-yes/text-no utilities at the theme-aware -700 shades (via the
+      // --yes-text/--no-text vars) while preserving text-yes-700/text-no-700.
+      textColor: {
+        yes: { DEFAULT: 'var(--yes-text)', 700: 'var(--yes-700)' },
+        no: { DEFAULT: 'var(--no-text)', 700: 'var(--no-700)' },
+      },
       borderRadius: {
         sm:  '8px',
         DEFAULT: '8px',

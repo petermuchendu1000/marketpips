@@ -422,7 +422,7 @@ export function SettingsView() {
               className="rounded-pill px-2.5 py-1 text-xs font-semibold capitalize"
               style={{
                 background: kycVerified ? 'var(--yes-tint)' : 'var(--surface-2)',
-                color: kycVerified ? 'var(--yes)' : 'var(--text-secondary)',
+                color: kycVerified ? 'var(--yes-text)' : 'var(--text-secondary)',
               }}
             >
               {kyc}

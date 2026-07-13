@@ -113,7 +113,7 @@ function ActivityRow({ item }: { item: HeroActivityItem }) {
         <span className="min-w-0 flex-1 truncate" style={{ fontSize: 13, color: 'var(--text-2)' }}>
           <span className="font-semibold" style={{ color: 'var(--text)' }}>{item.author}</span>{' '}
           {verb}{' '}
-          <span className="font-semibold" style={{ color: isYes ? 'var(--yes)' : 'var(--no)' }}>
+          <span className="font-semibold" style={{ color: isYes ? 'var(--yes-text)' : 'var(--no-text)' }}>
             {isYes ? 'Yes' : 'No'}
           </span>
           {item.amountUsd ? <>{' · '}{fmtVol(item.amountUsd)}</> : null}
@@ -423,7 +423,7 @@ function BreakingNews({ items }: { items: BreakingItem[] }) {
                   </span>
                   <span
                     className="mt-1 flex items-center gap-0.5 tabular-nums text-[12px] font-semibold"
-                    style={{ color: up ? 'var(--yes)' : 'var(--no)' }}
+                    style={{ color: up ? 'var(--yes-text)' : 'var(--no-text)' }}
                   >
                     {up ? <IconArrowUp size={11} /> : <IconArrowDown size={11} />}
                     {delta}

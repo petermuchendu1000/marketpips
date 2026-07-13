@@ -27,6 +27,12 @@
     --yes:#1F9D6B; --yes-700:#177C54; --yes-tint:#E3F3EC;
     --no:#D1495B;  --no-700:#B23446;  --no-tint:#FBE7EA;
     --warn:#C98A1E;
+    /* a11y semantic TEXT colors (WCAG 2.1 AA >=4.5:1 as small text on every
+       themed surface). Base --yes/--no stay for FILLS/lines/dots (graphics,
+       3:1). These map to the -700 shades, which are theme-aware (the .dark
+       block re-points --yes-700/--no-700 to lightened values), so text-yes/
+       text-no and inline usages clear 4.5:1 in BOTH light and dark. */
+    --yes-text:var(--yes-700); --no-text:var(--no-700);
 
     /* ---- Semantic surfaces (light default) ---- */
     /* Page is pure white; cards stay white and separate via hairline + --e1.
