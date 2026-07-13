@@ -143,7 +143,7 @@ function Spotlight({ market, series, comments }: HeroMarket & { comments?: HeroC
                   <div
                     key={o.id || o.label}
                     className="flex min-h-10 items-center justify-between gap-3 pb-2"
-                    style={{ borderBottom: '1px solid var(--hairline)' }}
+                    style={{ borderBottom: '1px solid var(--hairline-soft)' }}
                   >
                     <div className="flex min-w-0 flex-1 items-center gap-1.5">
                       {o.imageUrl && (
@@ -168,7 +168,7 @@ function Spotlight({ market, series, comments }: HeroMarket & { comments?: HeroC
 
             {/* comment peek */}
             {comments && comments.length > 0 && (
-              <div className="mt-3 flex flex-col gap-2 border-t pt-3" style={{ borderColor: 'var(--hairline)' }}>
+              <div className="mt-3 flex flex-col gap-2 border-t pt-3" style={{ borderColor: 'var(--hairline-soft)' }}>
                 {comments.slice(0, 2).map((c) => (
                   <div key={c.id} className="flex items-start gap-2">
                     <EntityAvatar name={c.author} size={22} shape="circle" className="mt-0.5 flex-none" />
@@ -225,7 +225,7 @@ function Spotlight({ market, series, comments }: HeroMarket & { comments?: HeroC
         {/* footer: volume + close date */}
         <div
           className="mt-auto flex items-center justify-between gap-3 border-t pt-3"
-          style={{ borderColor: 'var(--hairline)', color: 'var(--ink-300)' }}
+          style={{ borderColor: 'var(--hairline-soft)', color: 'var(--ink-300)' }}
         >
           <span className="font-medium" style={{ fontSize: 13, letterSpacing: '-0.1px' }}>
             {fmtVol(market.total_volume_usd ?? 0)} Vol
@@ -253,7 +253,7 @@ function BinaryRows({ yesPct }: { yesPct: number }) {
         <div
           key={r.label}
           className="flex min-h-10 items-center justify-between gap-3 pb-2"
-          style={{ borderBottom: '1px solid var(--hairline)' }}
+          style={{ borderBottom: '1px solid var(--hairline-soft)' }}
         >
           <div className="flex min-w-0 flex-1 items-center gap-1.5">
             <span className="h-[18px] w-[18px] flex-none rounded-[5px]" style={{ background: r.color }} aria-hidden />
