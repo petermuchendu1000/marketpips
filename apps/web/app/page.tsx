@@ -198,8 +198,46 @@ export default async function HomePage() {
     { n: '<1%', l: 'Platform fee' },
   ]
 
+  // Structured data (SEO): Organization + WebSite with a sitelinks search box.
+  // Fully additive, no visual cost \u2014 improves rich-result eligibility.
+  const siteUrl = (process.env.NEXT_PUBLIC_APP_URL ?? 'https://marketpips.co.ke').replace(/\/$/, '')
+  const jsonLd = {
+    '@context': 'https://schema.org',
+    '@graph': [
+      {
+        '@type': 'Organization',
+        '@id': `${siteUrl}/#organization`,
+        name: 'MarketPips',
+        url: siteUrl,
+        logo: `${siteUrl}/icon.png`,
+        description:
+          "East Africa's premier prediction market. Trade on real-world outcomes and pay with M-Pesa, MTN MoMo, and Airtel Money.",
+        areaServed: ['KE', 'UG', 'TZ', 'RW', 'ZM', 'ET', 'BI'],
+      },
+      {
+        '@type': 'WebSite',
+        '@id': `${siteUrl}/#website`,
+        url: siteUrl,
+        name: 'MarketPips',
+        publisher: { '@id': `${siteUrl}/#organization` },
+        potentialAction: {
+          '@type': 'SearchAction',
+          target: {
+            '@type': 'EntryPoint',
+            urlTemplate: `${siteUrl}/search?q={search_term_string}`,
+          },
+          'query-input': 'required name=search_term_string',
+        },
+      },
+    ],
+  }
+
   return (
     <div style={{ background: 'var(--bg)' }}>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
       <HomeCategoryBar />
       <HeroSection items={heroItems} hotTopics={hotTopics} comments={heroComments} />
 
