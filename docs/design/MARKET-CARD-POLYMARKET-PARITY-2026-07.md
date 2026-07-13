@@ -218,3 +218,57 @@ Card gap rhythm: `gap-3` (12px) between header / body / footer; row padding `py-
 | 16 | Live countdown (crypto) | ➕ addition (Up/Down windows) |
 
 **Legend:** ✅ parity · ➕ intentional superset · ⛔ intentional omission (justified).
+
+
+---
+
+## Addendum — full-DOM rebuild (measured 2026-07)
+
+Re-derived from Polymarket's live grid DOM + compiled CSS (captured 2026-07).
+The card was rebuilt end-to-end to match the measured structure; see
+`components/markets/market-card.tsx` and the `.market-card` / `.mbtn` rules in
+`app/globals.css`.
+
+### Measured design tokens
+| Token | Polymarket | Ours (mapped) |
+|---|---|---|
+| base spacing | `--spacing: .25rem` (4px) | Tailwind default (4px) |
+| card radius | `rounded-xl` (`--radius .7rem` + 4px ≈ 15px) | `14px` |
+| green (fill / text) | `#42c772` / `#30a159` | `--yes #1F9D6B` / `--yes-700` (WCAG-AA) |
+| red | `#e23939` | `--no #D1495B` / `--no-700` (WCAG-AA) |
+| text primary / secondary / border | `#0e0f11` / `#77808d` / `#e6e8ea` | `--text-primary` / `--text-secondary` / `--hairline` |
+| font | Inter (variable wt 440 / 590) | Inter, `font-normal` / `font-semibold` |
+
+### Shell (both archetypes)
+`relative flex flex-col justify-between rounded-xl shadow-md shadow-black/4
+min-h-[180px] pt-3 overflow-hidden border`, hover `-translate-y-px` + deeper
+shadow. Header pins top, footer pins bottom; sections own their `px-3`.
+
+### Header — `h-[42px] px-3 gap-2`
+38×38 `rounded-sm` **square** event icon (object-cover) + `text-body-base
+font-[590] line-clamp-3` title that underlines on card hover.
+
+### Multi-outcome board
+Rows `min-h-10 justify-between`: label `font-[440] line-clamp-1` · `%`
+`text-[15px] font-semibold` · **Yes** (`bg-green-500/15 text-green-600`) + **No**
+(`bg-red-500/9 text-red-500`) micro-buttons `h-[27px] w-10 rounded-xs`.
+Signature interaction: the resting Yes/No label cross-fades to the side's ¢ on
+hover, and the button fills solid. `+N more` caps the row count. Per-row
+circular avatars appear only when candidates carry images.
+
+### Binary / Up-Down
+Semicircular **chance meter** top-right of the title (`w-[58px]`: neutral track +
+YES fill arc, big `%` + leading label stacked below), and two full-width
+`flex-1` buttons pinned to the bottom carrying each side's ¢. Up/Down cards add
+a red **ping dot + "Live"**, a category link, and (on the real board) floating
+`+$N` trade fly-ups.
+
+### Footer — `text-body-sm text-text-secondary`
+Left: `Vol.` + compact value ($K/$M/$B) + countdown (or Live · countdown for
+up/down). Right: traders + comments + bookmark.
+
+### Deliberate deviation
+Polymarket's neon `#42c772` green fails WCAG AA (4.5:1) as small Yes/No text,
+so we keep this repo's desaturated `--yes/--no-700` semantic palette (commit
+`704547f`). Structure, geometry, and interactions are 1:1; only the two
+semantic hues are AA-corrected.
