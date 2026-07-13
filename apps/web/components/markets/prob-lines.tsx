@@ -56,6 +56,10 @@ interface ProbLinesProps {
   strokeWidth?: number
   /** Show a filled area under a single (binary) line. */
   fillArea?: boolean
+  /** Stretch to fill the container's height (non-uniform scale via
+   *  preserveAspectRatio="none"). Safe only for axis-less card sparklines —
+   *  never in grid/axis mode, where it would distort the label glyphs. */
+  fill?: boolean
   /** Zoom the y-axis to the data range (with nice ticks) instead of a fixed 0–100%. */
   autoDomain?: boolean
   /** Which side to place the % axis labels on (default 'left'). */
@@ -102,6 +106,7 @@ export function ProbLines({
   className,
   strokeWidth = 2,
   fillArea = false,
+  fill = false,
   autoDomain = false,
   axis = 'left',
   xLabels,
@@ -156,11 +161,13 @@ export function ProbLines({
   return (
     <svg
       width="100%"
+      height={fill ? '100%' : undefined}
       viewBox={`0 0 ${width} ${height}`}
       className={className}
       role="img"
       aria-label={`Probability over time for ${drawn.map((l) => l.label).join(', ')}`}
-      style={{ height: 'auto', display: 'block', overflow: 'visible' }}
+      preserveAspectRatio={fill ? 'none' : undefined}
+      style={{ height: fill ? '100%' : 'auto', display: 'block', overflow: 'visible' }}
     >
       {grid && (
         <g aria-hidden>

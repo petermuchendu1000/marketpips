@@ -105,21 +105,22 @@ export function FeaturedMarketCard({ market, series, optionSeries, options, opti
           its chart, so it soaks up the extra height on shorter (binary) cards
           in the equal-height carousel: no mid-card void, and the outcome
           controls + footer stay pinned tight to the bottom. */}
-      <div className="pointer-events-none relative z-10 -mx-1 flex min-h-[56px] flex-1 items-center">
+      <div className="pointer-events-none relative z-10 -mx-1 flex min-h-[72px] flex-1">
         {showLines ? (
           <ProbLines
             lines={optionSeries!.lines}
             binary={optionSeries!.binary}
             width={320}
-            height={56}
+            height={72}
             fillArea={optionSeries!.binary}
             strokeWidth={2}
-            className="h-14 w-full"
+            fill
+            className="h-full w-full"
           />
         ) : series && series.points.length > 1 ? (
-          <ProbSparkline points={series.points} width={320} height={56} className="h-14 w-full" />
+          <ProbSparkline points={series.points} width={320} height={72} className="h-full w-full" />
         ) : (
-          <ProbSparkline points={[yesPct / 100, yesPct / 100]} width={320} height={56} className="h-14 w-full" />
+          <ProbSparkline points={[yesPct / 100, yesPct / 100]} width={320} height={72} className="h-full w-full" />
         )}
       </div>
 
