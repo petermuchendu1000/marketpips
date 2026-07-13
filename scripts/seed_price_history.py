@@ -96,13 +96,13 @@ def multi_paths(prices: list[float], n: int, rng: np.random.Generator) -> list[n
 
 
 def timestamps(n: int, days: int, opens_at: datetime | None) -> list[datetime]:
+    """Evenly spaced timestamps over the trailing `days` window ending now.
+
+    We intentionally use the full window even for recently-created demo markets
+    so long-dated featured markets read like weeks of trading history (the
+    seeded markets' opens_at reflects when they were loaded, not real life)."""
     now = datetime.now(timezone.utc)
     start = now - timedelta(days=days)
-    # Only clamp to opens_at for markets that genuinely opened AFTER the window
-    # start by a meaningful margin (short-lived markets); long-dated featured
-    # markets get the full window so the curve reads like weeks of trading.
-    if opens_at and opens_at > start + timedelta(days=days * 0.5):
-        start = opens_at
     span = (now - start).total_seconds()
     return [start + timedelta(seconds=span * i / (n - 1)) for i in range(n)]
 
