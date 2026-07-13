@@ -95,9 +95,12 @@ function Spotlight({ market, series, comments }: HeroMarket & { comments?: HeroC
       className="group relative flex h-full flex-col overflow-hidden"
       style={{
         background: 'var(--surface)',
-        border: '1px solid var(--hairline)',
+        // Polymarket parity (live-measured): blue-tinted hairline + blue-500/7 shadow.
+        border: '1px solid rgba(37,99,235,0.10)', // blue-600/10
         borderRadius: 18,
-        boxShadow: '0 4px 16px rgba(72,88,120,.07)',
+        boxShadow: '0 4px 16px 0 rgba(59,130,246,0.07)', // blue-500/7
+        minHeight: 'min(480px, 60vh)',
+        maxHeight: 500,
       }}
     >
       {/* full-bleed overlay link — inner controls opt back in via z-index */}
@@ -201,8 +204,8 @@ function Spotlight({ market, series, comments }: HeroMarket & { comments?: HeroC
             <ProbLines
               lines={series.lines}
               binary={series.binary}
-              width={560}
-              height={300}
+              width={496}
+              height={276}
               grid
               autoDomain
               axis="right"
@@ -211,7 +214,7 @@ function Spotlight({ market, series, comments }: HeroMarket & { comments?: HeroC
               maxLines={series.binary ? 1 : 4}
               fillArea={series.binary}
               xLabels={ticks}
-              strokeWidth={2.5}
+              strokeWidth={1.75}
               className="w-full"
             />
           </div>

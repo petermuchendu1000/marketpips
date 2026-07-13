@@ -24,11 +24,14 @@ import type { OptionLine } from '@/lib/markets/option-series'
 
 // Categorical palette — measured from Polymarket's live hero chart, then
 // extended with harmonious hues for markets with >4 outcomes.
+// First four are Polymarket's EXACT hero line colors, assigned by rank
+// (highest current probability first): light-blue, blue, gold, orange.
+// The remainder are harmonious extensions for events with >4 outcomes.
 export const LINE_PALETTE = [
-  '#2E6BE6', // blue
-  '#FDC503', // gold
-  '#FF7F0E', // orange
-  '#87BFFF', // light blue
+  '#87BFFF', // light blue  (rank 0 / highest)
+  '#4378FF', // blue        (rank 1)
+  '#FDC503', // gold        (rank 2)
+  '#FF7F0E', // orange      (rank 3)
   '#7C4DFF', // violet
   '#12A150', // green
   '#E5484D', // red
@@ -176,16 +179,16 @@ export function ProbLines({
                 x2={width - padR}
                 y1={yOf(lv)}
                 y2={yOf(lv)}
-                stroke="var(--hairline)"
+                stroke="var(--hairline-strong)"
                 strokeWidth={1}
-                strokeDasharray="2 5"
+                strokeDasharray="1 3"
                 strokeLinecap="round"
               />
               <text
                 x={labelX}
                 y={yOf(lv) + 4}
                 textAnchor={labelAnchor}
-                fontSize="11.5"
+                fontSize="12"
                 fill="var(--text-3)"
                 fontFamily={axisFont}
               >
@@ -220,8 +223,9 @@ export function ProbLines({
               strokeLinecap="round"
               strokeLinejoin="round"
             />
-            {endpointHalo && <circle cx={last[0]} cy={last[1]} r={strokeWidth + 4} fill={color} opacity={0.18} />}
-            <circle cx={last[0]} cy={last[1]} r={strokeWidth + 1} fill={color} />
+            {/* Polymarket endpoint: solid r=4 dot + static ~2.28x glow at 0.34 opacity. */}
+            {endpointHalo && <circle cx={last[0]} cy={last[1]} r={9} fill={color} opacity={0.34} />}
+            <circle cx={last[0]} cy={last[1]} r={4} fill={color} />
           </g>
         )
       })}
@@ -238,8 +242,8 @@ export function ProbLines({
                 x={x}
                 y={height - 6}
                 textAnchor={anchor}
-                fontSize="11.5"
-                fill="var(--text-3)"
+                fontSize="12"
+                fill="var(--ink-300)"
                 fontFamily={axisFont}
               >
                 {lbl}

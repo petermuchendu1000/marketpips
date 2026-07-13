@@ -117,7 +117,9 @@ async function getData() {
   // for the rail's ranked list (question + % + signed delta).
   const breaking = movers.map(({ market, change }) => {
     const s = seriesByMarket.get(market.id)
-    const lead = s?.lines?.[0]?.price ?? market.yes_price ?? 0
+    // PriceSeries exposes a chronological `points` array (Yes-price in [0,1]);
+    // the leading probability is the most recent point.
+    const lead = s?.points?.[s.points.length - 1] ?? market.yes_price ?? 0
     return { market, change, pct: Math.round(lead * 100) }
   })
 
