@@ -230,17 +230,45 @@
   .card-hover { transition:border-color var(--dur), box-shadow var(--dur) var(--ease-out), transform var(--dur) var(--ease-out); }
   .card-hover:hover { border-color:var(--hairline-strong); box-shadow:var(--e2); transform:translateY(-1px); }
 
-  /* ---- Market card ---- */
+  /* ---- Market card ----
+     Polymarket-parity shell (measured from live DOM, 2026-07): a self-padded
+     column (pt-3, sections own their px-3), min-h 180px, ~15px radius, a soft
+     shadow that deepens on a -1px hover lift. Header pins to the top and the
+     footer to the bottom via justify-between, so bodies align across the grid. */
   .market-card {
+    position:relative;
+    display:flex; flex-direction:column; justify-content:space-between;
+    min-height:180px; height:100%;
+    padding-top:12px;                 /* pt-3 */
     background:var(--surface);
     border:1px solid var(--hairline);
-    border-radius:var(--r-md);
-    padding:16px;
-    transition:border-color var(--dur), box-shadow var(--dur) var(--ease-out), transform var(--dur) var(--ease-out);
+    border-radius:14px;               /* PM rounded-xl ≈ 15px */
+    box-shadow:0 2px 4px rgba(10,12,16,.04);
+    overflow:hidden;
+    transition:transform var(--dur) var(--ease-out), box-shadow var(--dur) var(--ease-out), border-color var(--dur);
     cursor:pointer;
-    display:block;
+    isolation:isolate;
   }
-  .market-card:hover { border-color:var(--pip-400); box-shadow:var(--e2); transform:translateY(-2px); }
+  .market-card:hover { transform:translateY(-1px); box-shadow:0 6px 16px rgba(10,12,16,.09); border-color:var(--hairline-strong); }
+
+  /* ---- Market-card candidate-row Yes/No micro-buttons (PM parity) ----
+     h-[27px] w-11 rounded-xs. Tinted at rest, solid fill on hover; the resting
+     label (Yes/No) cross-fades to the side's % on hover via two stacked spans. */
+  .mbtn {
+    position:relative; display:inline-flex; align-items:center; justify-content:center;
+    height:27px; width:44px; border-radius:6px; overflow:hidden;
+    font-size:12.5px; font-weight:600; line-height:1; white-space:nowrap;
+    transition:background var(--dur), color var(--dur);
+  }
+  .mbtn > span { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; transition:opacity var(--dur); }
+  .mbtn .mbtn-rest { opacity:1; }
+  .mbtn .mbtn-hover { opacity:0; }
+  .mbtn:hover .mbtn-rest { opacity:0; }
+  .mbtn:hover .mbtn-hover { opacity:1; }
+  .mbtn-yes { background:var(--yes-tint); color:var(--yes-700); }
+  .mbtn-yes:hover { background:var(--yes); color:#fff; }
+  .mbtn-no  { background:var(--no-tint);  color:var(--no-700); }
+  .mbtn-no:hover  { background:var(--no);  color:#fff; }
 
   /* ---- Probability bar (YES green / NO red, desaturated) ---- */
   .prob-bar { height:8px; border-radius:var(--r-pill); background:var(--no-tint); overflow:hidden; position:relative; }
