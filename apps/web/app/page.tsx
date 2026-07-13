@@ -260,7 +260,7 @@ export default async function HomePage() {
       {/* Live ticker */}
       {tickerMarkets.length > 0 && <MarketsTicker markets={tickerMarkets} />}
 
-      <div className="max-w-6xl mx-auto px-5 sm:px-8">
+      <div className="max-w-[1600px] mx-auto px-4 lg:px-6">
 
         {/* Category browse */}
         <Section eyebrow="Browse" title="Markets across every domain">
@@ -325,7 +325,7 @@ export default async function HomePage() {
           {trendingGrid.length === 0 ? (
             <EmptyState />
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
               {trendingGrid.map(m => <MarketCard key={m.id} market={m} {...cardExtras(m)} />)}
             </div>
           )}
@@ -334,12 +334,15 @@ export default async function HomePage() {
         {/* Just added */}
         {recent.length > 0 && (
           <Section eyebrow="Newest" title="Just added" href="/markets?sort=newest">
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
               {recent.slice(0, 8).map(m => <MarketCard key={m.id} market={m} compact {...cardExtras(m)} />)}
             </div>
           </Section>
         )}
 
+        {/* Marketing / explainer blocks stay at a readable width inside the
+            wide market-grid container above. */}
+        <div className="mx-auto max-w-6xl">
         {/* How it works */}
         <section id="how-it-works" className="py-16 sm:py-24 scroll-mt-20">
           <SectionHead eyebrow="How it works" title="From question to payout in three steps" />
@@ -443,6 +446,7 @@ export default async function HomePage() {
             </div>
           </div>
         </section>
+        </div>
 
       </div>
     </div>
