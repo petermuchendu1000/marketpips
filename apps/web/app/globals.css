@@ -139,7 +139,10 @@
     font-family:var(--font-ui);
     font-size:16px;
     line-height:1.5;
-    letter-spacing:-0.011em;
+    letter-spacing:normal;
+    /* Polymarket's exact Inter feature set (measured from live DOM):
+       ligatures + contextual alt + character variants; cv09 explicitly off. */
+    font-feature-settings:"liga","calt","cv01","cv02","cv03","cv04","cv09" 0,"cv11","cv15";
     -webkit-font-smoothing:antialiased;
     -moz-osx-font-smoothing:grayscale;
     text-rendering:optimizeLegibility;
@@ -165,9 +168,41 @@
    TYPOGRAPHY HELPERS
    ============================================================ */
 @layer components {
-  .font-display { font-family:var(--font-ui); font-weight:600; letter-spacing:-0.02em; }
+  /* Legacy display/mono helpers (kept for existing callers). */
+  .font-display { font-family:var(--font-ui); font-weight:600; letter-spacing:-0.015em; }
   .font-mono { font-family:var(--font-mono); font-variant-numeric:tabular-nums; }
   .mono { font-family:var(--font-mono); font-variant-numeric:tabular-nums; }
+
+  /* ------------------------------------------------------------------
+     Polymarket type scale — MEASURED from the live polymarket.com DOM
+     (homepage + /event detail), 2026-07. Values are exact computed
+     px sizes / variable-font weights / px line-heights / px tracking.
+     Source-of-truth table: docs/design/TYPOGRAPHY.md.
+     Note: Inter is a variable font, so non-standard weights (440/450/490/
+     540/580/590) are intentional and only render with the variable face.
+     ------------------------------------------------------------------ */
+  .pm-body            { font-size:13px; font-weight:490; line-height:16px;   letter-spacing:-0.1px;  }
+  .pm-body-regular    { font-size:13px; font-weight:400; line-height:16px;   letter-spacing:-0.1px;  }
+  .pm-body-strong     { font-size:13px; font-weight:600; line-height:16px;   letter-spacing:-0.1px;  }
+  .pm-caption         { font-size:12px; font-weight:400; line-height:16px;   letter-spacing:-0.1px;  }
+  .pm-caption-strong  { font-size:12px; font-weight:600; line-height:16px;   letter-spacing:-0.1px;  }
+  .pm-micro           { font-size:12px; font-weight:500; line-height:16px;   letter-spacing:normal;  }
+  .pm-text            { font-size:14px; font-weight:440; line-height:20px;   letter-spacing:-0.09px; }
+  .pm-text-medium     { font-size:14px; font-weight:500; line-height:20px;   letter-spacing:-0.09px; }
+  .pm-text-semibold   { font-size:14px; font-weight:600; line-height:20px;   letter-spacing:-0.09px; }
+  .pm-nav             { font-size:14px; font-weight:540; line-height:20px;   letter-spacing:-0.09px; }
+  .pm-heading-sm      { font-size:14px; font-weight:590; line-height:20px;   letter-spacing:-0.09px; }
+  .pm-book            { font-size:15px; font-weight:450; line-height:22.5px; letter-spacing:-0.15px; }
+  .pm-num-15          { font-size:15px; font-weight:600; line-height:22.5px; letter-spacing:normal;  }
+  .pm-body-16         { font-size:16px; font-weight:400; line-height:24px;   letter-spacing:normal;  }
+  .pm-yesno           { font-size:16px; font-weight:600; line-height:20px;   letter-spacing:-0.18px; }
+  .pm-price           { font-size:16px; font-weight:600; line-height:24px;   letter-spacing:-0.09px; }
+  .pm-heading-md      { font-size:18px; font-weight:580; line-height:27px;   letter-spacing:normal;  }
+  .pm-pct-18          { font-size:18px; font-weight:600; line-height:18px;   letter-spacing:normal;  }
+  .pm-num-20          { font-size:20px; font-weight:600; line-height:24px;   letter-spacing:-0.2px;  }
+  .pm-title           { font-size:24px; font-weight:600; line-height:32px;   letter-spacing:normal;  }
+  .pm-headline        { font-size:24px; font-weight:600; line-height:28px;   letter-spacing:-0.36px; }
+  .pm-display         { font-size:28px; font-weight:600; line-height:28px;   letter-spacing:-0.42px; }
 }
 
 /* ============================================================

@@ -13,6 +13,10 @@ const config: Config = {
     './components/**/*.{ts,tsx}',
     './lib/**/*.{ts,tsx}',
   ],
+  // Measured Polymarket type-scale tokens (globals.css @layer components).
+  // Safelisted so the scale ships for adoption even before every component
+  // references it. See docs/design/TYPOGRAPHY.md.
+  safelist: [{ pattern: /^pm-/ }],
   theme: {
     extend: {
       fontFamily: {
