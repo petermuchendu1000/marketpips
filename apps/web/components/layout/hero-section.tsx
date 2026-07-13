@@ -86,7 +86,7 @@ function Spotlight({ market, series }: HeroMarket) {
               </div>
               {chg !== 0 && (
                 <div className="mt-0.5 text-[12px] font-semibold"
-                  style={{ color: chg > 0 ? 'var(--yes)' : 'var(--no)' }}>
+                  style={{ color: chg > 0 ? 'var(--yes-700)' : 'var(--no-700)' }}>
                   {chg > 0 ? '▲' : '▼'} {Math.abs(chg)} pt
                 </div>
               )}
