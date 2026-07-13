@@ -146,7 +146,15 @@ export async function getOptionSeries(
           seeded = true
           points = [price, price]
         }
-        return { id: o.id, label: o.label, price, points: downsample(points, maxPoints), imageUrl: o.image_url }
+        points = downsample(points, maxPoints).slice()
+        // Endpoint-anchoring GUARANTEE: the drawn line ALWAYS ends exactly at the
+        // current legend/ranking price, so the chart can never visually
+        // contradict the legend even when price_history lags a market_options
+        // price update (the "44% legend, line ends at ~5%" class of bug). Legend,
+        // ranking, and the plotted endpoint are one value by construction.
+        // Locked by lib/__tests__/option-series.test.ts.
+        if (points.length > 0) points[points.length - 1] = price
+        return { id: o.id, label: o.label, price, points, imageUrl: o.image_url }
       })
       lines.sort((a, b) => b.price - a.price)
       const lead = lines[0]
@@ -161,7 +169,10 @@ export async function getOptionSeries(
         seeded = true
         points = [price, price]
       }
-      points = downsample(points, maxPoints)
+      points = downsample(points, maxPoints).slice()
+      // Same endpoint-anchoring guarantee as the multi branch: the Yes line ends
+      // exactly at market.yes_price (the legend value).
+      if (points.length > 0) points[points.length - 1] = price
       const changePct = Math.round((points[points.length - 1] - points[0]) * 100)
       const range = seeded ? null : timeRange.get(id) ?? null
       out.set(id, {

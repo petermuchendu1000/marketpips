@@ -97,4 +97,48 @@ describe('getOptionSeries — multi-outcome anchoring', () => {
     }
     expect(s.lines[0].points.at(-1)).toBeCloseTo(0.44, 6)
   })
+
+  it('FORCES the endpoint to the current price even when price_history lags behind (the reported bug)', async () => {
+    // Regression guard for the "44% legend, line ends near 5%" report: the
+    // market_options price says 0.44 (legend + rank), but the newest recorded
+    // price_history point is a stale 0.05. The drawn line MUST still end at 0.44
+    // so the chart can never contradict the legend. This is the scenario the
+    // prior sessions chased — pinned here so a refactor can't silently regress.
+    const client = makeClient({
+      markets: [{ id: 'm', resolution_type: 'multiple_choice', yes_price: 0.5 }],
+      market_options: [
+        { id: 'o1', market_id: 'm', label: 'Ruto', price: 0.44, yes_price: 0.44, display_order: 1, image_url: null },
+        { id: 'o2', market_id: 'm', label: 'Kalonzo', price: 0.2, yes_price: 0.2, display_order: 2, image_url: null },
+      ],
+      price_history: [
+        { market_id: 'm', market_option_id: 'o1', yes_price: null, price: 0.35, recorded_at: '2026-04-14T00:00:00Z' },
+        // stale/divergent endpoint (0.05) that does NOT match the option price (0.44)
+        { market_id: 'm', market_option_id: 'o1', yes_price: null, price: 0.05, recorded_at: '2026-07-13T00:00:00Z' },
+        { market_id: 'm', market_option_id: 'o2', yes_price: null, price: 0.25, recorded_at: '2026-04-14T00:00:00Z' },
+        { market_id: 'm', market_option_id: 'o2', yes_price: null, price: 0.2, recorded_at: '2026-07-13T00:00:00Z' },
+      ],
+    })
+    const s = (await getOptionSeries(client, ['m'])).get('m')!
+    const ruto = s.lines.find((l) => l.label === 'Ruto')!
+    expect(ruto.price).toBeCloseTo(0.44, 6) // legend value
+    expect(ruto.points.at(-1)).toBeCloseTo(0.44, 6) // endpoint anchored to legend, NOT the stale 0.05
+    expect(ruto.points[0]).toBeCloseTo(0.35, 6) // history preserved otherwise
+    // ranked #0 so it maps to LINE_PALETTE[0] (light-blue) in both legend + chart
+    expect(s.lines[0].label).toBe('Ruto')
+  })
+
+  it('anchors the binary Yes endpoint to market.yes_price even when the newest recorded point diverges', async () => {
+    const client = makeClient({
+      markets: [{ id: 'bin', resolution_type: 'binary', yes_price: 0.46 }],
+      market_options: [],
+      price_history: [
+        { market_id: 'bin', market_option_id: null, yes_price: 0.63, price: null, recorded_at: '2026-04-14T00:00:00Z' },
+        { market_id: 'bin', market_option_id: null, yes_price: 0.08, price: null, recorded_at: '2026-07-13T00:00:00Z' },
+      ],
+    })
+    const s = (await getOptionSeries(client, ['bin'])).get('bin')!
+    expect(s.lines[0].points.at(-1)).toBeCloseTo(0.46, 6) // anchored to market.yes_price
+    expect(s.lines[0].points[0]).toBeCloseTo(0.63, 6)
+    expect(s.changePct).toBe(Math.round((0.46 - 0.63) * 100)) // change uses the anchored endpoint
+  })
 })
