@@ -1,22 +1,24 @@
 // components/layout/hero-section.tsx
 // ------------------------------------------------------------
-// MarketPips homepage HERO — a Polymarket-faithful "featured markets" carousel,
-// themed to the Pip design system (see docs/design/HERO-POLYMARKET-ANALYSIS.md).
+// MarketPips homepage HERO — a faithful reproduction of Polymarket's "Featured
+// markets" carousel, measured live and specced in
+// docs/design/HERO-POLYMARKET-GROUNDTRUTH.md. Element-by-element parity:
 //
-// Each carousel slide is a spotlight market rendered as a live dashboard:
-//   ┌───────────────────────────────────────────────────────────┐
-//   │ [category]                                   [share][save] │
-//   │  Ranked outcomes            │  legend chips                │
-//   │  (avatar · name · %)        │  ┌────────── multi-line ────┐ │
-//   │  …up to 4                   │  │ probability chart w/ dates│ │
-//   │  latest comment             │  └───────────────────────────┘│
-//   │  ── $ Vol ─────────────────────── Ends <date> · MarketPips ─│
-//   └───────────────────────────────────────────────────────────┘
-// Beside the carousel sits a static rail: two product promos, a live
-// "Hot topics" leaderboard, and an "Explore all" pill.
+//   ┌───────────────────────────────────────────────────────────────┐
+//   │ [56px icon]  Category · Sub               [share] [bookmark]    │
+//   │              Bold 24/600 title                                  │
+//   │  ┌── ranked outcomes (346) ──┐  ┌──── chart block (495) ─────┐  │
+//   │  │ [avatar] name ……… 39%     │  │ ● legend chips              │ │
+//   │  │ ───────── divider ─────── │  │ ┌── stepped multi-line ───┐ │ │
+//   │  │ …up to 4 rows             │  │ │  right % axis, dated x  │ │ │
+//   │  │ comment peek              │  │ └─────────────────────────┘ │ │
+//   │  └───────────────────────────┘  └─────────────────────────────┘ │
+//   │  ── $X Vol ───────────────────── Ends <date> · MarketPips ──────│
+//   └───────────────────────────────────────────────────────────────┘
 //
-// The slides + rail are fully server-rendered (0 chart JS); only the thin
-// carousel controller and the share/save buttons are client components.
+// Beside the carousel sits a static rail (promo · Breaking News · Hot topics).
+// Slides + rail are server-rendered (0 chart JS); only the thin carousel
+// controller and the share/save buttons are client components.
 import Link from 'next/link'
 import type { Market } from '@/types'
 import { CATEGORY_LABELS } from '@/types'
@@ -26,8 +28,8 @@ import { EntityAvatar } from '@/components/ui/entity-avatar'
 import { HeroCarousel } from '@/components/layout/hero-carousel'
 import { MarketCardActions } from '@/components/markets/market-card-actions'
 import {
-  IconArrowRight, IconClock, IconUsers, IconTrendUp, IconFire, IconComments,
-  IconMpesa, IconTrophy, IconChevronRight, CategoryIcon,
+  IconArrowRight, IconFire, IconChevronRight,
+  CategoryIcon, IconMpesa, IconTrophy,
 } from '@/components/ui/icons'
 
 export interface HeroMarket {
@@ -44,18 +46,6 @@ export interface HeroComment {
 
 /* ----------------------------- helpers ----------------------------- */
 
-function timeLeft(closes: string | null) {
-  if (!closes) return null
-  const ms = new Date(closes).getTime() - Date.now()
-  if (ms < 0) return 'Closed'
-  const d = Math.floor(ms / 86400000)
-  if (d > 30) return `${Math.round(d / 30)}mo left`
-  if (d > 0) return `${d}d left`
-  const h = Math.floor((ms % 86400000) / 3600000)
-  if (h > 0) return `${h}h left`
-  return `${Math.floor((ms % 3600000) / 60000)}m left`
-}
-
 function fmtVol(n: number) {
   if (n >= 1_000_000_000) return `$${(n / 1_000_000_000).toFixed(1)}B`
   if (n >= 1_000_000) return `$${(n / 1_000_000).toFixed(1)}M`
@@ -67,6 +57,12 @@ function fmtDate(iso: string) {
   return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
 }
 
+/** Title-case a raw tag into a breadcrumb sub-label. */
+function prettyTag(t?: string | null) {
+  if (!t) return null
+  return t.replace(/[-_]/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())
+}
+
 /** Three evenly spaced date ticks (short) across the recorded window. */
 function dateTicks(startAt: string | null, endAt: string | null): string[] | undefined {
   if (!startAt || !endAt) return undefined
@@ -74,90 +70,105 @@ function dateTicks(startAt: string | null, endAt: string | null): string[] | und
   const e = new Date(endAt).getTime()
   if (!Number.isFinite(s) || !Number.isFinite(e) || e <= s) return undefined
   const fmt = (t: number) => new Date(t).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
-  return [s, s + (e - s) / 2, e].map(fmt)
+  return [s, s + (e - s) / 3, s + (2 * (e - s)) / 3, e].map(fmt)
 }
 
 /* --------------------------- spotlight card --------------------------- */
 
 function Spotlight({ market, series, comments }: HeroMarket & { comments?: HeroComment[] }) {
-  const cat = CATEGORY_LABELS[market.category] ?? { label: 'Market' }
+  const cat = CATEGORY_LABELS[market.category] ?? { label: 'Market', emoji: '🔮' }
+  const sub = prettyTag(market.tags?.[0])
   const ranked = [...series.lines].sort((a, b) => b.price - a.price)
   const yesPct = Math.round((market.yes_price ?? 0) * 100)
   const ticks = dateTicks(series.startAt, series.endAt)
-  const tl = timeLeft(market.closes_at)
 
   return (
     <div
-      className="group relative flex h-full flex-col overflow-hidden rounded-2xl"
-      style={{ background: 'var(--surface)', border: '1px solid var(--hairline)', boxShadow: 'var(--e1)' }}
+      className="group relative flex h-full flex-col overflow-hidden"
+      style={{
+        background: 'var(--surface)',
+        border: '1px solid var(--hairline)',
+        borderRadius: 18,
+        boxShadow: '0 4px 16px rgba(72,88,120,.07)',
+      }}
     >
       {/* full-bleed overlay link — inner controls opt back in via z-index */}
-      <Link
-        href={`/markets/${market.slug}`}
-        className="absolute inset-0 z-0"
-        aria-label={`Open market: ${market.title}`}
-      />
+      <Link href={`/markets/${market.slug}`} className="absolute inset-0 z-0" aria-label={`Open market: ${market.title}`} />
 
-      <div className="relative z-10 flex flex-1 flex-col gap-4 p-5 sm:p-6">
-        {/* header: breadcrumb + live · time · actions */}
-        <div className="flex items-start justify-between gap-3">
-          <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1 text-[12px]">
-            <span className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 font-semibold"
-              style={{ background: 'var(--surface-2)', border: '1px solid var(--hairline)', color: 'var(--text-2)' }}>
-              <CategoryIcon category={market.category} size={13} />
-              {cat.label}
-            </span>
-            <span className="flex items-center gap-1.5 font-medium" style={{ color: 'var(--text-3)' }}>
-              <span className="h-[7px] w-[7px] rounded-full animate-pulse-dot" style={{ background: 'var(--yes)' }} />
-              Live
-            </span>
-            {tl && (
-              <span className="flex items-center gap-1 font-medium" style={{ color: 'var(--text-3)' }}>
-                <IconClock size={12} /> {tl}
+      <div className="relative z-10 flex flex-1 flex-col p-5">
+        {/* header: event icon + breadcrumb/title + actions */}
+        <div className="flex items-start gap-4">
+          <EntityAvatar
+            name={market.title}
+            imageUrl={market.cover_image_url}
+            size={56}
+            shape="squircle"
+            className="mt-0.5 flex-none"
+          />
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-1.5 text-[14px] font-medium leading-none" style={{ color: 'var(--text-3)', letterSpacing: '-0.09px' }}>
+              <span className="inline-flex items-center gap-1.5">
+                <CategoryIcon category={market.category} size={13} />
+                {cat.label}
               </span>
-            )}
+              {sub && <><span aria-hidden>·</span><span className="truncate">{sub}</span></>}
+            </div>
+            <h1
+              className="mt-1.5 font-semibold"
+              style={{ fontSize: 24, lineHeight: '32px', letterSpacing: 'normal', color: 'var(--text)' }}
+            >
+              {market.title}
+            </h1>
           </div>
           <MarketCardActions slug={market.slug} title={market.title} />
         </div>
 
-        {/* title */}
-        <h1 className="font-display font-semibold tracking-[-0.01em]"
-          style={{ fontSize: 'clamp(1.25rem, 2vw, 1.6rem)', lineHeight: 1.15, color: 'var(--text)' }}>
-          {market.title}
-        </h1>
-
-        {/* two columns: ranked outcomes | chart */}
-        <div className="grid grid-cols-1 gap-5 md:grid-cols-[minmax(0,0.95fr)_1.25fr]">
+        {/* body: ranked outcomes | chart */}
+        <div className="mt-4 grid grid-cols-1 gap-6 md:grid-cols-[minmax(0,346fr)_495fr]">
           {/* outcomes */}
-          <div className="flex flex-col gap-1">
-            {series.binary ? (
-              <BinaryRows yesPct={yesPct} />
-            ) : (
-              ranked.slice(0, 4).map((o) => (
-                <div key={o.id || o.label} className="flex items-center gap-2.5 py-1.5">
-                  <EntityAvatar name={o.label} imageUrl={o.imageUrl} size={28} shape="circle" className="flex-none" />
-                  <span className="min-w-0 flex-1 truncate text-[14px] font-semibold" style={{ color: 'var(--text)' }}>
-                    {o.label}
-                  </span>
-                  <span className="font-mono text-[18px] font-semibold tabular-nums tracking-[-0.02em]" style={{ color: 'var(--text)' }}>
-                    {Math.round(o.price * 100)}%
-                  </span>
-                </div>
-              ))
-            )}
-            {!series.binary && ranked.length > 4 && (
-              <span className="mt-0.5 text-[12px] font-medium" style={{ color: 'var(--text-3)' }}>
-                +{ranked.length - 4} more outcomes
-              </span>
-            )}
+          <div className="flex min-w-0 flex-col">
+            <div className="flex flex-col">
+              {series.binary ? (
+                <BinaryRows yesPct={yesPct} />
+              ) : (
+                ranked.slice(0, 4).map((o, i) => (
+                  <div
+                    key={o.id || o.label}
+                    className="flex min-h-[40px] items-center gap-3 py-[7px]"
+                    style={i > 0 ? { borderTop: '1px solid var(--hairline)' } : undefined}
+                  >
+                    {o.imageUrl && (
+                      <EntityAvatar name={o.label} imageUrl={o.imageUrl} size={30} shape="squircle" className="flex-none" />
+                    )}
+                    <span
+                      className="min-w-0 flex-1 truncate font-medium"
+                      style={{ fontSize: 15, color: 'var(--text)', letterSpacing: '-0.15px' }}
+                    >
+                      {o.label}
+                    </span>
+                    <span
+                      className="tabular-nums font-semibold"
+                      style={{ fontSize: 20, color: 'var(--text)', letterSpacing: '-0.2px' }}
+                    >
+                      {Math.round(o.price * 100)}%
+                    </span>
+                  </div>
+                ))
+              )}
+              {!series.binary && ranked.length > 4 && (
+                <span className="mt-1 text-[13px] font-medium" style={{ color: 'var(--text-3)' }}>
+                  +{ranked.length - 4} more outcomes
+                </span>
+              )}
+            </div>
 
             {/* comment peek */}
             {comments && comments.length > 0 && (
               <div className="mt-3 flex flex-col gap-2 border-t pt-3" style={{ borderColor: 'var(--hairline)' }}>
                 {comments.slice(0, 2).map((c) => (
                   <div key={c.id} className="flex items-start gap-2">
-                    <EntityAvatar name={c.author} size={20} shape="circle" className="mt-0.5 flex-none" />
-                    <p className="min-w-0 flex-1 truncate text-[12px]" style={{ color: 'var(--text-3)' }}>
+                    <EntityAvatar name={c.author} size={22} shape="circle" className="mt-0.5 flex-none" />
+                    <p className="min-w-0 flex-1 truncate text-[13px] leading-snug" style={{ color: 'var(--text-3)' }}>
                       <span className="font-semibold" style={{ color: 'var(--text-2)' }}>{c.author}</span>{' '}
                       {c.content}
                     </p>
@@ -168,14 +179,19 @@ function Spotlight({ market, series, comments }: HeroMarket & { comments?: HeroC
           </div>
 
           {/* chart + legend */}
-          <div className="flex flex-col gap-2">
-            <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+          <div className="flex min-w-0 flex-col gap-2">
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5">
               {(series.binary ? ranked.slice(0, 1) : ranked.slice(0, 4)).map((o, i) => (
-                <span key={o.id || o.label} className="flex items-center gap-1.5 whitespace-nowrap text-[12px]">
-                  <span className="h-2 w-2 flex-none rounded-full"
-                    style={{ background: series.binary ? 'var(--yes)' : LINE_PALETTE[i % LINE_PALETTE.length] }} aria-hidden />
-                  <span className="font-medium" style={{ color: 'var(--text-3)' }}>{series.binary ? 'Yes' : o.label}</span>
-                  <span className="font-mono font-semibold tabular-nums" style={{ color: 'var(--text)' }}>
+                <span key={o.id || o.label} className="flex items-center gap-1.5 whitespace-nowrap">
+                  <span
+                    className="h-2 w-2 flex-none rounded-full"
+                    style={{ background: series.binary ? 'var(--yes)' : LINE_PALETTE[i % LINE_PALETTE.length] }}
+                    aria-hidden
+                  />
+                  <span className="font-medium" style={{ fontSize: 13, color: 'var(--text-3)' }}>
+                    {series.binary ? 'Yes' : o.label}
+                  </span>
+                  <span className="tabular-nums font-semibold" style={{ fontSize: 13, color: 'var(--text-2)', letterSpacing: '-0.1px' }}>
                     {(o.price * 100).toFixed(1)}%
                   </span>
                 </span>
@@ -184,41 +200,34 @@ function Spotlight({ market, series, comments }: HeroMarket & { comments?: HeroC
             <ProbLines
               lines={series.lines}
               binary={series.binary}
-              width={540}
-              height={230}
+              width={495}
+              height={264}
               grid
               autoDomain
               axis="right"
-              /* Keep plotted lines in lockstep with the legend + ranked outcomes
-                 (top 4). Extra outcomes are summarised as "+N more" rather than
-                 drawn as unlabeled ghost lines \u2014 matches the Polymarket teardown. */
+              step
+              endpointHalo
               maxLines={series.binary ? 1 : 4}
               fillArea={series.binary}
               xLabels={ticks}
-              strokeWidth={2.25}
-              className="h-[190px] w-full sm:h-[220px]"
+              strokeWidth={2}
+              className="w-full"
             />
           </div>
         </div>
 
         {/* footer: volume + close date */}
-        <div className="mt-auto flex items-center justify-between gap-3 border-t pt-3 text-[12px]"
-          style={{ borderColor: 'var(--hairline)', color: 'var(--text-3)' }}>
-          <span className="flex items-center gap-3">
-            <span className="flex items-center gap-1.5 font-mono font-semibold" style={{ color: 'var(--text-2)' }}>
-              <IconTrendUp size={13} /> {fmtVol(market.total_volume_usd ?? 0)} Vol
-            </span>
-            <span className="flex items-center gap-1.5">
-              <IconUsers size={13} /> {(market.unique_bettors ?? 0).toLocaleString()}
-            </span>
-            {(market.comment_count ?? 0) > 0 && (
-              <span className="hidden items-center gap-1.5 xs:flex">
-                <IconComments size={13} /> {market.comment_count}
-              </span>
-            )}
+        <div
+          className="mt-auto flex items-center justify-between gap-3 border-t pt-3"
+          style={{ borderColor: 'var(--hairline)', color: 'var(--text-3)' }}
+        >
+          <span className="font-medium" style={{ fontSize: 13, letterSpacing: '-0.1px' }}>
+            {fmtVol(market.total_volume_usd ?? 0)} Vol
           </span>
           {market.closes_at && (
-            <span className="truncate">Ends {fmtDate(market.closes_at)} · MarketPips</span>
+            <span className="truncate font-medium" style={{ fontSize: 13, letterSpacing: '-0.1px' }}>
+              Ends {fmtDate(market.closes_at)} · <span style={{ color: 'var(--text-2)' }}>MarketPips</span>
+            </span>
           )}
         </div>
       </div>
@@ -226,19 +235,25 @@ function Spotlight({ market, series, comments }: HeroMarket & { comments?: HeroC
   )
 }
 
-/** Yes/No rows for a binary market. */
+/** Yes/No rows for a binary market (color chip instead of an entity avatar). */
 function BinaryRows({ yesPct }: { yesPct: number }) {
   const rows = [
-    { label: 'Yes', pct: yesPct, color: 'var(--yes)', text: 'var(--yes-700)' },
-    { label: 'No', pct: 100 - yesPct, color: 'var(--no)', text: 'var(--no-700)' },
+    { label: 'Yes', pct: yesPct, color: 'var(--yes)' },
+    { label: 'No', pct: 100 - yesPct, color: 'var(--no)' },
   ]
   return (
     <>
-      {rows.map((r) => (
-        <div key={r.label} className="flex items-center gap-2.5 py-2">
-          <span className="h-2.5 w-2.5 flex-none rounded-[3px]" style={{ background: r.color }} aria-hidden />
-          <span className="min-w-0 flex-1 text-[14px] font-semibold" style={{ color: 'var(--text)' }}>{r.label}</span>
-          <span className="font-mono text-[18px] font-semibold tabular-nums tracking-[-0.02em]" style={{ color: r.text }}>
+      {rows.map((r, i) => (
+        <div
+          key={r.label}
+          className="flex min-h-[40px] items-center gap-3 py-[7px]"
+          style={i > 0 ? { borderTop: '1px solid var(--hairline)' } : undefined}
+        >
+          <span className="h-[18px] w-[18px] flex-none rounded-[5px]" style={{ background: r.color }} aria-hidden />
+          <span className="min-w-0 flex-1 font-medium" style={{ fontSize: 15, color: 'var(--text)', letterSpacing: '-0.15px' }}>
+            {r.label}
+          </span>
+          <span className="tabular-nums font-semibold" style={{ fontSize: 20, color: 'var(--text)', letterSpacing: '-0.2px' }}>
             {r.pct}%
           </span>
         </div>
@@ -257,8 +272,7 @@ function PromoCard({
     : 'linear-gradient(135deg, var(--brass-100), var(--surface) 78%)'
   const fg = tint === 'pip' ? 'var(--pip-text)' : 'var(--brass-600)'
   return (
-    <div className="relative flex items-center gap-3 rounded-xl p-4"
-      style={{ background: bg, border: '1px solid var(--hairline)' }}>
+    <div className="relative flex items-center gap-3 rounded-2xl p-4" style={{ background: bg, border: '1px solid var(--hairline)' }}>
       <span className="grid h-10 w-10 flex-none place-items-center rounded-lg"
         style={{ background: 'var(--surface)', color: fg, border: '1px solid var(--hairline)' }}>
         {icon}
@@ -287,10 +301,10 @@ function HotTopics({ topics }: { topics: Market[] }) {
           <li key={m.id}>
             <Link href={`/markets/${m.slug}`}
               className="group -mx-1.5 flex items-center gap-2.5 rounded-lg px-1.5 py-2 transition-colors hover:bg-[var(--surface-2)]">
-              <span className="w-4 flex-none text-center font-mono text-[12px] font-semibold" style={{ color: 'var(--text-3)' }}>{i + 1}</span>
+              <span className="w-4 flex-none text-center text-[12px] font-semibold" style={{ color: 'var(--text-3)' }}>{i + 1}</span>
               <span className="min-w-0 flex-1 truncate text-[13px] font-medium" style={{ color: 'var(--text)' }}>{m.title}</span>
-              <span className="flex flex-none items-center gap-1 font-mono text-[12px] font-semibold" style={{ color: 'var(--text-2)' }}>
-                {fmtVol(m.volume_24h_usd ?? 0)}
+              <span className="flex flex-none items-center gap-1 text-[12px] font-semibold" style={{ color: 'var(--text-2)' }}>
+                {fmtVol(m.volume_24h_usd ?? 0)} today
                 <IconFire size={13} style={{ color: 'var(--warn)' }} />
               </span>
             </Link>
