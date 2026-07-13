@@ -189,6 +189,10 @@ function Spotlight({ market, series, comments }: HeroMarket & { comments?: HeroC
               grid
               autoDomain
               axis="right"
+              /* Keep plotted lines in lockstep with the legend + ranked outcomes
+                 (top 4). Extra outcomes are summarised as "+N more" rather than
+                 drawn as unlabeled ghost lines \u2014 matches the Polymarket teardown. */
+              maxLines={series.binary ? 1 : 4}
               fillArea={series.binary}
               xLabels={ticks}
               strokeWidth={2.25}
