@@ -24,10 +24,7 @@ import Link from 'next/link'
 import type { Market } from '@/types'
 import { CATEGORY_LABELS } from '@/types'
 import { splitHighlight } from '@/lib/search'
-import {
-  IconClock, IconUser, IconTrendUp, IconArrowUp, IconArrowDown,
-  IconBookmark, IconComments,
-} from '@/components/ui/icons'
+import { IconArrowUp, IconArrowDown, IconBookmark } from '@/components/ui/icons'
 import { EntityAvatar } from '@/components/ui/entity-avatar'
 import type { CardOption } from '@/lib/markets/card-options'
 import { useClientClock } from '@/hooks/use-client-clock'
@@ -82,12 +79,18 @@ function timeLeft(closes: string, now: number) {
   return `${s}s`
 }
 
-/** Compact volume like Polymarket ("$4B", "$1.2M", "$820K", "$430"). */
+/** Compact volume like Polymarket ("$4B", "$55M", "$1.2M", "$820K", "$430").
+ *  Integers at each scale; a single decimal only below 10 (and trailing .0 is
+ *  stripped) — matches PM's "$4B" / "$55M" / "$1.2M" rhythm. */
 function volShort(usd: number) {
+  const fmt = (n: number, suffix: string) => {
+    const s = n < 10 ? n.toFixed(1).replace(/\.0$/, '') : String(Math.round(n))
+    return `$${s}${suffix}`
+  }
   const abs = Math.abs(usd)
-  if (abs >= 1e9) return `$${(usd / 1e9).toFixed(usd >= 1e10 ? 0 : 1)}B`
-  if (abs >= 1e6) return `$${(usd / 1e6).toFixed(usd >= 1e7 ? 0 : 1)}M`
-  if (abs >= 1e3) return `$${Math.round(usd / 1e3)}K`
+  if (abs >= 1e9) return fmt(usd / 1e9, 'B')
+  if (abs >= 1e6) return fmt(usd / 1e6, 'M')
+  if (abs >= 1e3) return fmt(usd / 1e3, 'K')
   return `$${Math.round(usd)}`
 }
 
@@ -151,6 +154,19 @@ function BitcoinMark({ size, className }: { size: number; className?: string }) 
   )
 }
 
+/** Red "Live" pill with a pinging dot — used by up/down windows in the footer. */
+function LivePill() {
+  return (
+    <span className="flex items-center gap-1.5 font-semibold" style={{ color: 'var(--no-700)' }}>
+      <span className="relative flex h-[7px] w-[7px]">
+        <span className="absolute inline-flex h-full w-full animate-ping rounded-full opacity-75" style={{ background: 'var(--no)' }} />
+        <span className="relative inline-flex h-[7px] w-[7px] rounded-full" style={{ background: 'var(--no)' }} />
+      </span>
+      <span className="uppercase">Live</span>
+    </span>
+  )
+}
+
 /** One candidate row on a multi-outcome board (PM parity). */
 function BoardRow({
   option, yesLabel, noLabel, sideHref, showAvatar, borderTop,
@@ -177,13 +193,13 @@ function BoardRow({
         <span className="min-w-[2.5ch] text-right text-[15px] font-semibold tabular-nums" style={{ color: 'var(--text-primary)' }}>
           {pct}%
         </span>
-        <Link href={sideHref('yes', option.id || undefined)} className="mbtn mbtn-yes pointer-events-auto" aria-label={`Buy ${yesLabel} on ${option.label} at ${pct} cents`}>
+        <Link href={sideHref('yes', option.id || undefined)} className="mbtn mbtn-yes pointer-events-auto" aria-label={`Buy ${yesLabel} on ${option.label} — ${pct}% chance`}>
           <span className="mbtn-rest">{yesLabel}</span>
-          <span className="mbtn-hover tabular-nums">{pct}¢</span>
+          <span className="mbtn-hover tabular-nums">{pct}%</span>
         </Link>
-        <Link href={sideHref('no', option.id || undefined)} className="mbtn mbtn-no pointer-events-auto" aria-label={`Buy ${noLabel} on ${option.label} at ${noPct} cents`}>
+        <Link href={sideHref('no', option.id || undefined)} className="mbtn mbtn-no pointer-events-auto" aria-label={`Buy ${noLabel} on ${option.label} — ${noPct}% chance`}>
           <span className="mbtn-rest">{noLabel}</span>
-          <span className="mbtn-hover tabular-nums">{noPct}¢</span>
+          <span className="mbtn-hover tabular-nums">{noPct}%</span>
         </Link>
       </span>
     </div>
@@ -240,7 +256,7 @@ export function MarketCard({
         {isUpDown ? (
           <BitcoinMark size={iconSize} />
         ) : (
-          <EntityAvatar name={market.title} imageUrl={market.cover_image_url} size={iconSize} shape="squircle" radius={4} />
+          <EntityAvatar name={market.title} imageUrl={market.cover_image_url} size={iconSize} shape="squircle" radius={6} />
         )}
         <div className="min-w-0 flex-1">
           <h3
@@ -280,75 +296,51 @@ export function MarketCard({
           <Link
             href={sideHref('yes')}
             className="btn btn-yes pointer-events-auto flex-1 justify-center gap-1.5 py-2.5 text-[13px]"
-            aria-label={`Buy ${yesLabel} at ${yesPct} cents`}
+            aria-label={isUpDown ? `Bet ${yesLabel}` : `Buy ${yesLabel} at ${yesPct} cents`}
           >
             {isUpDown && <IconArrowUp size={14} />} {yesLabel}
-            <span className="font-mono font-bold tabular-nums">{yesPct}¢</span>
+            {!isUpDown && <span className="font-mono font-bold tabular-nums">{yesPct}¢</span>}
           </Link>
           <Link
             href={sideHref('no')}
             className="btn btn-no pointer-events-auto flex-1 justify-center gap-1.5 py-2.5 text-[13px]"
-            aria-label={`Buy ${noLabel} at ${100 - yesPct} cents`}
+            aria-label={isUpDown ? `Bet ${noLabel}` : `Buy ${noLabel} at ${100 - yesPct} cents`}
           >
             {isUpDown && <IconArrowDown size={14} />} {noLabel}
-            <span className="font-mono font-bold tabular-nums">{100 - yesPct}¢</span>
+            {!isUpDown && <span className="font-mono font-bold tabular-nums">{100 - yesPct}¢</span>}
           </Link>
         </div>
       )}
 
-      {/* FOOTER — Vol./Live+category on the left, traders + bookmark on the right. */}
+      {/* FOOTER — Polymarket-minimal. The card face carries exactly ONE stat
+          (Vol.) + the bookmark. Time-to-close, comments and trader counts live
+          on the detail page, keeping the grid clean and scannable. Up/Down
+          windows swap Vol. for a Live ping + the closing countdown. */}
       <div className="pointer-events-none relative z-10 flex items-center justify-between px-3 pb-2.5 pt-2 text-[12px]" style={{ color: 'var(--text-secondary)' }}>
         <div className="flex min-w-0 items-center gap-1.5">
           {isLive ? (
             now == null ? (
-              <span className="flex items-center gap-1.5 font-semibold" style={{ color: 'var(--no-700)' }}>
-                <span className="relative flex h-[7px] w-[7px]">
-                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full opacity-75" style={{ background: 'var(--no)' }} />
-                  <span className="relative inline-flex h-[7px] w-[7px] rounded-full" style={{ background: 'var(--no)' }} />
-                </span>
-                <span className="uppercase">Live</span>
-              </span>
+              <LivePill />
             ) : new Date(market.closes_at).getTime() <= now ? (
               <span className="font-semibold" style={{ color: 'var(--text-3)' }}>Settling…</span>
             ) : (
               <>
-                <span className="flex items-center gap-1.5 font-semibold" style={{ color: 'var(--no-700)' }}>
-                  <span className="relative flex h-[7px] w-[7px]">
-                    <span className="absolute inline-flex h-full w-full animate-ping rounded-full opacity-75" style={{ background: 'var(--no)' }} />
-                    <span className="relative inline-flex h-[7px] w-[7px] rounded-full" style={{ background: 'var(--no)' }} />
-                  </span>
-                  <span className="uppercase">Live</span>
-                </span>
+                <LivePill />
                 <span aria-hidden style={{ opacity: 0.5 }}>·</span>
-                <span>{timeLeft(market.closes_at, now)} left</span>
+                <span className="tabular-nums">{timeLeft(market.closes_at, now)} left</span>
               </>
             )
           ) : (
-            <>
-              <span className="flex items-center gap-1">
-                <IconTrendUp size={12} />
-                {volShort(market.total_volume_usd)} Vol.
-              </span>
-              <span aria-hidden style={{ opacity: 0.5 }}>·</span>
-              <span className="flex items-center gap-1">
-                <IconClock size={12} />
-                {now != null ? timeLeft(market.closes_at, now) : '—'}
-              </span>
-            </>
-          )}
-        </div>
-        <div className="flex flex-none items-center gap-2.5">
-          {market.comment_count > 0 && (
-            <span className="flex items-center gap-1" title={`${market.comment_count} comments`}>
-              <IconComments size={12} />
-              {market.comment_count.toLocaleString()}
+            <span>
+              <span className="uppercase tabular-nums" style={{ color: 'var(--text-secondary)' }}>
+                {volShort(market.total_volume_usd)}
+              </span>{' '}
+              Vol.
             </span>
           )}
-          <span className="flex items-center gap-1" title={`${market.unique_bettors} traders`}>
-            <IconUser size={12} />
-            {market.unique_bettors.toLocaleString()}
-          </span>
-          <IconBookmark size={14} />
+        </div>
+        <div className="flex flex-none items-center">
+          <IconBookmark size={15} />
         </div>
       </div>
     </div>

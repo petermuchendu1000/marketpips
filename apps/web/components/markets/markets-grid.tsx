@@ -83,7 +83,7 @@ export function MarketsGrid({ initialMarkets = [] }: { initialMarkets?: Market[]
 
       {/* Grid */}
       {loading && markets.length === 0 ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
           {Array.from({ length: 8 }).map((_, i) => <MarketCardSkeleton key={i} />)}
         </div>
       ) : markets.length === 0 ? (
@@ -94,7 +94,7 @@ export function MarketsGrid({ initialMarkets = [] }: { initialMarkets?: Market[]
         </div>
       ) : (
         <>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
             {markets.map(m => (
               <MarketCard
                 key={m.id}
