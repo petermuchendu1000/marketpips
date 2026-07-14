@@ -266,7 +266,11 @@
     font-size:12.5px; font-weight:600; line-height:1; white-space:nowrap;
     transition:background var(--dur), color var(--dur);
   }
-  .mbtn .mbtn-pct { font-weight:700; font-variant-numeric:tabular-nums; opacity:.85; }
+  /* No `opacity` here: dimming the % on the tinted No chip dropped its contrast
+     to 4.29:1 in dark mode (WCAG 2.1 AA needs 4.5:1 for this 12.5px bold text).
+     The -700 shades are already AA-tuned on the tint, so use them at full color
+     (dark No 5.24:1, light No 5.10:1, dark Yes 6.70:1). */
+  .mbtn .mbtn-pct { font-weight:700; font-variant-numeric:tabular-nums; }
   .mbtn-yes { background:var(--yes-tint); color:var(--yes-700); }
   .mbtn-yes:hover { background:var(--yes); color:#fff; }
   .mbtn-no  { background:var(--no-tint);  color:var(--no-700); }
