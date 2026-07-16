@@ -11,6 +11,7 @@ import {
   AreaChart, Area, XAxis, YAxis, Tooltip,
   ResponsiveContainer, ReferenceLine, CartesianGrid,
 } from 'recharts'
+import { niceProbScale } from '@/lib/markets/chart-scale'
 import { format } from 'date-fns'
 import { formatUSD } from '@/lib/utils'
 
@@ -104,7 +105,7 @@ export function PriceChart({ data, currentYes = 0.5, volumeUsd = 0 }: PriceChart
   // gridlines, autoscale and annotations. Defaults mirror Polymarket's own.
   const [optsOpen, setOptsOpen] = useState(false)
   const [opts, setOpts] = useState({
-    autoscale: false,
+    autoscale: true,
     xAxis: true,
     yAxis: true,
     hGrid: true,
@@ -134,6 +135,20 @@ export function PriceChart({ data, currentYes = 0.5, volumeUsd = 0 }: PriceChart
     const filtered = rows.filter((r) => new Date(r.time).getTime() >= cutoff)
     return filtered.length >= 2 ? filtered : rows.slice(-2)
   }, [data, timeframe, currentYes])
+
+  // Dynamic Y scale (PM parity), shared with the multi-outcome board. With the
+  // two-line (Yes+No) binary board the plotted max is ~100%, so this lands on
+  // clean round ticks (0/20/40/60/80/100%); if the board is ever driven by a
+  // single series it zooms to the data exactly like Polymarket's binary chart
+  // (0/15/30/45/60).
+  const { max: yMax, ticks: yTicks } = useMemo(() => {
+    let m = 0
+    for (const r of chartData) {
+      if (typeof r.yes === 'number' && r.yes > m) m = r.yes
+      if (typeof r.no === 'number' && r.no > m) m = r.no
+    }
+    return niceProbScale(m)
+  }, [chartData])
 
   const isSeeded = (data ?? []).filter((d) => d.recorded_at).length === 0
   const lastIndex = chartData.length - 1
@@ -202,8 +217,8 @@ export function PriceChart({ data, currentYes = 0.5, volumeUsd = 0 }: PriceChart
             <YAxis
               orientation="right"
               hide={!opts.yAxis}
-              domain={opts.autoscale ? ['auto', 'auto'] : [0, 1]}
-              ticks={opts.autoscale ? undefined : [0, 0.25, 0.5, 0.75, 1]}
+              domain={opts.autoscale ? [0, yMax] : [0, 1]}
+              ticks={opts.autoscale ? yTicks : [0, 0.25, 0.5, 0.75, 1]}
               tickFormatter={(v) => `${Math.round(v * 100)}%`}
               tick={{ fontSize: 10, fill: 'var(--text-muted)' }}
               tickLine={false}
@@ -211,7 +226,7 @@ export function PriceChart({ data, currentYes = 0.5, volumeUsd = 0 }: PriceChart
               width={34}
             />
             <Tooltip content={<CustomTooltip />} />
-            {opts.annotations && <ReferenceLine y={0.5} stroke="var(--hairline)" strokeDasharray="3 3" />}
+            {opts.annotations && 0.5 <= yMax && <ReferenceLine y={0.5} stroke="var(--hairline)" strokeDasharray="3 3" />}
             {/* TWO lines for a binary market (Kalshi parity): one per side,
                 each driven by that side's own order flow (yes_price / no_price
                 from price_history). They are complementary under our LMSR

@@ -9,10 +9,11 @@
 import { useMemo, useState } from 'react'
 import {
   LineChart, Line, XAxis, YAxis, Tooltip,
-  ResponsiveContainer, ReferenceLine,
+  ResponsiveContainer,
 } from 'recharts'
 import { format } from 'date-fns'
 import { IconTrophy, IconClock } from '@/components/ui/icons'
+import { niceProbScale } from '@/lib/markets/chart-scale'
 
 export interface OutcomeSeriesOption {
   id: string
@@ -176,6 +177,34 @@ export function OutcomesChart({ options, data, volumeUsd, closesAt }: OutcomesCh
         ranked[0]?.label ?? '—'
       } at ${Math.round((ranked[0]?.price ?? 0) * 100)}%.`
 
+  // Dynamic Y-axis (PM parity): the axis zooms to the data with headroom and
+  // lands on nice round ticks (shared with the binary chart via niceProbScale).
+  const { yMax, yTicks } = useMemo(() => {
+    let max = 0
+    for (const row of chartData) {
+      for (const o of ranked) {
+        const v = row[o.id]
+        if (typeof v === 'number' && v > max) max = v
+      }
+    }
+    if (max <= 0) max = ranked[0]?.price ?? 0.1
+    const { max: m, ticks } = niceProbScale(max)
+    return { yMax: m, yTicks: ticks }
+  }, [chartData, ranked])
+
+  // Adaptive X tick format: months for wide ranges (PM shows "Sep"/"Jul"),
+  // day for medium, time-of-day for intraday windows.
+  const xTickFormatter = (v: string | number) => {
+    const first = chartData[0]?.time as string | undefined
+    const last = chartData[chartData.length - 1]?.time as string | undefined
+    const spanMs = first && last ? new Date(last).getTime() - new Date(first).getTime() : 0
+    const DAY = 86_400_000
+    const d = new Date(v)
+    if (spanMs > 45 * DAY) return format(d, 'MMM')
+    if (spanMs > 2 * DAY) return format(d, 'MMM d')
+    return format(d, 'HH:mm')
+  }
+
   return (
     <div>
       {/* Legend — PM places the color key ABOVE the plot: dot · name · current %.
@@ -198,27 +227,37 @@ export function OutcomesChart({ options, data, volumeUsd, closesAt }: OutcomesCh
         ))}
       </ul>
 
-      <div className="h-48" role="img" aria-label={summary}>
+      <div className="relative h-48" role="img" aria-label={summary}>
         <p className="sr-only">{summary}</p>
+        {/* Faint brand watermark inside the plot (PM paints "Polymarket" into
+            the chart canvas). Sits behind the lines, non-interactive. */}
+        <span
+          aria-hidden
+          className="pointer-events-none absolute inset-0 z-0 flex select-none items-center justify-center font-display text-2xl font-bold uppercase tracking-wide text-text-primary opacity-[0.05]"
+        >
+          MarketPips
+        </span>
         <ResponsiveContainer width="100%" height="100%">
-          <LineChart data={chartData} margin={{ top: 5, right: 5, left: -25, bottom: 0 }}>
+          <LineChart data={chartData} margin={{ top: 5, right: 2, left: 0, bottom: 0 }}>
             <XAxis
               dataKey="time"
-              tickFormatter={(v) => format(new Date(v), 'MMM d')}
+              tickFormatter={xTickFormatter}
               tick={{ fontSize: 10, fill: 'var(--text-muted)' }}
               tickLine={false}
               axisLine={false}
               minTickGap={40}
             />
             <YAxis
-              domain={[0, 1]}
+              orientation="right"
+              domain={[0, yMax]}
+              ticks={yTicks}
               tickFormatter={(v) => `${Math.round(v * 100)}%`}
               tick={{ fontSize: 10, fill: 'var(--text-muted)' }}
               tickLine={false}
               axisLine={false}
+              width={34}
             />
             <Tooltip content={<ChartTooltip />} />
-            <ReferenceLine y={0.5} stroke="var(--hairline)" strokeDasharray="3 3" />
             {ranked.map((o) => (
               <Line
                 key={o.id}
