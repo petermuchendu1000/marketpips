@@ -53,6 +53,7 @@ export function HomeCategoryBar() {
 
   return (
     <div
+      data-sticky-rail
       className="sticky z-40"
       style={{
         top: 'var(--nav-h, 56px)',

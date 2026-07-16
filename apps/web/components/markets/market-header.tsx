@@ -50,6 +50,32 @@ export function MarketHeader({ market, outcomes, isMulti }: MarketHeaderProps) {
     }
   }, [market.id])
 
+  // --- Mobile sticky-header parity (Polymarket) --------------------------
+  // PM pins the identity strip directly beneath the global chrome
+  // (`sticky; top: var(--navbar-height)`). Our chrome = navbar (h-14) + the
+  // persistent category rail, whose combined height varies with font metrics
+  // and viewport. Rather than hard-code a magic offset, we MEASURE the live
+  // chrome (`.navbar` + `[data-sticky-rail]`) on mount + resize so the header
+  // re-pins with pixel accuracy. Falls back to 108px before hydration.
+  const [stickyTop, setStickyTop] = useState(108)
+  const [scrolled, setScrolled] = useState(false)
+  useEffect(() => {
+    const measure = () => {
+      const nav = document.querySelector('.navbar') as HTMLElement | null
+      const rail = document.querySelector('[data-sticky-rail]') as HTMLElement | null
+      setStickyTop((nav?.offsetHeight ?? 56) + (rail?.offsetHeight ?? 0))
+    }
+    measure()
+    window.addEventListener('resize', measure)
+    return () => window.removeEventListener('resize', measure)
+  }, [])
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > 8)
+    onScroll()
+    window.addEventListener('scroll', onScroll, { passive: true })
+    return () => window.removeEventListener('scroll', onScroll)
+  }, [])
+
   const marketUrl = () => `${window.location.origin}/markets/${market.slug}`
 
   const handleShare = async () => {
@@ -93,14 +119,27 @@ export function MarketHeader({ market, outcomes, isMulti }: MarketHeaderProps) {
   }
 
   return (
-    <section className="card p-5">
-      <div className="flex items-start gap-4">
-        <EntityAvatar
-          name={market.title}
-          imageUrl={market.cover_image_url}
-          size={56}
-          className="shrink-0"
-        />
+    <section
+      style={{ top: stickyTop }}
+      className={
+        // Mobile: PM sticky identity strip pinned under the global chrome.
+        'sticky z-20 -mx-4 bg-[var(--bg)] px-4 py-2.5 transition-[border-color] ' +
+        (scrolled ? 'border-b border-[var(--hairline)] ' : 'border-b border-transparent ') +
+        // Desktop (>=lg): revert to the static identity card.
+        'lg:static lg:z-auto lg:mx-0 lg:rounded-[var(--r-md)] lg:border lg:border-[var(--hairline)] ' +
+        'lg:bg-[var(--surface)] lg:p-5 lg:shadow-[var(--e1)]'
+      }
+    >
+      <div className="flex items-start gap-3 sm:gap-4">
+        {/* Avatar: PM sizes 40px < 480px, 64px >= 480px (square/rounded-sm). */}
+        <div className="shrink-0">
+          <div className="min-[480px]:hidden">
+            <EntityAvatar name={market.title} imageUrl={market.cover_image_url} size={40} radius={6} />
+          </div>
+          <div className="hidden min-[480px]:block">
+            <EntityAvatar name={market.title} imageUrl={market.cover_image_url} size={64} radius={10} />
+          </div>
+        </div>
 
         <div className="min-w-0 flex-1">
           {/* Breadcrumb row (Polymarket: "Economy · Fomc") + action cluster.
@@ -126,7 +165,7 @@ export function MarketHeader({ market, outcomes, isMulti }: MarketHeaderProps) {
                 onClick={handleCopyLink}
                 aria-label="Copy link"
                 title="Copy link"
-                className="btn btn-ghost btn-icon-sm"
+                className="btn btn-ghost btn-icon-sm hidden sm:inline-flex"
               >
                 <IconLink size={16} />
               </button>
@@ -152,12 +191,15 @@ export function MarketHeader({ market, outcomes, isMulti }: MarketHeaderProps) {
             </div>
           </div>
 
-          <h1 className="font-display text-xl leading-tight text-text-primary sm:text-2xl">
+          <h1 className="font-display text-xl font-semibold leading-tight text-text-primary sm:text-2xl">
             {market.title}
           </h1>
 
-          {/* Status + compact live probability (binary) / resolved outcome */}
-          <div className="mt-3 flex flex-wrap items-center gap-3">
+          {/* Status + compact live probability (binary) / resolved outcome.
+              PM's mobile header carries NO status badge — the outcome legend
+              above the chart conveys state — so this row is desktop-only; on a
+              phone it would bloat the sticky strip. */}
+          <div className="mt-3 hidden flex-wrap items-center gap-3 lg:flex">
             <span className={`badge ${badge.className}`}>{badge.label}</span>
             {market.is_trending && <span className="badge badge-amber">Trending</span>}
 
