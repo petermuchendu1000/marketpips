@@ -43,13 +43,18 @@ const TIMEFRAMES: { key: Timeframe; label: string; ms: number | null }[] = [
 
 interface TooltipProps {
   active?: boolean
-  payload?: { value: number }[]
+  payload?: { value: number; dataKey?: string | number }[]
   label?: string | number
 }
 
 function CustomTooltip({ active, payload, label }: TooltipProps) {
   if (!active || !payload?.length) return null
-  const yes = Math.round((payload[0]?.value || 0) * 100)
+  // Read each side by its dataKey so the values stay correct regardless of the
+  // order the two series are drawn in.
+  const yesRaw = payload.find((p) => p.dataKey === 'yes')?.value
+  const noRaw = payload.find((p) => p.dataKey === 'no')?.value
+  const yes = Math.round((yesRaw ?? 0) * 100)
+  const no = noRaw != null ? Math.round(noRaw * 100) : 100 - yes
   return (
     <div
       className="rounded-md border border-hairline px-3 py-2 text-sm shadow-lg"
@@ -60,10 +65,37 @@ function CustomTooltip({ active, payload, label }: TooltipProps) {
       </p>
       <div className="flex gap-3 font-mono">
         <span className="font-medium text-yes">YES {yes}%</span>
-        <span className="font-medium text-no">NO {100 - yes}%</span>
+        <span className="font-medium text-no">NO {no}%</span>
       </div>
     </div>
   )
+}
+
+/** Polymarket-style "live" endpoint: a solid dot at the leading edge of a line
+ *  with a soft halo ring that expands and fades on a loop (simulates a live
+ *  feed). Rendered only at the LAST datapoint of a series; every other point
+ *  renders nothing. Reuses the measured `.pm-endpoint-pulse` keyframes from
+ *  globals.css (scale→3.95, opacity 0.34→0, 2s ease-out) so the whole app's
+ *  live dots animate identically, with zero client JS beyond React. */
+function makeLiveEndpoint(lastIndex: number, color: string) {
+  function LiveEndpoint(props: { cx?: number; cy?: number; index?: number }) {
+    const { cx, cy, index } = props
+    if (index !== lastIndex || cx == null || cy == null) return <g key={`e-${index}`} />
+    return (
+      <g key={`e-${index}`} style={{ pointerEvents: 'none' }}>
+        <circle
+          cx={cx}
+          cy={cy}
+          r={4}
+          fill={color}
+          className="pm-endpoint-pulse"
+          style={{ transformBox: 'fill-box', transformOrigin: '50% 50%' }}
+        />
+        <circle cx={cx} cy={cy} r={3.5} fill={color} />
+      </g>
+    )
+  }
+  return LiveEndpoint
 }
 
 export function PriceChart({ data, currentYes = 0.5, volumeUsd = 0 }: PriceChartProps) {
@@ -104,6 +136,7 @@ export function PriceChart({ data, currentYes = 0.5, volumeUsd = 0 }: PriceChart
   }, [data, timeframe, currentYes])
 
   const isSeeded = (data ?? []).filter((d) => d.recorded_at).length === 0
+  const lastIndex = chartData.length - 1
   const latestYes = Math.round((chartData[chartData.length - 1]?.yes ?? currentYes) * 100)
   const firstYes = Math.round((chartData[0]?.yes ?? currentYes) * 100)
   const direction =
@@ -146,6 +179,10 @@ export function PriceChart({ data, currentYes = 0.5, volumeUsd = 0 }: PriceChart
                 <stop offset="5%" stopColor="var(--yes)" stopOpacity={0.28} />
                 <stop offset="95%" stopColor="var(--yes)" stopOpacity={0} />
               </linearGradient>
+              <linearGradient id="noGradient" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="5%" stopColor="var(--no)" stopOpacity={0.16} />
+                <stop offset="95%" stopColor="var(--no)" stopOpacity={0} />
+              </linearGradient>
             </defs>
             <CartesianGrid
               strokeDasharray="3 3"
@@ -175,14 +212,32 @@ export function PriceChart({ data, currentYes = 0.5, volumeUsd = 0 }: PriceChart
             />
             <Tooltip content={<CustomTooltip />} />
             {opts.annotations && <ReferenceLine y={0.5} stroke="var(--hairline)" strokeDasharray="3 3" />}
+            {/* TWO lines for a binary market (Kalshi parity): one per side,
+                each driven by that side's own order flow (yes_price / no_price
+                from price_history). They are complementary under our LMSR
+                (Yes+No=1), so buying Yes lifts the Yes line and presses the No
+                line down, and vice-versa. Draw No first so Yes sits on top. */}
+            <Area
+              type="monotone"
+              dataKey="no"
+              name="No"
+              stroke="var(--no)"
+              strokeWidth={2}
+              fill="url(#noGradient)"
+              dot={makeLiveEndpoint(lastIndex, 'var(--no)')}
+              activeDot={{ r: 4, fill: 'var(--no)' }}
+              isAnimationActive={false}
+            />
             <Area
               type="monotone"
               dataKey="yes"
+              name="Yes"
               stroke="var(--yes)"
               strokeWidth={2}
               fill="url(#yesGradient)"
-              dot={false}
+              dot={makeLiveEndpoint(lastIndex, 'var(--yes)')}
               activeDot={{ r: 4, fill: 'var(--yes)' }}
+              isAnimationActive={false}
             />
           </AreaChart>
         </ResponsiveContainer>
