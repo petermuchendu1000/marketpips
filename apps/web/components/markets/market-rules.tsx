@@ -6,6 +6,7 @@
 // and copy. Text-first, SSR-friendly content is passed in from the server page.
 
 import { useId, useState } from 'react'
+import { formatDistanceToNow, format } from 'date-fns'
 import { IconShield, IconInfo, IconExternalLink } from '@/components/ui/icons'
 
 type TabKey = 'rules' | 'context'
@@ -50,20 +51,31 @@ export function MarketRules({
   resolutionCriteria,
   description,
   resolutionSource,
+  createdBy,
+  closesAt,
+  resolvedAt,
+  isResolved = false,
 }: {
   resolutionCriteria: string
   description: string
   resolutionSource?: string | null
+  /** Market author display name (moved out of the header identity strip). */
+  createdBy?: string | null
+  /** ISO close date — always shown in the context meta row. */
+  closesAt: string
+  /** ISO resolved date, when the market has settled. */
+  resolvedAt?: string | null
+  isResolved?: boolean
 }) {
   const [tab, setTab] = useState<TabKey>('rules')
   const baseId = useId()
-  const hasContext = Boolean(description && description.trim().length > 0)
+  const hasDescription = Boolean(description && description.trim().length > 0)
 
+  // The context tab now ALSO carries the market's provenance (author + close /
+  // resolution date) that used to sit under the title, so it is always present.
   const tabs: { key: TabKey; label: string; icon: React.ReactNode }[] = [
     { key: 'rules', label: 'Rules', icon: <IconShield size={13} /> },
-    ...(hasContext
-      ? [{ key: 'context' as const, label: 'Market context', icon: <IconInfo size={13} /> }]
-      : []),
+    { key: 'context', label: 'Market context', icon: <IconInfo size={13} /> },
   ]
 
   return (
@@ -109,9 +121,44 @@ export function MarketRules({
         </div>
       )}
 
-      {tab === 'context' && hasContext && (
+      {tab === 'context' && (
         <div role="tabpanel" id={`${baseId}-panel-context`} aria-labelledby={`${baseId}-tab-context`}>
-          <Expandable text={description} />
+          {hasDescription ? (
+            <Expandable text={description} />
+          ) : (
+            <p className="text-sm text-text-muted">No additional context was provided for this market.</p>
+          )}
+
+          {/* Provenance + resolution source — relocated here from the header
+              identity strip (keeps the top of the page lean, options higher). */}
+          <div className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-1.5 border-t border-hairline pt-3 text-xs text-text-muted">
+            {createdBy && (
+              <>
+                <span>
+                  by <span className="font-medium text-text-secondary">{createdBy}</span>
+                </span>
+                <span aria-hidden>&middot;</span>
+              </>
+            )}
+            <span>
+              {isResolved && resolvedAt
+                ? `Resolved ${formatDistanceToNow(new Date(resolvedAt), { addSuffix: true })}`
+                : `Closes ${format(new Date(closesAt), 'MMM d, yyyy')}`}
+            </span>
+            {resolutionSource && (
+              <>
+                <span aria-hidden>&middot;</span>
+                <a
+                  href={resolutionSource}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 font-medium text-pip-500 hover:underline"
+                >
+                  <IconExternalLink size={13} /> Source
+                </a>
+              </>
+            )}
+          </div>
         </div>
       )}
     </div>

@@ -5,13 +5,12 @@
 // square entity avatar · category breadcrumb · title · action cluster
 // (copy-link / share / bookmark). Custom icons only (no lucide), no emoji.
 import { useEffect, useState } from 'react'
-import { formatDistanceToNow, format } from 'date-fns'
 import toast from 'react-hot-toast'
 import type { Market, MarketStatus } from '@/types'
 import { CATEGORY_LABELS } from '@/types'
 import type { Outcome } from '@/lib/markets/outcomes'
 import { EntityAvatar } from '@/components/ui/entity-avatar'
-import { CategoryIcon, IconShare, IconLink, IconBookmark, IconExternalLink } from '@/components/ui/icons'
+import { CategoryIcon, IconShare, IconLink, IconBookmark } from '@/components/ui/icons'
 
 interface MarketHeaderProps {
   market: Market
@@ -179,43 +178,12 @@ export function MarketHeader({ market, outcomes, isMulti }: MarketHeaderProps) {
           </div>
         </div>
       </div>
-
-      <p className="mt-4 whitespace-pre-line text-sm leading-relaxed text-text-secondary">
-        {market.description}
-      </p>
-
-      {/* Provenance + resolution source */}
-      <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-hairline pt-4">
-        <div className="flex items-center gap-2 text-xs text-text-muted">
-          {market.creator && (
-            <>
-              <span>
-                by{' '}
-                <span className="font-medium text-text-secondary">
-                  {market.creator.display_name || market.creator.username || 'Anonymous'}
-                </span>
-              </span>
-              <span aria-hidden>&middot;</span>
-            </>
-          )}
-          <span>
-            {isResolved && market.resolved_at
-              ? `Resolved ${formatDistanceToNow(new Date(market.resolved_at), { addSuffix: true })}`
-              : `Closes ${format(new Date(market.closes_at), 'MMM d, yyyy')}`}
-          </span>
-        </div>
-
-        {market.resolution_source && (
-          <a
-            href={market.resolution_source}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="btn btn-ghost btn-sm gap-1.5"
-          >
-            <IconExternalLink size={13} /> Source
-          </a>
-        )}
-      </div>
+      {/* NOTE: the market description + provenance/resolution-source ("market
+          info") used to live here, directly under the title. It pushed the
+          actionable options (candidate board / order ticket) down and hurt
+          conversion. Per Polymarket/Kalshi — where the identity strip stays
+          tight and background lives in a lower "context" panel — that content
+          now renders inside the MarketRules "Market context" tab instead. */}
     </section>
   )
 }

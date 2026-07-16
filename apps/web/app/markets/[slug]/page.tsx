@@ -308,6 +308,10 @@ export default async function MarketPage({
             resolutionCriteria={market.resolution_criteria}
             description={market.description}
             resolutionSource={market.resolution_source}
+            createdBy={market.creator?.display_name || market.creator?.username || null}
+            closesAt={market.closes_at}
+            resolvedAt={market.resolved_at}
+            isResolved={market.status === 'resolved'}
           />
 
           {/* Community — Comments / Top holders / Positions / Activity (tabs). */}
