@@ -1,6 +1,5 @@
 // app/markets/[slug]/page.tsx — Market detail + trading
 import { Suspense, cache, type ReactNode } from 'react'
-import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import type { Metadata } from 'next'
 import { createClient } from '@/lib/supabase/server'
@@ -25,7 +24,6 @@ import { formatUSD } from '@/lib/utils'
 import {
   IconTrendUp,
   IconInfo,
-  IconChevronLeft,
 } from '@/components/ui/icons'
 import type { Market, MarketOption } from '@/types'
 
@@ -85,11 +83,13 @@ async function MarketPriceHistory({
   options,
   currentYes,
   volumeUsd,
+  closesAt,
 }: {
   marketId: string
   options?: MarketOption[] | null
   currentYes?: number
   volumeUsd?: number
+  closesAt?: string
 }) {
   const supabase = await createClient()
 
@@ -111,6 +111,8 @@ async function MarketPriceHistory({
           price: h.price ?? 0,
           recordedAt: h.recorded_at,
         }))}
+        volumeUsd={volumeUsd}
+        closesAt={closesAt}
       />
     )
   }
@@ -256,13 +258,9 @@ export default async function MarketPage({
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(faqJsonLd) }} />
 
-      {/* Breadcrumb */}
-      <Link
-        href="/markets"
-        className="mb-4 inline-flex items-center gap-1 text-sm text-text-muted transition-colors hover:text-pip-500"
-      >
-        <IconChevronLeft size={15} /> All markets
-      </Link>
+      {/* NOTE: Polymarket's market-detail page has NO "back / All markets"
+          breadcrumb — navigation is via the global chrome only. Removed for
+          parity (was: a ChevronLeft "All markets" link). */}
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         {/* Main column */}
@@ -296,6 +294,7 @@ export default async function MarketPage({
                     options={isMulti ? options : null}
                     currentYes={market.yes_price}
                     volumeUsd={market.total_volume_usd}
+                    closesAt={market.closes_at}
                   />
                 </Suspense>
               </>

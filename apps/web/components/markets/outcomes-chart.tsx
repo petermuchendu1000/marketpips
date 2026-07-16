@@ -12,6 +12,7 @@ import {
   ResponsiveContainer, ReferenceLine,
 } from 'recharts'
 import { format } from 'date-fns'
+import { IconTrophy, IconClock } from '@/components/ui/icons'
 
 export interface OutcomeSeriesOption {
   id: string
@@ -29,16 +30,23 @@ export interface OutcomePricePoint {
 interface OutcomesChartProps {
   options: OutcomeSeriesOption[]
   data: OutcomePricePoint[]
+  /** Total traded volume (USD) — left-side chart footer chip (PM parity). */
+  volumeUsd?: number
+  /** Market close date (ISO) — footer clock chip (PM parity). */
+  closesAt?: string
 }
 
-type Timeframe = '24H' | '1W' | '1M' | 'ALL'
+// Timeframe range toggles — exact Polymarket set + order: 1H · 6H · 1D · 1W · 1M · ALL.
+type Timeframe = '1H' | '6H' | '1D' | '1W' | '1M' | 'ALL'
 
 const HOUR = 60 * 60 * 1000
 const TIMEFRAMES: { key: Timeframe; label: string; ms: number | null }[] = [
-  { key: '24H', label: '24H', ms: 24 * HOUR },
+  { key: '1H', label: '1H', ms: HOUR },
+  { key: '6H', label: '6H', ms: 6 * HOUR },
+  { key: '1D', label: '1D', ms: 24 * HOUR },
   { key: '1W', label: '1W', ms: 7 * 24 * HOUR },
   { key: '1M', label: '1M', ms: 30 * 24 * HOUR },
-  { key: 'ALL', label: 'All', ms: null },
+  { key: 'ALL', label: 'ALL', ms: null },
 ]
 
 // Brand-led categorical palette (shared with the allocation donut).
@@ -102,7 +110,7 @@ function makeLiveEndpoint(lastIndex: number, color: string) {
   return LiveEndpoint
 }
 
-export function OutcomesChart({ options, data }: OutcomesChartProps) {
+export function OutcomesChart({ options, data, volumeUsd, closesAt }: OutcomesChartProps) {
   const [timeframe, setTimeframe] = useState<Timeframe>('ALL')
 
   // Stable option order + color assignment, ranked by current price.
@@ -170,31 +178,25 @@ export function OutcomesChart({ options, data }: OutcomesChartProps) {
 
   return (
     <div>
-      <div className="mb-3 flex items-center justify-end">
-        <div
-          role="tablist"
-          aria-label="Chart timeframe"
-          className="inline-flex rounded-sm border border-hairline p-0.5"
-        >
-          {TIMEFRAMES.map((tf) => {
-            const active = tf.key === timeframe
-            return (
-              <button
-                key={tf.key}
-                type="button"
-                role="tab"
-                aria-selected={active}
-                onClick={() => setTimeframe(tf.key)}
-                className={`rounded-[3px] px-2.5 py-1 text-xs font-semibold transition-colors ${
-                  active ? 'bg-pip-100 text-pip-500' : 'text-text-muted hover:text-text-secondary'
-                }`}
-              >
-                {tf.label}
-              </button>
-            )
-          })}
-        </div>
-      </div>
+      {/* Legend — PM places the color key ABOVE the plot: dot · name · current %.
+          On a phone only the top 4 series show (matching PM); the rest reveal at
+          >=sm where there's room. */}
+      <ul className="mb-2 flex flex-wrap items-center gap-x-4 gap-y-1">
+        {ranked.map((o, i) => (
+          <li
+            key={o.id}
+            className={`flex items-center gap-1.5 whitespace-nowrap ${i >= 4 ? 'hidden sm:flex' : ''}`}
+          >
+            <span
+              className="size-2 flex-none rounded-full"
+              style={{ background: colorById.get(o.id) }}
+              aria-hidden
+            />
+            <span className="text-xs text-text-secondary">{o.label}</span>
+            <span className="text-xs font-semibold text-text-primary">{Math.round(o.price * 100)}%</span>
+          </li>
+        ))}
+      </ul>
 
       <div className="h-48" role="img" aria-label={summary}>
         <p className="sr-only">{summary}</p>
@@ -239,22 +241,47 @@ export function OutcomesChart({ options, data }: OutcomesChartProps) {
         <p className="mt-1 text-center text-[11px] text-text-muted">Awaiting first trade — showing current probabilities</p>
       )}
 
-      {/* Legend — ranked options with current probability. */}
-      <ul className="mt-3 grid grid-cols-1 gap-x-4 gap-y-1.5 sm:grid-cols-2">
-        {ranked.map((o) => (
-          <li key={o.id} className="flex items-center gap-2 text-xs">
-            <span
-              className="h-2.5 w-2.5 flex-none rounded-[2px]"
-              style={{ background: colorById.get(o.id) }}
-              aria-hidden
-            />
-            <span className="min-w-0 flex-1 truncate text-text-secondary">{o.label}</span>
-            <span className="font-mono font-medium text-text-primary">
-              {Math.round(o.price * 100)}%
+      {/* Footer strip (PM parity): volume + close-date chips on the left,
+          timeframe range toggles on the right — one row. */}
+      <div className="mt-3 flex items-center justify-between gap-3">
+        <div className="flex min-w-0 items-center gap-3 text-[13px] font-medium">
+          {typeof volumeUsd === 'number' && (
+            <span className="inline-flex items-center gap-1 whitespace-nowrap text-text-primary">
+              <IconTrophy size={13} />${Math.round(volumeUsd).toLocaleString('en-US')} Vol.
             </span>
-          </li>
-        ))}
-      </ul>
+          )}
+          {closesAt && (
+            <span className="inline-flex items-center gap-1 whitespace-nowrap text-text-muted">
+              <IconClock size={13} />
+              {format(new Date(closesAt), 'MMM d, yyyy')}
+            </span>
+          )}
+        </div>
+
+        <div
+          role="tablist"
+          aria-label="Chart timeframe"
+          className="inline-flex flex-none rounded-sm border border-hairline p-0.5"
+        >
+          {TIMEFRAMES.map((tf) => {
+            const active = tf.key === timeframe
+            return (
+              <button
+                key={tf.key}
+                type="button"
+                role="tab"
+                aria-selected={active}
+                onClick={() => setTimeframe(tf.key)}
+                className={`rounded-[3px] px-2 py-1 text-xs font-semibold transition-colors ${
+                  active ? 'bg-pip-100 text-pip-500' : 'text-text-muted hover:text-text-secondary'
+                }`}
+              >
+                {tf.label}
+              </button>
+            )
+          })}
+        </div>
+      </div>
     </div>
   )
 }
