@@ -267,8 +267,6 @@ export default async function MarketPage({
         <div className="space-y-6 lg:col-span-2">
           <MarketHeader market={market} outcomes={outcomes} isMulti={isMulti} />
 
-          {isMulti && <CandidateList market={market} options={options} independent={independent} />}
-
           <div className="card p-4">
             {isUpDown && btcReferencePrice > 0 ? (
               <>
@@ -300,6 +298,11 @@ export default async function MarketPage({
               </>
             )}
           </div>
+
+          {/* Options / outcome board — PM renders the outcome rows AFTER the
+              graph (graph first, options second). Verified live at 390px:
+              chart footer ~634px, first outcome row ~687px. */}
+          {isMulti && <CandidateList market={market} options={options} independent={independent} />}
 
           {/* Settlement / resolution — Rules / Market context tabs (main column
               for exact left-rail ordering: header → chart → rules → community). */}
