@@ -202,10 +202,19 @@ function Spotlight({ market, series, comments, activity }: HeroMarket & { commen
         boxShadow: '0 4px 16px 0 rgba(59,130,246,0.07)', // blue-500/7
       }}
     >
-      {/* full-bleed overlay link — inner controls opt back in via z-index */}
-      <Link href={`/markets/${market.slug}`} className="absolute inset-0 z-0" aria-label={`Open market: ${market.title}`} />
+      {/* Full-bleed overlay link — makes the ENTIRE spotlight card tappable on
+          mobile AND desktop (Polymarket/Kalshi parity: the whole card is one big
+          hit target). It sits at z-[1], ABOVE the card's base content (which is
+          left at the default z-auto), so a tap anywhere that isn't an explicit
+          control navigates to the market. Interactive controls (share/bookmark,
+          Yes/No, per-outcome rows, Predict) opt back in with a higher z-index
+          (z-10 / z-20) so they keep their own behaviour.
+          NOTE: the content wrapper must NOT set an explicit z-index — doing so
+          would create a stacking context that traps the inner controls beneath
+          this overlay and make them un-clickable. */}
+      <Link href={`/markets/${market.slug}`} className="absolute inset-0 z-[1]" aria-label={`Open market: ${market.title}`} />
 
-      <div className="relative z-10 flex flex-1 flex-col p-4 sm:p-5">
+      <div className="relative flex flex-1 flex-col p-4 sm:p-5">
         {/* header: event icon + breadcrumb/title + actions.
             The share/bookmark actions sit on the CATEGORY baseline (not the
             title's), so the headline can use the full column width and wrap into
@@ -263,7 +272,7 @@ function Spotlight({ market, series, comments, activity }: HeroMarket & { commen
               <>
                 {/* Desktop: Yes/No probability rows (measured PM parity). */}
                 <div className="hidden flex-col gap-2 lg:flex">
-                  <BinaryRows yesPct={yesPct} />
+                  <BinaryRows yesPct={yesPct} slug={market.slug} />
                 </div>
                 {/* Mobile: horizontal Yes/No CTA buttons — each carries its %. */}
                 <div className="grid grid-cols-2 gap-2 lg:hidden">
@@ -286,10 +295,16 @@ function Spotlight({ market, series, comments, activity }: HeroMarket & { commen
             ) : (
               <div className="grid grid-cols-2 gap-x-3 gap-y-1 lg:flex lg:flex-col lg:gap-2">
                 {ranked.slice(0, 4).map((o) => (
-                  <div
+                  // Each outcome is its OWN tappable target (mobile + desktop):
+                  // deep-links into the market with this candidate pre-armed in
+                  // the order ticket (?option=<id>, validated server-side). z-10
+                  // lifts it above the card's full-bleed overlay link.
+                  <Link
                     key={o.id || o.label}
-                    className="flex min-h-0 items-center justify-between gap-2 pb-1 lg:min-h-10 lg:gap-3 lg:pb-2"
+                    href={o.id ? `/markets/${market.slug}?option=${o.id}` : `/markets/${market.slug}`}
+                    className="pointer-events-auto relative z-10 flex min-h-0 items-center justify-between gap-2 rounded-md pb-1 transition-colors hover:bg-[var(--surface-2)] lg:min-h-10 lg:gap-3 lg:pb-2"
                     style={{ borderBottom: '1px solid var(--hairline-soft)' }}
+                    aria-label={`Trade ${o.label} — ${Math.round(o.price * 100)}%`}
                   >
                     <div className="flex min-w-0 flex-1 items-center gap-1.5">
                       {o.imageUrl && (
@@ -305,7 +320,7 @@ function Spotlight({ market, series, comments, activity }: HeroMarket & { commen
                     <span className="flex-none tabular-nums text-[15px] font-semibold leading-tight lg:text-[20px] lg:leading-6" style={{ color: 'var(--text)', letterSpacing: '-0.2px' }}>
                       {Math.round(o.price * 100)}%
                     </span>
-                  </div>
+                  </Link>
                 ))}
                 {ranked.length > 4 && (
                   <span className="col-span-2 mt-0.5 text-[12px] font-medium lg:mt-1 lg:text-[13px]" style={{ color: 'var(--text-3)' }}>
@@ -393,19 +408,24 @@ function Spotlight({ market, series, comments, activity }: HeroMarket & { commen
   )
 }
 
-/** Yes/No rows for a binary market (color chip instead of an entity avatar). */
-function BinaryRows({ yesPct }: { yesPct: number }) {
+/** Yes/No rows for a binary market (color chip instead of an entity avatar).
+ *  Each row is a tappable deep-link that pre-arms the matching side in the order
+ *  ticket (?side=yes|no) — so the desktop hero options are clickable too, at
+ *  parity with the mobile Yes/No CTA buttons. */
+function BinaryRows({ yesPct, slug }: { yesPct: number; slug: string }) {
   const rows = [
-    { label: 'Yes', pct: yesPct, color: 'var(--yes)' },
-    { label: 'No', pct: 100 - yesPct, color: 'var(--no)' },
+    { label: 'Yes', side: 'yes', pct: yesPct, color: 'var(--yes)' },
+    { label: 'No', side: 'no', pct: 100 - yesPct, color: 'var(--no)' },
   ]
   return (
     <>
       {rows.map((r) => (
-        <div
+        <Link
           key={r.label}
-          className="flex min-h-10 items-center justify-between gap-3 pb-2"
+          href={`/markets/${slug}?side=${r.side}`}
+          className="pointer-events-auto relative z-10 flex min-h-10 items-center justify-between gap-3 rounded-md pb-2 transition-colors hover:bg-[var(--surface-2)]"
           style={{ borderBottom: '1px solid var(--hairline-soft)' }}
+          aria-label={`Buy ${r.label} — ${r.pct}%`}
         >
           <div className="flex min-w-0 flex-1 items-center gap-1.5">
             <span className="h-[18px] w-[18px] flex-none rounded-[5px]" style={{ background: r.color }} aria-hidden />
@@ -416,7 +436,7 @@ function BinaryRows({ yesPct }: { yesPct: number }) {
           <span className="flex-none tabular-nums font-semibold" style={{ fontSize: 20, lineHeight: '24px', color: 'var(--text)', letterSpacing: '-0.2px' }}>
             {r.pct}%
           </span>
-        </div>
+        </Link>
       ))}
     </>
   )
