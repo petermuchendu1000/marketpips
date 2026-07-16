@@ -24,7 +24,6 @@ import {
   IconSearch,
   IconCheck,
   IconTrophy,
-  IconArrowRight,
 } from '@/components/ui/icons'
 
 type SortKey = 'prob' | 'volume' | 'az'
@@ -334,14 +333,6 @@ export function CandidateList({
         })}
       </div>
 
-      {isOpen && (
-        <p className="flex items-center gap-1.5 border-t border-hairline px-4 py-2.5 text-[11px] text-text-muted">
-          <IconArrowRight size={12} className="flex-none" />
-          {independent
-            ? 'Each candidate trades as its own Yes/No line — tap Yes or No to load it in the order ticket. Prices are per-candidate and need not sum to 100%.'
-            : 'Select a candidate to load it in the order ticket. Prices are live LMSR probabilities.'}
-        </p>
-      )}
     </div>
   )
 }
