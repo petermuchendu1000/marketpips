@@ -78,6 +78,30 @@ function ChartTooltip({ active, payload, label }: TooltipProps) {
   )
 }
 
+/** Polymarket-style "live" endpoint dot (solid dot + expanding, fading halo)
+ *  rendered only at the LAST datapoint of a line. Shares the `.pm-endpoint-pulse`
+ *  keyframes in globals.css so every live dot in the app pulses identically. */
+function makeLiveEndpoint(lastIndex: number, color: string) {
+  function LiveEndpoint(props: { cx?: number; cy?: number; index?: number }) {
+    const { cx, cy, index } = props
+    if (index !== lastIndex || cx == null || cy == null) return <g key={`e-${index}`} />
+    return (
+      <g key={`e-${index}`} style={{ pointerEvents: 'none' }}>
+        <circle
+          cx={cx}
+          cy={cy}
+          r={4}
+          fill={color}
+          className="pm-endpoint-pulse"
+          style={{ transformBox: 'fill-box', transformOrigin: '50% 50%' }}
+        />
+        <circle cx={cx} cy={cy} r={3} fill={color} />
+      </g>
+    )
+  }
+  return LiveEndpoint
+}
+
 export function OutcomesChart({ options, data }: OutcomesChartProps) {
   const [timeframe, setTimeframe] = useState<Timeframe>('ALL')
 
@@ -201,7 +225,7 @@ export function OutcomesChart({ options, data }: OutcomesChartProps) {
                 name={o.label}
                 stroke={colorById.get(o.id)}
                 strokeWidth={2}
-                dot={false}
+                dot={makeLiveEndpoint(chartData.length - 1, colorById.get(o.id) || 'var(--pip-500)')}
                 activeDot={{ r: 3 }}
                 isAnimationActive={false}
                 connectNulls

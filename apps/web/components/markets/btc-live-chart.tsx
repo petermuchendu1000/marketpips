@@ -98,6 +98,26 @@ function Tip({ active, payload, label, kind }: {
   )
 }
 
+/** Pulsing "live" marker for a recharts ReferenceDot `shape`: a solid dot with
+ *  a halo ring that expands and fades on a loop (simulates a live tick). Reuses
+ *  the app-wide `.pm-endpoint-pulse` keyframes from globals.css. */
+function LivePulseDot({ cx, cy, color }: { cx?: number; cy?: number; color: string }) {
+  if (cx == null || cy == null) return <g />
+  return (
+    <g style={{ pointerEvents: 'none' }}>
+      <circle
+        cx={cx}
+        cy={cy}
+        r={4}
+        fill={color}
+        className="pm-endpoint-pulse"
+        style={{ transformBox: 'fill-box', transformOrigin: '50% 50%' }}
+      />
+      <circle cx={cx} cy={cy} r={4} fill={color} stroke="var(--surface)" strokeWidth={2} />
+    </g>
+  )
+}
+
 export function BtcLiveChart({
   marketId,
   slug,
@@ -661,7 +681,7 @@ export function BtcLiveChart({
                 activeDot={{ r: 3 }}
               />
               {last && !windowClosed && (
-                <ReferenceDot x={last.t} y={liveProb} r={4} fill={PROB_BLUE} stroke="var(--surface)" strokeWidth={2} />
+                <ReferenceDot x={last.t} y={liveProb} r={4} shape={(props) => <LivePulseDot {...props} color={PROB_BLUE} />} />
               )}
             </AreaChart>
           ) : chartType === 'candle' ? (
@@ -726,7 +746,7 @@ export function BtcLiveChart({
                 activeDot={{ r: 3 }}
               />
               {last && !windowClosed && (
-                <ReferenceDot x={last.t} y={last.price} r={4} fill={BTC_ORANGE} stroke="var(--surface)" strokeWidth={2} />
+                <ReferenceDot x={last.t} y={last.price} r={4} shape={(props) => <LivePulseDot {...props} color={BTC_ORANGE} />} />
               )}
             </AreaChart>
           )}
