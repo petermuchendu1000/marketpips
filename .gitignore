@@ -49,3 +49,5 @@ Thumbs.db
 .vercel
 .fly/
 *.local
+tools/pm-parity/raw/
+*.pmcap.json
