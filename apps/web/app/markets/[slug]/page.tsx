@@ -12,6 +12,7 @@ import { GuidedBetFlow } from '@/components/trading/guided-bet-flow'
 import { PmTicket } from '@/components/trading/pm-ticket'
 import { CandidateList } from '@/components/trading/candidate-list'
 import { MobileTradeBar } from '@/components/trading/mobile-trade-bar'
+import { MarketDrawer } from '@/components/trading/market-drawer'
 import { PositionSummary } from '@/components/trading/position-summary'
 import { MarketComments } from '@/components/markets/market-comments'
 import { MarketRules } from '@/components/markets/market-rules'
@@ -430,6 +431,12 @@ export default async function MarketPage({
           initialOptionId={initialOptionId}
           closesAt={btcClosesAt}
         />
+      )}
+
+      {/* Mobile-only Market drawer — opened by tapping a candidate name/body on
+          a multi-outcome board (PM name-tap target). */}
+      {market.status === 'active' && isMulti && (
+        <MarketDrawer market={market} options={options} />
       )}
     </div>
   )

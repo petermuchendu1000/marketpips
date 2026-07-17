@@ -129,6 +129,23 @@ export function CandidateList({
     emitSelect(market.id, o.id, openSheet, side)
   }
 
+  // PM: tapping the option NAME / card body opens that option's MARKET view.
+  // On mobile that is a bottom Market drawer (marketpips:open-market); on desktop
+  // there is no drawer, so we just arm the sidebar ticket. The Buy Yes / Buy No
+  // pills bypass this and go straight to the Trade drawer.
+  const openMarketView = (o: Outcome) => {
+    setSelected(o.id)
+    if (typeof window !== 'undefined' && window.matchMedia('(max-width: 1023.98px)').matches) {
+      window.dispatchEvent(
+        new CustomEvent('marketpips:open-market', {
+          detail: { marketId: market.id, optionId: o.id },
+        }),
+      )
+      return
+    }
+    choose(o, false)
+  }
+
   // Keyboard: ↑/↓ move selection within the visible order (handled per-radio
   // so the radiogroup container stays non-interactive / a11y-clean).
   const moveSelection = (dir: 1 | -1) => {
@@ -246,11 +263,10 @@ export function CandidateList({
               aria-checked={active}
               tabIndex={active ? 0 : -1}
               // PM parity (verified live): tapping the card body/name opens the
-              // MARKET view for this option (chart/order-book/rules) — it does NOT
-              // place a trade. Only the Buy Yes / Buy No pills open the trade sheet.
-              // In our single-page model that means: select this option (drives the
-              // shared chart/detail) without opening the trade sheet.
-              onClick={() => choose(o, false)}
+              // MARKET view for this option — it does NOT place a trade. On mobile
+              // that is the Market drawer; on desktop it arms the sidebar ticket.
+              // Only the Buy Yes / Buy No pills open the Trade drawer.
+              onClick={() => openMarketView(o)}
               onKeyDown={(e) => {
                 if (e.key === 'Enter' || e.key === ' ') {
                   e.preventDefault()
