@@ -258,13 +258,14 @@ export function PriceChart({ data, currentYes = 0.5, volumeUsd = 0 }: PriceChart
         </ResponsiveContainer>
       </div>
 
-      {/* Footer: volume + date (left) · timeframe presets (right) */}
-      <div className="mt-2 flex items-center justify-between gap-3 border-t border-hairline pt-2.5">
+      {/* Footer: volume + date (left) · timeframe presets (right). Wraps on
+          narrow mobile so the Vol chip and toggles never collide (<400px). */}
+      <div className="mt-2 flex flex-wrap items-center justify-between gap-x-3 gap-y-2 border-t border-hairline pt-2.5">
         <span className="text-xs text-text-muted">
           <span className="font-mono font-medium text-text-secondary">{formatUSD(volumeUsd)}</span> Vol.
           {isSeeded && <span className="ml-2 text-text-muted">· awaiting first trade</span>}
         </span>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-none items-center gap-2">
         <div
           role="tablist"
           aria-label="Chart timeframe"

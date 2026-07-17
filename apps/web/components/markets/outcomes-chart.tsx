@@ -281,9 +281,10 @@ export function OutcomesChart({ options, data, volumeUsd, closesAt }: OutcomesCh
       )}
 
       {/* Footer strip (PM parity): volume + close-date chips on the left,
-          timeframe range toggles on the right — one row. */}
-      <div className="mt-3 flex items-center justify-between gap-3">
-        <div className="flex min-w-0 items-center gap-3 text-[13px] font-medium">
+          timeframe range toggles on the right. Wraps to a second line on narrow
+          mobile so the chips and toggles never collide (was overlapping <400px). */}
+      <div className="mt-3 flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
+        <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1 text-[13px] font-medium">
           {typeof volumeUsd === 'number' && (
             <span className="inline-flex items-center gap-1 whitespace-nowrap text-text-primary">
               <IconTrophy size={13} />${Math.round(volumeUsd).toLocaleString('en-US')} Vol.
@@ -300,7 +301,7 @@ export function OutcomesChart({ options, data, volumeUsd, closesAt }: OutcomesCh
         <div
           role="tablist"
           aria-label="Chart timeframe"
-          className="inline-flex flex-none rounded-sm border border-hairline p-0.5"
+          className="inline-flex max-w-full flex-none overflow-x-auto rounded-sm border border-hairline p-0.5"
         >
           {TIMEFRAMES.map((tf) => {
             const active = tf.key === timeframe
@@ -311,7 +312,7 @@ export function OutcomesChart({ options, data, volumeUsd, closesAt }: OutcomesCh
                 role="tab"
                 aria-selected={active}
                 onClick={() => setTimeframe(tf.key)}
-                className={`rounded-[3px] px-2 py-1 text-xs font-semibold transition-colors ${
+                className={`flex-none whitespace-nowrap rounded-[3px] px-2 py-1 text-xs font-semibold transition-colors ${
                   active ? 'bg-pip-100 text-pip-500' : 'text-text-muted hover:text-text-secondary'
                 }`}
               >
