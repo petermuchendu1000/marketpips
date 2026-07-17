@@ -110,7 +110,7 @@ export async function RelatedMarkets({ marketId, category }: RelatedMarketsProps
                     {pct}%
                   </span>
                   {subLabel && (
-                    <span className="max-w-[7.5rem] truncate text-xs text-text-secondary">
+                    <span className="max-w-[7.5rem] truncate text-xs text-text-muted">
                       {subLabel}
                     </span>
                   )}
