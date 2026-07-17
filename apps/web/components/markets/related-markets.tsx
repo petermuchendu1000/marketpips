@@ -1,6 +1,12 @@
 // components/markets/related-markets.tsx
+// Polymarket parity (G10): the market-detail "Related" block is a COMPACT
+// VERTICAL LIST, not a card grid. Each row is `icon · title · (leading outcome
+// name for multi) · mini leading-probability %`, linking to the market. Heading
+// reads "Related" (matching PM), and the whole block naturally hides when there
+// are no same-category peers.
+import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
-import { MarketCard } from './market-card'
+import { EntityAvatar } from '@/components/ui/entity-avatar'
 import { getLeadingOptions } from '@/lib/markets/leading-options'
 import { hideSettling } from '@/lib/markets/settling'
 import type { Market, MarketCategory } from '@/types'
@@ -23,7 +29,7 @@ export async function RelatedMarkets({ marketId, category }: RelatedMarketsProps
     .eq('category', category)
     .neq('id', marketId)
     .order('total_volume_usd', { ascending: false })
-    .limit(4)
+    .limit(6)
 
   if (!markets?.length) return null
 
@@ -32,25 +38,58 @@ export async function RelatedMarkets({ marketId, category }: RelatedMarketsProps
   // Hide any active-but-past-close windows so they don't render as "Settling…".
   const typed = hideSettling(markets as unknown as Market[])
   if (!typed.length) return null
-  const { leadByMarket, countByMarket } = await getLeadingOptions(
+
+  const { leadByMarket } = await getLeadingOptions(
     supabase,
     typed.filter((m) => m.resolution_type === 'multiple_choice').map((m) => m.id),
   )
 
   return (
-    <section>
-      <h2 className="text-lg font-semibold mb-4">Related Markets</h2>
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {typed.map((market) => (
-          <MarketCard
-            key={market.id}
-            market={market}
-            compact
-            leadingOption={leadByMarket.get(market.id)}
-            optionCount={countByMarket.get(market.id)}
-          />
-        ))}
-      </div>
+    <section aria-labelledby="related-heading">
+      <h2 id="related-heading" className="mb-2 text-base font-semibold text-text-primary">
+        Related
+      </h2>
+      <ul className="overflow-hidden rounded-md border border-hairline">
+        {typed.map((market) => {
+          const isMulti = market.resolution_type === 'multiple_choice'
+          const lead = leadByMarket.get(market.id)
+          const pct = isMulti
+            ? lead
+              ? Math.round(lead.price * 100)
+              : null
+            : Math.round((market.yes_price ?? 0) * 100)
+
+          return (
+            <li key={market.id} className="border-b border-hairline-soft last:border-b-0">
+              <Link
+                href={`/markets/${market.slug}`}
+                className="group flex items-center gap-3 px-3 py-2.5 transition-colors hover:bg-surface-2"
+              >
+                <EntityAvatar
+                  name={market.title}
+                  imageUrl={market.cover_image_url}
+                  size={32}
+                  shape="squircle"
+                  radius={6}
+                />
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-sm font-medium text-text-primary group-hover:text-pip-text">
+                    {market.title}
+                  </span>
+                  {isMulti && lead && (
+                    <span className="block truncate text-xs text-text-muted">{lead.label}</span>
+                  )}
+                </span>
+                {pct != null && (
+                  <span className="flex-none text-sm font-semibold tabular-nums text-text-primary">
+                    {pct}%
+                  </span>
+                )}
+              </Link>
+            </li>
+          )
+        })}
+      </ul>
     </section>
   )
 }
