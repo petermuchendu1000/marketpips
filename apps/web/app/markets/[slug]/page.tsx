@@ -19,6 +19,8 @@ import { MarketFaq } from '@/components/markets/market-faq'
 import { buildMarketFaq } from '@/lib/markets/faq'
 import { RelatedMarkets } from '@/components/markets/related-markets'
 import { ContractSpecs } from '@/components/markets/contract-specs'
+import { MarketContextNews } from '@/components/markets/market-context-news'
+import { getMarketContextNews } from '@/lib/markets/context-news-data'
 import { normalizeOutcomes, isMultiOutcome, isIndependentOptions } from '@/lib/markets/outcomes'
 import { isFeatureEnabled } from '@/lib/flags'
 import { formatUSD } from '@/lib/utils'
@@ -254,6 +256,9 @@ export default async function MarketPage({
     })),
   }
 
+  // Market Context news feed (PM parity) — empty until a news source is wired.
+  const contextNews = await getMarketContextNews(market.id)
+
   return (
     <div className={`mx-auto max-w-7xl px-4 pt-6 ${market.status === 'active' ? 'pb-28 lg:pb-6' : 'pb-6'}`}>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
@@ -331,6 +336,11 @@ export default async function MarketPage({
             resolutionSource={market.resolution_source}
             createdBy={market.creator?.display_name || market.creator?.username || null}
           />
+
+          {/* Market Context news feed (PM parity): dated article cards with an
+              outcome probability-move chip. Renders nothing until a news source
+              is wired (see lib/markets/context-news-data.ts). */}
+          <MarketContextNews items={contextNews} />
 
           {/* Community — Comments / Top holders / Positions / Activity (tabs). */}
           <MarketComments
