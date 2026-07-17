@@ -23,7 +23,7 @@ import {
 } from '@/lib/markets/outcomes'
 import { parsePendingBet, PENDING_BET_KEY } from '@/lib/pending-bet'
 import type { Market, MarketOption } from '@/types'
-import { IconX, IconArrowRight } from '@/components/ui/icons'
+import { IconX } from '@/components/ui/icons'
 
 export function MobileTradeBar({
   market,
@@ -170,6 +170,10 @@ export function MobileTradeBar({
     <>
       {/* Sticky thumb-zone bar — sits directly ABOVE the mobile BottomNav
           (56px + safe-area) so the two fixed bars never overlap. */}
+      {/* Multi-outcome mobile: no generic "Trade" bar (PM shows none — the
+          candidate rows drive the sheet). Render a pinned action only once a
+          candidate is selected; binary markets always show the Yes/No pair. */}
+      {(!isMulti || selected) && (
       <div
         className="fixed inset-x-0 z-40 border-t border-hairline bg-[color:var(--surface-1)]/95 px-4 py-3 backdrop-blur lg:hidden"
         style={{ bottom: 'calc(3.5rem + env(safe-area-inset-bottom))' }}
@@ -184,14 +188,10 @@ export function MobileTradeBar({
             aria-haspopup="dialog"
             aria-expanded={open}
           >
-            {selected ? (
-              <span className="flex w-full items-center justify-center gap-1.5">
-                <span className="truncate">Buy {selected.label}</span>
-                <span className="flex-none font-mono opacity-80">{Math.round(selected.price * 100)}%</span>
-              </span>
-            ) : (
-              <>Trade <IconArrowRight size={15} /></>
-            )}
+            <span className="flex w-full items-center justify-center gap-1.5">
+              <span className="truncate">Buy {selected?.label}</span>
+              <span className="flex-none font-mono opacity-80">{Math.round((selected?.price ?? 0) * 100)}%</span>
+            </span>
           </button>
         ) : (
           <div className="grid grid-cols-2 gap-2">
@@ -218,6 +218,7 @@ export function MobileTradeBar({
           </div>
         )}
       </div>
+      )}
 
       {/* Bottom sheet */}
       {open && (

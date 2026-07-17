@@ -101,20 +101,16 @@ export function CandidateList({
     return sorted
   }, [outcomes, query, sort, subtitleById])
 
-  // PM emphasises the front-runner's "Buy Yes" as a SOLID green button while
-  // every other row's Yes is a green tint. Lead = highest implied probability.
-  const leadId = useMemo(
-    () => (outcomes.length ? outcomes.reduce((a, b) => (b.price > a.price ? b : a)).id : ''),
-    [outcomes],
-  )
-
   // Default-select the front-runner on mount and align the ticket to it —
   // DESKTOP ONLY. PM pre-arms the sidebar ticket with the leader on desktop,
   // but on mobile there is NO pre-armed ticket / no auto-selected candidate
   // (auto-selecting would bias the user's choice). We gate the selection +
-  // emit to viewports >=1024px (where the sidebar ticket renders). The visual
-  // lead highlight (`leadId`, solid-green Buy Yes) still shows on all widths,
-  // matching PM. See docs/design/PM-PARITY-SPEC.md §3.
+  // emit to viewports >=1024px (where the sidebar ticket renders). No row is
+  // pre-solidified: a Buy Yes/No pill only turns solid when it is the selected
+  // (`armed`) pill. On desktop the auto-selected leader therefore renders solid;
+  // on mobile nothing is pre-selected, so every pill stays tinted — matching PM's
+  // live computed styles (all resting pills tint; solid only when selected).
+  // See docs/design/PM-PARITY-SPEC.md §3.
   useEffect(() => {
     if (selected || outcomes.length === 0) return
     if (typeof window === 'undefined') return
@@ -242,7 +238,6 @@ export function CandidateList({
 
           // Independent Yes/No buy pills — inline on wider widths, stacked
           // full-width below the name on narrow screens (Kalshi mobile pattern).
-          const isLead = o.id === leadId
           const dualPills = (variant: 'inline' | 'stack') => (
             <div
               className={
@@ -255,7 +250,7 @@ export function CandidateList({
                 type="button"
                 onClick={(e) => { e.stopPropagation(); choose(o, true, 'yes') }}
                 aria-label={`Buy Yes on ${o.label} at ${yesCents}`}
-                className={`pill-side ${isLead ? 'pill-yes-lead' : 'pill-yes'} ${active && selectedSide === 'yes' ? 'armed' : ''} ${variant === 'inline' ? 'w-[112px] lg:w-[136px]' : 'w-full'}`}
+                className={`pill-side pill-yes ${active && selectedSide === 'yes' ? 'armed' : ''} ${variant === 'inline' ? 'w-[112px] lg:w-[136px]' : 'w-full'}`}
               >
                 Buy Yes {yesCents}
               </button>
@@ -335,7 +330,7 @@ export function CandidateList({
                         type="button"
                         onClick={(e) => { e.stopPropagation(); choose(o, true, 'yes') }}
                         aria-label={`Buy Yes on ${o.label} at ${cents(o.price)}`}
-                        className={`pill-side ${isLead ? 'pill-yes-lead' : 'pill-yes'} w-[112px] lg:w-[136px] ${active ? 'armed' : ''}`}
+                        className={`pill-side pill-yes w-[112px] lg:w-[136px] ${active ? 'armed' : ''}`}
                       >
                         Buy Yes {cents(o.price)}
                       </button>

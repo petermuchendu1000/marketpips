@@ -295,9 +295,16 @@
      border-radius 7.2px, padding 0 16px, gap 4px, transition background-color +
      color 0.15s cubic-bezier(.4,0,.2,1). Colors are PM's EXACT values, not our
      --yes/--no tokens:  green #30A159, red #E23939.
-       Buy Yes (leading row): SOLID  #30A159 / #fff   (no hover colour change)
-       Buy Yes (other rows) : TINT   rgba(#30A159,.15) / #30A159 → hover .25
-       Buy No  (all rows)   : TINT   rgba(#E23939,.09) / #E23939 → hover .13 */
+       PM ground truth (live computed styles, iPhone 13 + 1440px desktop):
+       every row's Buy Yes/No is TINTED at rest — NO row is pre-solidified.
+       A pill turns SOLID (#fff text) only when it is the *selected* pill
+       (`.armed`). On desktop the leader is auto-selected, so it renders solid;
+       on mobile nothing is pre-selected, so all rows stay tinted. This removes
+       the misleading "leading option looks darker/pre-committed" bias.
+         Buy Yes  rest : TINT rgba(#30A159,.15) / #30A159  → hover .25
+         Buy No   rest : TINT rgba(#E23939,.09) / #E23939  → hover .13
+         Buy Yes  armed: SOLID #30A159 / #fff
+         Buy No   armed: SOLID #E23939 / #fff */
   .pill-side {
     display:inline-flex; align-items:center; justify-content:center; gap:4px;
     border:0; border-radius:7px;
@@ -307,12 +314,11 @@
     transition:background-color .15s cubic-bezier(.4,0,.2,1), color .15s cubic-bezier(.4,0,.2,1);
   }
   .pill-yes { color:#30A159; background:rgba(48,161,89,0.15); }
-  .pill-yes:hover:not(:disabled), .pill-yes.armed { background:rgba(48,161,89,0.25); }
+  .pill-yes:hover:not(:disabled) { background:rgba(48,161,89,0.25); }
+  .pill-yes.armed { color:#fff; background:#30A159; }
   .pill-no  { color:#E23939; background:rgba(226,57,57,0.09); }
-  .pill-no:hover:not(:disabled), .pill-no.armed  { background:rgba(226,57,57,0.13); }
-  /* Leading row's Buy Yes — PM solid fill, no hover recolour (defined last). */
-  .pill-yes-lead { color:#fff; background:#30A159; }
-  .pill-yes-lead:hover:not(:disabled), .pill-yes-lead.armed { color:#fff; background:#30A159; }
+  .pill-no:hover:not(:disabled) { background:rgba(226,57,57,0.13); }
+  .pill-no.armed  { color:#fff; background:#E23939; }
   .pill-side:disabled { opacity:0.55; cursor:not-allowed; }
 
   /* ---- Badges ---- */
