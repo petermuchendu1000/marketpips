@@ -442,13 +442,6 @@ export function PmTicket({
     )
   }
 
-  const titleOutcome = isMulti
-    ? indepMulti
-      ? `${selectedOutcome?.label ?? ''} · ${side === 'yes' ? 'Yes' : 'No'}`
-      : selectedOutcome?.label
-    : side === 'yes'
-      ? 'Yes'
-      : 'No'
   const outcomeTone = isMulti && !indepMulti ? 'text-pip-500' : side === 'yes' ? 'text-yes' : 'text-no'
 
   // Polymarket's action button reads simply "Trade" (the To-win figure lives in
@@ -465,7 +458,17 @@ export function PmTicket({
               outcome line below it is the emphasised, larger text-base row. */}
           <p className="truncate text-sm font-medium text-text-muted">{market.title}</p>
           <div className="flex items-center gap-1.5">
-            <span className={`truncate text-base font-semibold ${outcomeTone}`}>{titleOutcome}</span>
+            {/* PM outcome line: candidate (#0e0f11) · separator (#aeb4bc) ·
+                side (green/red). Binary shows just the colored Yes/No. */}
+            {isMulti ? (
+              <span className="flex min-w-0 items-center text-base font-semibold">
+                <span className="truncate text-text-primary">{selectedOutcome?.label}</span>
+                <span className="mx-1 flex-none text-ink-300">·</span>
+                <span className={`flex-none ${side === 'yes' ? 'text-yes' : 'text-no'}`}>{side === 'yes' ? 'Yes' : 'No'}</span>
+              </span>
+            ) : (
+              <span className={`truncate text-base font-semibold ${side === 'yes' ? 'text-yes' : 'text-no'}`}>{side === 'yes' ? 'Yes' : 'No'}</span>
+            )}
             {isOpen && (!isMulti || indepMulti) && (
               <button
                 type="button"
