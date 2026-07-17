@@ -129,6 +129,7 @@ async function MarketPriceHistory({
   return <PriceChart
     currentYes={currentYes}
     volumeUsd={volumeUsd}
+    resolutionDate={closesAt}
     data={(history || []).map((h) => ({
       yes_price: h.yes_price ?? 0,
       no_price: h.no_price ?? 0,

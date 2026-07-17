@@ -28,6 +28,17 @@ interface PriceChartProps {
   currentYes?: number
   /** Total market volume (USD) shown in the chart footer. */
   volumeUsd?: number
+  /** Market close/resolution timestamp — rendered in the footer left cluster
+   *  as PM's "MMM D, YYYY" date (13px/500, secondary). */
+  resolutionDate?: string
+}
+
+/** PM footer date format, e.g. "Dec 31, 2026". */
+function formatResolutionDate(iso?: string): string | null {
+  if (!iso) return null
+  const d = new Date(iso)
+  if (Number.isNaN(d.getTime())) return null
+  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
 }
 
 type Timeframe = '1H' | '6H' | '1D' | '1W' | '1M' | 'ALL'
@@ -99,7 +110,7 @@ function makeLiveEndpoint(lastIndex: number, color: string) {
   return LiveEndpoint
 }
 
-export function PriceChart({ data, currentYes = 0.5, volumeUsd = 0 }: PriceChartProps) {
+export function PriceChart({ data, currentYes = 0.5, volumeUsd = 0, resolutionDate }: PriceChartProps) {
   const [timeframe, setTimeframe] = useState<Timeframe>('ALL')
   // Polymarket "Chart Options" sheet (screenshot 6): reader-controlled axes,
   // gridlines, autoscale and annotations. Defaults mirror Polymarket's own.
@@ -260,16 +271,28 @@ export function PriceChart({ data, currentYes = 0.5, volumeUsd = 0 }: PriceChart
 
       {/* Footer: volume + date (left) · timeframe presets (right). Wraps on
           narrow mobile so the Vol chip and toggles never collide (<400px). */}
-      <div className="mt-2 flex flex-wrap items-center justify-between gap-x-3 gap-y-2 border-t border-hairline pt-2.5">
-        <span className="text-xs text-text-muted">
-          <span className="font-mono font-medium text-text-secondary">{formatUSD(volumeUsd)}</span> Vol.
-          {isSeeded && <span className="ml-2 text-text-muted">· awaiting first trade</span>}
-        </span>
+      <div className="mt-2 flex flex-wrap items-center justify-between gap-x-3 gap-y-2 pt-1">
+        {/* PM left cluster: "$X Vol." (13px/500, #0e0f11) then the resolution
+            date (13px/500, #77808d) — Inter, NOT mono. */}
+        <div className="flex items-center gap-3">
+          <span className="text-[13px] font-medium text-text-primary">
+            {formatUSD(volumeUsd)} Vol.
+          </span>
+          {formatResolutionDate(resolutionDate) && (
+            <span className="text-[13px] font-medium text-text-secondary">
+              {formatResolutionDate(resolutionDate)}
+            </span>
+          )}
+          {isSeeded && <span className="text-xs text-text-muted">· awaiting first trade</span>}
+        </div>
         <div className="flex flex-none items-center gap-2">
+        {/* PM timeframe toggles: borderless, 14px/600, active #0e0f11 /
+            inactive #77808d, rounded-md (9.2px) hover affordance. No pill bg,
+            no blue active — color swap only. See PM-PARITY-SPEC §2.2. */}
         <div
           role="tablist"
           aria-label="Chart timeframe"
-          className="inline-flex rounded-sm border border-hairline p-0.5"
+          className="inline-flex h-9 items-center"
         >
           {TIMEFRAMES.map((tf) => {
             const active = tf.key === timeframe
@@ -280,8 +303,8 @@ export function PriceChart({ data, currentYes = 0.5, volumeUsd = 0 }: PriceChart
                 role="tab"
                 aria-selected={active}
                 onClick={() => setTimeframe(tf.key)}
-                className={`rounded-[3px] px-2 py-1 text-xs font-semibold transition-colors ${
-                  active ? 'bg-pip-100 text-pip-500' : 'text-text-muted hover:text-text-secondary'
+                className={`rounded-md px-1.5 py-1 text-sm font-semibold transition-colors ${
+                  active ? 'text-text-primary' : 'text-text-secondary hover:bg-surface-2 hover:text-text-primary'
                 }`}
               >
                 {tf.label}
