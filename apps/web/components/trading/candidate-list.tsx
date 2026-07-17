@@ -128,7 +128,9 @@ export function CandidateList({
     if (o) choose(o, false)
   }
 
-  const cents = (p: number) => `${Math.round(p * 100)}\u00A2`
+  // PM parity: cents carry ONE decimal (e.g. 19.9¢ / 80.2¢) and a Yes/No pair
+  // reads as complements summing to 100.0¢ under our pick-one LMSR model.
+  const cents = (p: number) => `${(p * 100).toFixed(1)}\u00A2`
 
   return (
     <div className="card overflow-hidden p-0">
@@ -214,6 +216,8 @@ export function CandidateList({
         {view.map((o) => {
           const active = o.id === selected
           const pct = Math.round(o.price * 100)
+          // PM shows integer % on the board, collapsing extremes to "<1%" / ">99%".
+          const pctLabel = pct < 1 ? '<1%' : pct > 99 ? '>99%' : `${pct}%`
           const kind = kindById.get(o.id)
           const subtitle = subtitleById.get(o.id)
           const isWinner = o.isWinner === true
@@ -235,17 +239,17 @@ export function CandidateList({
                 type="button"
                 onClick={(e) => { e.stopPropagation(); choose(o, true, 'yes') }}
                 aria-label={`Buy Yes on ${o.label} at ${yesCents}`}
-                className={`pill-side pill-yes ${active && selectedSide === 'yes' ? 'armed' : ''} ${variant === 'inline' ? 'min-w-[72px]' : 'w-full'}`}
+                className={`pill-side pill-yes ${active && selectedSide === 'yes' ? 'armed' : ''} ${variant === 'inline' ? 'min-w-[84px]' : 'w-full'}`}
               >
-                Yes {yesCents}
+                Buy Yes {yesCents}
               </button>
               <button
                 type="button"
                 onClick={(e) => { e.stopPropagation(); choose(o, true, 'no') }}
                 aria-label={`Buy No on ${o.label} at ${noCents}`}
-                className={`pill-side pill-no ${active && selectedSide === 'no' ? 'armed' : ''} ${variant === 'inline' ? 'min-w-[72px]' : 'w-full'}`}
+                className={`pill-side pill-no ${active && selectedSide === 'no' ? 'armed' : ''} ${variant === 'inline' ? 'min-w-[84px]' : 'w-full'}`}
               >
-                No {noCents}
+                Buy No {noCents}
               </button>
             </div>
           )
@@ -300,10 +304,10 @@ export function CandidateList({
                 {/* Bold standalone probability + buy affordance */}
                 <div className="flex flex-none items-center gap-2.5">
                   <span
-                    className="text-[19px] font-bold leading-none tabular-nums text-text-primary"
-                    aria-label={`${pct} percent`}
+                    className="text-[22px] font-bold leading-none tabular-nums text-text-primary sm:text-[20px]"
+                    aria-label={pct < 1 ? 'less than 1 percent' : pct > 99 ? 'greater than 99 percent' : `${pct} percent`}
                   >
-                    {pct}%
+                    {pctLabel}
                   </span>
                   {isOpen ? (
                     independent ? (
@@ -313,9 +317,9 @@ export function CandidateList({
                         type="button"
                         onClick={(e) => { e.stopPropagation(); choose(o, true, 'yes') }}
                         aria-label={`Buy Yes on ${o.label} at ${cents(o.price)}`}
-                        className={`pill-side pill-yes min-w-[72px] ${active ? 'armed' : ''}`}
+                        className={`pill-side pill-yes min-w-[84px] ${active ? 'armed' : ''}`}
                       >
-                        Yes {cents(o.price)}
+                        Buy Yes {cents(o.price)}
                       </button>
                     )
                   ) : (
