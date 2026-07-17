@@ -214,7 +214,9 @@ Each item = **sub-milestone → commit to `main` → wait CI green**. Visual cha
 - **M5 — Rules/Context tabs + contract-specs grid** (G7,G7b).
 - **M5.5 — AI-summary block** (G8b) — flagged, i18n’d, dark-mode.
 - **M6 — Market Context news feed** (G8c): article card + colored Δ-chip; data model + API + UI.
-- **M7 — Community tabs + Related** (G8,G10).
+- **M7 — Community tabs + Related** (G8,G10). — *done*. Tabs/labels/sort/Post
+  verified against live PM; multi-outcome charts gained PM's dotted `1 3`
+  gridlines. See `POLYMARKET-DETAIL-M7-COMMUNITY-CHART-2026-07.md`.
 - **M8 — FAQ / SEO accordion** (G11): templated Q&A, JSON-LD, accordion a11y.
 - **M9 — Final mobile polish**: spacing, contrast, dark mode, i18n keys, a11y, bundle budget.
 
