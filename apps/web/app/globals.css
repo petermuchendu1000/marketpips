@@ -121,7 +121,7 @@
     /* a11y (WCAG 2.1 AA >=4.5:1): lighten semantic text colors on dark surfaces.
        Light-mode --yes-700/#177C54, --no-700/#B23446, --pip-500/#2B50E4 only reach
        ~3:1 as text on the dark palette; these dark values clear 4.5:1 everywhere. */
-    --yes-700:#3FBE8A; --no-700:#EA6B7D; --pip-text:#8FB0FA;
+    --yes-700:#3FBE8A; --no-700:#EF8092; --pip-text:#8FB0FA;
     --e1:0 1px 2px rgba(0,0,0,.4);
     --e2:0 6px 20px rgba(0,0,0,.5);
     --e3:0 20px 56px rgba(0,0,0,.6);
