@@ -20,7 +20,6 @@ import { PmTicket } from './pm-ticket'
 import {
   normalizeOutcomes,
   isMultiOutcome,
-  favoriteOutcome,
 } from '@/lib/markets/outcomes'
 import { parsePendingBet, PENDING_BET_KEY } from '@/lib/pending-bet'
 import type { Market, MarketOption } from '@/types'
@@ -70,13 +69,13 @@ export function MobileTradeBar({
 
   const isMulti = isMultiOutcome(market, options)
   const outcomes = normalizeOutcomes(market, options)
-  const leader = favoriteOutcome(outcomes)
-  // The candidate currently loaded in the ticket (driven by the board's row
-  // selection via marketpips:select-option), falling back to the front-runner
-  // before the user has picked one. The sticky bar's primary action MUST mirror
-  // the highlighted row — not a static favorite — so tapping it trades the
-  // candidate the user actually selected.
-  const selected = outcomes.find((o) => o.id === pendingOptionId) ?? leader
+  // The candidate currently loaded in the ticket, driven ONLY by an explicit
+  // board row / Buy-pill tap (marketpips:select-option). We intentionally do
+  // NOT fall back to the front-runner: PM mobile never pre-arms a leader, and
+  // auto-selecting biases the user's decision (see docs/design/PM-PARITY-SPEC.md
+  // §3). Until the user taps a candidate, the sticky CTA stays neutral ("Trade")
+  // and opens the selection sheet with nothing pre-selected.
+  const selected = outcomes.find((o) => o.id === pendingOptionId)
   const cents = (p: number) => `${Math.round(p * 100)}\u00A2`
 
   const close = useCallback(() => {

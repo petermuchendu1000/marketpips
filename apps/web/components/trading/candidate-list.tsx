@@ -108,9 +108,18 @@ export function CandidateList({
     [outcomes],
   )
 
-  // Default-select the front-runner on mount and align the ticket to it.
+  // Default-select the front-runner on mount and align the ticket to it —
+  // DESKTOP ONLY. PM pre-arms the sidebar ticket with the leader on desktop,
+  // but on mobile there is NO pre-armed ticket / no auto-selected candidate
+  // (auto-selecting would bias the user's choice). We gate the selection +
+  // emit to viewports >=1024px (where the sidebar ticket renders). The visual
+  // lead highlight (`leadId`, solid-green Buy Yes) still shows on all widths,
+  // matching PM. See docs/design/PM-PARITY-SPEC.md §3.
   useEffect(() => {
     if (selected || outcomes.length === 0) return
+    if (typeof window === 'undefined') return
+    // Only pre-arm where the desktop sidebar ticket exists.
+    if (!window.matchMedia('(min-width: 1024px)').matches) return
     const fav = [...outcomes].sort((a, b) => b.price - a.price)[0]
     if (fav) {
       setSelected(fav.id)
