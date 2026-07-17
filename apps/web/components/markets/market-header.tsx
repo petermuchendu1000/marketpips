@@ -191,7 +191,9 @@ export function MarketHeader({ market, outcomes, isMulti }: MarketHeaderProps) {
             </div>
           </div>
 
-          <h1 className="font-display text-xl font-semibold leading-tight text-text-primary sm:text-2xl">
+          {/* PM: `!font-semibold text-heading-2xl text-pretty` — large, tight,
+              balanced wrapping. ~24px < sm, ~30px on desktop. */}
+          <h1 className="font-display text-2xl font-semibold leading-[1.15] text-pretty text-text-primary sm:text-[28px] lg:text-[30px]">
             {market.title}
           </h1>
 
@@ -200,8 +202,13 @@ export function MarketHeader({ market, outcomes, isMulti }: MarketHeaderProps) {
               above the chart conveys state — so this row is desktop-only; on a
               phone it would bloat the sticky strip. */}
           <div className="mt-3 hidden flex-wrap items-center gap-3 lg:flex">
-            <span className={`badge ${badge.className}`}>{badge.label}</span>
-            {market.is_trending && <span className="badge badge-amber">Trending</span>}
+            {/* PM parity: NO "Open"/"Trending" pill on a live market — state is
+                carried by the legend + outcome board. Only surface a status
+                pill for non-live, non-resolved states that need a label
+                (draft / pending review / awaiting resolution / disputed). */}
+            {market.status !== 'active' && !isResolved && (
+              <span className={`badge ${badge.className}`}>{badge.label}</span>
+            )}
 
             {!showMulti && !isResolved && (
               <span className="inline-flex items-baseline gap-1.5">
