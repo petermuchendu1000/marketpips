@@ -22,7 +22,6 @@ import {
   IconSort,
   IconSearch,
   IconCheck,
-  IconTrophy,
 } from '@/components/ui/icons'
 
 type SortKey = 'prob' | 'volume' | 'az'
@@ -230,48 +229,27 @@ export function CandidateList({
           // PM shows integer % on the board, collapsing extremes to "<1%" / ">99%".
           const pctLabel = pct < 1 ? '<1%' : pct > 99 ? '>99%' : `${pct}%`
           const kind = kindById.get(o.id)
-          const subtitle = subtitleById.get(o.id)
           const isWinner = o.isWinner === true
           const isLoser = resolved && o.isWinner === false
           const yesCents = cents(o.yesPrice ?? o.price)
           const noCents = cents(o.noPrice ?? 1 - o.price)
 
-          // Independent Yes/No buy pills — inline on wider widths, stacked
-          // full-width below the name on narrow screens (Kalshi mobile pattern).
-          const dualPills = (variant: 'inline' | 'stack') => (
-            <div
-              className={
-                variant === 'inline'
-                  ? 'hidden flex-none items-center gap-2 sm:flex'
-                  : 'mt-2 grid grid-cols-2 gap-2 sm:hidden'
-              }
-            >
-              <button
-                type="button"
-                onClick={(e) => { e.stopPropagation(); choose(o, true, 'yes') }}
-                aria-label={`Buy Yes on ${o.label} at ${yesCents}`}
-                className={`pill-side pill-yes ${active && selectedSide === 'yes' ? 'armed' : ''} ${variant === 'inline' ? 'w-[112px] lg:w-[136px]' : 'w-full'}`}
-              >
-                Buy Yes {yesCents}
-              </button>
-              <button
-                type="button"
-                onClick={(e) => { e.stopPropagation(); choose(o, true, 'no') }}
-                aria-label={`Buy No on ${o.label} at ${noCents}`}
-                className={`pill-side pill-no ${active && selectedSide === 'no' ? 'armed' : ''} ${variant === 'inline' ? 'w-[112px] lg:w-[136px]' : 'w-full'}`}
-              >
-                Buy No {noCents}
-              </button>
-            </div>
-          )
-
           return (
+            // PM card (measured on polymarket.com/event/world-cup-winner, iPhone 13):
+            // a two-row flex-col — [avatar · name/volume · big %] then a full-width
+            // [Buy Yes | Buy No] split — with only a group-active press highlight
+            // (no persistent selected-row tint, no left accent bar). gap-4 py-4,
+            // full-width border between rows via the list's divide-y.
             <div
               key={o.id}
               role="radio"
               aria-checked={active}
               tabIndex={active ? 0 : -1}
-              onClick={() => choose(o, false)}
+              // Tapping the card body = tapping Buy Yes: opens the sheet armed to
+              // YES on mobile / arms the sidebar ticket on desktop (PM behaviour —
+              // the option name is not a separate navigation, it is a trade entry).
+              // Keyboard only moves/arms so the radiogroup stays a11y-clean.
+              onClick={() => choose(o, true, 'yes')}
               onKeyDown={(e) => {
                 if (e.key === 'Enter' || e.key === ' ') {
                   e.preventDefault()
@@ -284,67 +262,74 @@ export function CandidateList({
                   moveSelection(-1)
                 }
               }}
-              style={{ borderLeftColor: active ? 'var(--pip-400)' : 'transparent' }}
-              className={`group cursor-pointer border-l-2 px-4 py-3 transition-colors ${
-                active ? 'bg-surface-2' : 'hover:bg-surface-2'
-              } ${isLoser ? 'opacity-55' : ''}`}
+              className={`group relative flex cursor-pointer flex-col gap-4 px-4 py-4 ${isLoser ? 'opacity-55' : ''}`}
             >
-              <div className="flex items-center gap-2.5 sm:gap-3">
+              {/* Press-feedback highlight — group-active only, matching PM. */}
+              <span
+                aria-hidden
+                className="pointer-events-none absolute inset-0 transition-colors duration-200 group-active:bg-surface-2"
+              />
+
+              {/* Top row: avatar · (name + volume) · big percentage */}
+              <div className="relative z-[1] flex w-full gap-3">
                 <EntityAvatar
                   name={o.label}
                   imageUrl={o.imageUrl}
                   size={40}
                   shape={kind === 'person' ? 'circle' : 'squircle'}
                 />
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-1.5">
-                    <span className="truncate text-base font-semibold tracking-[-0.18px] text-text-primary">
+                <div className="flex w-full min-w-0 justify-between">
+                  <div className="flex w-full min-w-0 flex-col gap-1.5">
+                    <p className="truncate pr-3 text-base font-semibold leading-normal text-text-primary">
                       {o.label}
-                    </span>
-                    {isWinner && <IconTrophy size={14} className="flex-none text-yes" />}
-                  </div>
-                  <div className="flex items-center gap-1.5 truncate text-[13px] text-text-secondary">
-                    {subtitle && <span className="truncate">{subtitle}</span>}
-                    {subtitle && o.volumeUsd > 0 && <span aria-hidden className="text-hairline">·</span>}
+                    </p>
                     {o.volumeUsd > 0 && (
-                      <span className="flex-none tabular-nums">
+                      <span className="whitespace-nowrap text-xs font-normal text-text-muted">
                         ${Math.round(o.volumeUsd).toLocaleString('en-US')} Vol.
                       </span>
                     )}
                   </div>
-                </div>
-
-                {/* Bold standalone probability + buy affordance */}
-                <div className="flex flex-none items-center gap-2.5">
-                  <span
-                    className="text-[28px] font-semibold leading-none tracking-[-0.42px] tabular-nums text-text-primary"
-                    aria-label={pct < 1 ? 'less than 1 percent' : pct > 99 ? 'greater than 99 percent' : `${pct} percent`}
-                  >
-                    {pctLabel}
-                  </span>
-                  {isOpen ? (
-                    independent ? (
-                      dualPills('inline')
-                    ) : (
-                      <button
-                        type="button"
-                        onClick={(e) => { e.stopPropagation(); choose(o, true, 'yes') }}
-                        aria-label={`Buy Yes on ${o.label} at ${cents(o.price)}`}
-                        className={`pill-side pill-yes w-[112px] lg:w-[136px] ${active ? 'armed' : ''}`}
-                      >
-                        Buy Yes {cents(o.price)}
-                      </button>
-                    )
-                  ) : (
-                    <span className="rounded-pill bg-surface-2 px-3 py-1.5 text-xs font-semibold text-text-muted">
-                      {isWinner ? 'Won' : isLoser ? 'Lost' : 'Closed'}
+                  <div className="flex flex-none items-center pl-2">
+                    <span
+                      className="text-[28px] font-semibold leading-none tabular-nums text-text-primary"
+                      aria-label={pct < 1 ? 'less than 1 percent' : pct > 99 ? 'greater than 99 percent' : `${pct} percent`}
+                    >
+                      {pctLabel}
                     </span>
-                  )}
+                  </div>
                 </div>
               </div>
 
-              {/* Narrow screens: independent Yes/No pills stack full-width below. */}
-              {isOpen && independent && dualPills('stack')}
+              {/* Bottom row: full-width Buy Yes / Buy No split (PM), or a
+                  resolution badge once the market has closed. */}
+              {isOpen ? (
+                <div className="relative z-[1] flex gap-3">
+                  <button
+                    type="button"
+                    onClick={(e) => { e.stopPropagation(); choose(o, true, 'yes') }}
+                    aria-label={`Buy Yes on ${o.label} at ${yesCents}`}
+                    className={`pill-side pill-yes flex-1 ${active && selectedSide === 'yes' ? 'armed' : ''}`}
+                  >
+                    Buy Yes {yesCents}
+                  </button>
+                  {independent ? (
+                    <button
+                      type="button"
+                      onClick={(e) => { e.stopPropagation(); choose(o, true, 'no') }}
+                      aria-label={`Buy No on ${o.label} at ${noCents}`}
+                      className={`pill-side pill-no flex-1 ${active && selectedSide === 'no' ? 'armed' : ''}`}
+                    >
+                      Buy No {noCents}
+                    </button>
+                  ) : null}
+                </div>
+              ) : (
+                <div className="relative z-[1] flex justify-end">
+                  <span className="rounded-pill bg-surface-2 px-3 py-1.5 text-xs font-semibold text-text-muted">
+                    {isWinner ? 'Won' : isLoser ? 'Lost' : 'Closed'}
+                  </span>
+                </div>
+              )}
             </div>
           )
         })}
