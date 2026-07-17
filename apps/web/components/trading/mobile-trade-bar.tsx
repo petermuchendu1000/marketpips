@@ -76,7 +76,7 @@ export function MobileTradeBar({
   // §3). Until the user taps a candidate, the sticky CTA stays neutral ("Trade")
   // and opens the selection sheet with nothing pre-selected.
   const selected = outcomes.find((o) => o.id === pendingOptionId)
-  const cents = (p: number) => `${Math.round(p * 100)}\u00A2`
+  const cents = (p: number) => `${(p * 100).toFixed(1)}\u00A2`
 
   const close = useCallback(() => {
     setOpen(false)
@@ -194,26 +194,26 @@ export function MobileTradeBar({
             </span>
           </button>
         ) : (
-          <div className="grid grid-cols-2 gap-2">
+          <div className="grid grid-cols-2 gap-3">
             <button
               type="button"
               onClick={() => openWith('yes')}
-              className="btn-yes btn-lg"
+              className="cta-yes"
               aria-haspopup="dialog"
               aria-expanded={open}
             >
-              <span className="font-bold">Buy YES</span>
-              <span className="ml-1.5 font-mono text-xs opacity-80">{cents(market.yes_price)}</span>
+              <span>Yes</span>
+              <span className="font-mono">{cents(market.yes_price)}</span>
             </button>
             <button
               type="button"
               onClick={() => openWith('no')}
-              className="btn-no btn-lg"
+              className="cta-no"
               aria-haspopup="dialog"
               aria-expanded={open}
             >
-              <span className="font-bold">Buy NO</span>
-              <span className="ml-1.5 font-mono text-xs opacity-80">{cents(market.no_price)}</span>
+              <span>No</span>
+              <span className="font-mono">{cents(market.no_price)}</span>
             </button>
           </div>
         )}

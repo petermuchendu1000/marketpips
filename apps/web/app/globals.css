@@ -367,6 +367,23 @@
   .btn-no.active, .btn-no:hover:not(:disabled) { background:var(--no); color:#fff; box-shadow:none; }
 
   .btn-lg { font-size:15px; min-height:48px; padding:0 24px; }
+
+  /* Solid Yes/No conversion bar — PM market-detail / market-drawer bottom bar.
+     Measured live: bg solid #30A159 / #E23939, white text, h~44-48, radius ~9px,
+     16px, split flex-1 with a 12px (gap-3) gutter. Always SOLID (unlike the
+     tinted list-card pills). */
+  .cta-yes, .cta-no {
+    display:inline-flex; align-items:center; justify-content:center; gap:6px;
+    min-height:48px; border:0; border-radius:9px; width:100%;
+    font-size:16px; font-weight:600; letter-spacing:-0.1px; color:#fff;
+    cursor:pointer; white-space:nowrap; user-select:none;
+    transition:filter .12s ease, transform .12s ease;
+  }
+  .cta-yes:active, .cta-no:active { transform:scale(0.99); }
+  .cta-yes:hover:not(:disabled), .cta-no:hover:not(:disabled) { filter:brightness(0.96); }
+  .cta-yes { background:var(--yes); }
+  .cta-no  { background:var(--no); }
+  .cta-yes:disabled, .cta-no:disabled { opacity:0.5; cursor:not-allowed; }
   .btn-sm { font-size:13px; min-height:34px; padding:0 14px; }
   /* Square icon-only button (header action cluster, chart controls). */
   .btn-icon-sm { min-height:34px; width:34px; padding:0; border-radius:var(--radius-sm); }
