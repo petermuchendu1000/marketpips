@@ -93,7 +93,7 @@ Sources captured (1440×1024 desktop, 390×844 mobile @2x):
 | Yes pill (leading) | filled green `#30a159`, white text 15px/600 |
 | No pill | neutral, text `#0e0f11` 15px/600 |
 | Amount label | 16px / 500 / −0.18px |
-| Amount input | 14px/400 · bg `#f4f5f6` · 1px border · **radius 9.2px** · h40 · pad-left 44px ($ icon) · focus blue ring 0.2s |
+| Amount entry (big) | **40px / 600 / `#0e0f11`** · transparent · right-aligned inline `$`+number (re-measured; the small 14px input was a mis-note) |
 | Quick chip | 12px/600/−0.1px · `#77808d` · h30 · **radius 9.2px** · 1px hairline · hover bg `#f9fafb` (neutral-25) · 0.15s |
 | Chips | `+$1 · +$5 · +$10 · +$100` |
 | Trade button | bg `#1452f0` · h43 · **radius 9.2px** · white · **no hover recolor** (active-scale only) · 0.12s |
@@ -137,6 +137,32 @@ Sources captured (1440×1024 desktop, 390×844 mobile @2x):
 - Align full `pip` ramp + neutral (`ink-*`) ramp to PM values above.
 - Yes `#1F9D6B` → **`#30a159`**; No `#D1495B` → **`#e23939`** (+ tints/700s).
 - Radii `--r-sm/md/lg` `8/12/16` → **`7.2 / 9.2 / 11.2px`**.
+
+## 5. Token-mapping note (IMPORTANT)
+PM's **secondary** text `#77808d` maps to the repo's **`text-text-muted`**
+(`--text-3` → ink-500 `#77808d`), NOT `text-text-secondary` (`--text-2` →
+ink-600 `#5f6772`, a darker AA-safe level the repo adds). So any element PM
+renders at `#77808d` (breadcrumb, meta, "Vol." date, timeframe-inactive,
+chips, related sublabel) must use **`text-text-muted`** for an exact match.
+PM primary `#0e0f11` → `text-text-primary`. We deliberately do NOT globally
+remap `--text-2` to `#77808d` (would drop WCAG AA on all secondary text
+app-wide); we use `text-text-muted` on the specific market-detail elements.
+
+## 6. Progress (this session)
+- [x] Ground-truth spec + Playwright extraction harness.
+- [x] Design tokens aligned to PM (neutral/brand/yes-no ramps, 0.7rem radii);
+      fixed tailwind `pip-500` mismatch. (+ dark-mode `--no-text` AA re-tune.)
+- [x] Mobile no longer auto-selects the leading candidate (desktop-only
+      pre-arm; mobile neutral until explicit tap).
+- [x] Related-markets row title -> 13px/600/-0.09px measured typography.
+- [x] Chart footer -> Vol 13px/500 primary, resolution date added, borderless
+      timeframe toggles (active #0e0f11 / inactive #77808d), no divider.
+- [x] Betting panel -> amount 40px/600, chips rounded-md 12px/600 neutral hover,
+      dropdown primary ink; #77808d elements routed to text-muted.
+- [ ] Header (title 24px/600/-0.36px + breadcrumb) verification.
+- [ ] Outcome board rows fine-tune (avatar 7.2px, 28px % / -0.42px).
+- [ ] Related-markets: category filter tabs (All/<cat>/World) on binary lists.
+- [ ] Related sublabel color -> text-muted (#77808d).
 
 _Extraction harness: `tools/pm-parity/extract.py`. Raw captures live outside the
 repo (reference only); this sheet is the committed, durable ground truth._
