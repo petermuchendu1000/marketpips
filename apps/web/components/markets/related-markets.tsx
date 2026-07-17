@@ -96,7 +96,10 @@ export async function RelatedMarkets({ marketId, category }: RelatedMarketsProps
               />
 
               <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-                <span className="line-clamp-2 text-sm font-medium text-text-primary">
+                {/* PM measured: text-[13px] font-semibold, lh 19.5px, ls -0.09px
+                    (#18181b ~= text-primary). Was 14px/500 — visibly heavier and
+                    tighter on PM. See docs/design/PM-PARITY-SPEC.md §2.5. */}
+                <span className="line-clamp-2 text-[13px] font-semibold leading-[19.5px] tracking-[-0.09px] text-text-primary">
                   {market.title}
                 </span>
               </span>
