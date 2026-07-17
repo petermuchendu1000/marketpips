@@ -18,7 +18,9 @@
     --ink-200:#D2D7DE; --ink-100:#E6E8EA; --ink-50:#F5F7FA; --paper:#FFFFFF;
 
     /* ---- Brand — Pip Blue ---- */
-    --pip-600:#1E44C9; --pip-500:#2B50E4; --pip-400:#5C82F2; --pip-300:#A9C0FB; --pip-100:#E7EEFE;
+    /* Brand blue = Polymarket measured #1452F0 (rgb 20,82,240). Ramp rebalanced
+       to that hue: 600 hover-dark, 400 lighter, 300/100 light tints. */
+    --pip-600:#1043C8; --pip-500:#1452F0; --pip-400:#4C7BF5; --pip-300:#A6C0FB; --pip-100:#E6EEFE;
     --pip-text:var(--pip-500); /* pip blue used AS TEXT; lightened under .dark for WCAG AA */
     /* ---- Accent — Brass (emphasis only, <=5% of surface) ---- */
     --brass-600:#B57E22; --brass-500:#D9A036; --brass-100:#F7ECD4;
@@ -114,7 +116,7 @@
        so the fine dotted plot grid stays legible on the dark canvas. */
     --chart-grid:var(--ink-600);
     --field:var(--ink-800);
-    --pip-100:rgba(43,80,228,.16); --yes-tint:rgba(31,157,107,.16); --no-tint:rgba(209,73,91,.16);
+    --pip-100:rgba(20,82,240,.16); --yes-tint:rgba(31,157,107,.16); --no-tint:rgba(209,73,91,.16);
     --brass-100:rgba(217,160,54,.16);
     /* a11y (WCAG 2.1 AA >=4.5:1): lighten semantic text colors on dark surfaces.
        Light-mode --yes-700/#177C54, --no-700/#B23446, --pip-500/#2B50E4 only reach
