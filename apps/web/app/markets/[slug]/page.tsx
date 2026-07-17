@@ -25,7 +25,6 @@ import { normalizeOutcomes, isMultiOutcome, isIndependentOptions } from '@/lib/m
 import { isFeatureEnabled } from '@/lib/flags'
 import { formatUSD } from '@/lib/utils'
 import {
-  IconTrendUp,
   IconInfo,
 } from '@/components/ui/icons'
 import type { Market, MarketOption } from '@/types'
@@ -279,7 +278,7 @@ export default async function MarketPage({
           <div className="card p-4 max-lg:rounded-none max-lg:border-0 max-lg:bg-transparent max-lg:p-0 max-lg:shadow-none">
             {isUpDown && btcReferencePrice > 0 ? (
               <>
-                <SectionTitle icon={<IconTrendUp size={14} />}>Live BTC price</SectionTitle>
+                {/* PM parity: no heading above the plot — the legend conveys it. */}
                 <BtcLiveChart
                   marketId={market.id}
                   slug={market.slug}
@@ -294,7 +293,7 @@ export default async function MarketPage({
               </>
             ) : (
               <>
-                <SectionTitle icon={<IconTrendUp size={14} />}>Probability history</SectionTitle>
+                {/* PM parity: no "Probability history" heading — legend above the plot conveys it. */}
                 <Suspense fallback={<div className="skeleton h-48 rounded-md" />}>
                   <MarketPriceHistory
                     marketId={market.id}
