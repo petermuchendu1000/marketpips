@@ -11,6 +11,17 @@
 //
 // Passing the SAME series max through this helper reproduces both exactly.
 
+/**
+ * Recharts `strokeDasharray` for the horizontal plot gridlines.
+ *
+ * Polymarket paints the probability ticks as a FINE DOTTED line, not a solid
+ * rule and not a coarse dash. Verified live (2026-07): the `<line>` gridlines
+ * compile to `stroke-dasharray: 1px 3px` over `stroke: rgb(174,180,188)`. We
+ * reproduce that 1-on / 3-off cadence here (paired with the `--chart-grid`
+ * token) so every market-detail chart shares Polymarket's dotted grid.
+ */
+export const CHART_GRID_DASH = '1 3'
+
 /** Round step candidates (as probabilities 0–1), smallest first. */
 const STEPS = [0.02, 0.05, 0.1, 0.15, 0.2, 0.25, 0.5, 1]
 

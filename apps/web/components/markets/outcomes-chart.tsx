@@ -9,11 +9,11 @@
 import { useMemo, useState } from 'react'
 import {
   LineChart, Line, XAxis, YAxis, Tooltip,
-  ResponsiveContainer,
+  ResponsiveContainer, CartesianGrid,
 } from 'recharts'
 import { format } from 'date-fns'
 import { IconTrophy, IconClock } from '@/components/ui/icons'
-import { niceProbScale } from '@/lib/markets/chart-scale'
+import { niceProbScale, CHART_GRID_DASH } from '@/lib/markets/chart-scale'
 
 export interface OutcomeSeriesOption {
   id: string
@@ -239,6 +239,17 @@ export function OutcomesChart({ options, data, volumeUsd, closesAt }: OutcomesCh
         </span>
         <ResponsiveContainer width="100%" height="100%">
           <LineChart data={chartData} margin={{ top: 5, right: 2, left: 0, bottom: 0 }}>
+            {/* PM parity: fine DOTTED horizontal gridlines (1-on/3-off) over the
+                dedicated --chart-grid grey. Horizontal only — PM draws no
+                vertical rules on the probability plot. Anchored to the same
+                yTicks the right axis labels, so every dotted line lands exactly
+                on a % label (0/10/20/30…). */}
+            <CartesianGrid
+              strokeDasharray={CHART_GRID_DASH}
+              stroke="var(--chart-grid)"
+              horizontal
+              vertical={false}
+            />
             <XAxis
               dataKey="time"
               tickFormatter={xTickFormatter}

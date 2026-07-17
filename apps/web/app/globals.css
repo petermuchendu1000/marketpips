@@ -44,6 +44,10 @@
     /* Soft in-card divider (Polymarket neutral-100 #e6e8ea) — lighter than the
        structural --hairline; used for outcome-row/comment/footer separators. */
     --hairline-soft:var(--ink-100);
+    /* Dotted chart gridline grey (PM paints horizontal ticks as a fine dotted
+       line, observed stroke rgb(174,180,188) / dasharray 1px 3px). A dedicated
+       token keeps the plot grid distinct from structural hairlines. */
+    --chart-grid:var(--ink-300);
     --field:var(--paper);
 
     /* ---- Elevation (subtle, structure with lines not shadows) ---- */
@@ -106,6 +110,9 @@
     --text:#F3F5F8; --text-2:var(--ink-300); --text-3:var(--ink-400);
     --hairline:var(--ink-700); --hairline-strong:var(--ink-600);
     --hairline-soft:var(--ink-800);
+    /* Dark-mode dotted gridline: a touch lighter than the structural hairline
+       so the fine dotted plot grid stays legible on the dark canvas. */
+    --chart-grid:var(--ink-600);
     --field:var(--ink-800);
     --pip-100:rgba(43,80,228,.16); --yes-tint:rgba(31,157,107,.16); --no-tint:rgba(209,73,91,.16);
     --brass-100:rgba(217,160,54,.16);

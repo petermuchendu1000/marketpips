@@ -11,7 +11,7 @@ import {
   AreaChart, Area, XAxis, YAxis, Tooltip,
   ResponsiveContainer, ReferenceLine, CartesianGrid,
 } from 'recharts'
-import { niceProbScale } from '@/lib/markets/chart-scale'
+import { niceProbScale, CHART_GRID_DASH } from '@/lib/markets/chart-scale'
 import { format } from 'date-fns'
 import { formatUSD } from '@/lib/utils'
 
@@ -200,8 +200,8 @@ export function PriceChart({ data, currentYes = 0.5, volumeUsd = 0 }: PriceChart
               </linearGradient>
             </defs>
             <CartesianGrid
-              strokeDasharray="3 3"
-              stroke="var(--hairline)"
+              strokeDasharray={CHART_GRID_DASH}
+              stroke="var(--chart-grid)"
               horizontal={opts.hGrid}
               vertical={opts.vGrid}
             />
@@ -226,7 +226,7 @@ export function PriceChart({ data, currentYes = 0.5, volumeUsd = 0 }: PriceChart
               width={34}
             />
             <Tooltip content={<CustomTooltip />} />
-            {opts.annotations && 0.5 <= yMax && <ReferenceLine y={0.5} stroke="var(--hairline)" strokeDasharray="3 3" />}
+            {opts.annotations && 0.5 <= yMax && <ReferenceLine y={0.5} stroke="var(--chart-grid)" strokeDasharray={CHART_GRID_DASH} />}
             {/* TWO lines for a binary market (Kalshi parity): one per side,
                 each driven by that side's own order flow (yes_price / no_price
                 from price_history). They are complementary under our LMSR

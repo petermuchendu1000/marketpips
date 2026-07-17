@@ -7,7 +7,13 @@
 //   • binary market ("24% chance"), hist-max ~45% -> 0 / 15 / 30 / 45 / 60%
 // If niceProbScale regresses, these fail.
 import { describe, it, expect } from 'vitest'
-import { niceProbScale } from '../markets/chart-scale'
+import { niceProbScale, CHART_GRID_DASH } from '../markets/chart-scale'
+
+describe('CHART_GRID_DASH (Polymarket-parity dotted gridline)', () => {
+  it('is the fine 1-on/3-off dotted cadence observed on PM (stroke-dasharray 1 3)', () => {
+    expect(CHART_GRID_DASH).toBe('1 3')
+  })
+})
 
 describe('niceProbScale (Polymarket-parity dynamic axis)', () => {
   it('multi-outcome leader ~22% -> 0/10/20/30%', () => {
