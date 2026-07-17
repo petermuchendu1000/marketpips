@@ -64,6 +64,17 @@ Capture facts: viewport 390×844 @2x → full page **20,914px** tall. Two DOM tr
 
 ## 3. Chart block  (DOM 14–20)
 
+**Live render facts (captured this session):** the chart is an **SVG** with class
+`overflow-visible` (≈358×240 outer, ≈290×218 inner plot) — **NOT a `<canvas>`** (the
+full-viewport canvas on the page is an unrelated animation layer). `overflow-visible`
+is the key parity detail: **the plot is UNBOUNDED** — no border box, no card frame, no
+vertical gridlines, no left axis line; series lines and their live endpoint dots render
+directly on the page background and may extend past the axes (dots are not clipped).
+
+Exact series palette sampled from the rendered chart (top→bottom by current %):
+`JD Vance #fa534d` (red) · `Marco Rubio #87bfff` (light-blue) · `Gavin Newsom #e2bf6c`
+(gold) · `AOC #456bd5` (navy). Background pure white; endpoint dots carry a lighter halo.
+
 - Reserves height (`min-h-[var(--chart-height)]`) to avoid layout jump.
 - **Multi-line** probability chart; faint centered **“Polymarket” watermark** in the plot.
 - **Right-hand Y axis**, **dynamically scaled** to data: here `0% / 10% / 20% / 30%` (NOT fixed 0–100 —

@@ -268,7 +268,10 @@ export default async function MarketPage({
         <div className="space-y-6 lg:col-span-2">
           <MarketHeader market={market} outcomes={outcomes} isMulti={isMulti} />
 
-          <div className="card p-4">
+          {/* PM parity: the probability chart is UNBOUNDED (full-bleed) on
+              mobile — no card border/box around the plot, it sits directly on
+              the page like Polymarket. Desktop keeps the subtle card frame. */}
+          <div className="card p-4 max-lg:rounded-none max-lg:border-0 max-lg:bg-transparent max-lg:p-0 max-lg:shadow-none">
             {isUpDown && btcReferencePrice > 0 ? (
               <>
                 <SectionTitle icon={<IconTrendUp size={14} />}>Live BTC price</SectionTitle>
