@@ -459,11 +459,11 @@ export function PmTicket({
     <div className="card overflow-hidden">
       {/* Context header: market identity + selected outcome */}
       <div className="flex items-center gap-3 border-b border-hairline p-4">
-        <EntityAvatar name={market.title} imageUrl={market.cover_image_url} size={38} shape="squircle" />
+        <EntityAvatar name={market.title} imageUrl={market.cover_image_url} size={48} shape="squircle" radius={7} />
         <div className="min-w-0 flex-1">
           {/* PM: market title is MUTED (text-secondary, medium); the selected
               outcome line below it is the emphasised, larger text-base row. */}
-          <p className="truncate text-sm font-medium text-text-secondary">{market.title}</p>
+          <p className="truncate text-sm font-medium text-text-muted">{market.title}</p>
           <div className="flex items-center gap-1.5">
             <span className={`truncate text-base font-semibold ${outcomeTone}`}>{titleOutcome}</span>
             {isOpen && (!isMulti || indepMulti) && (
@@ -499,7 +499,7 @@ export function PmTicket({
                 type="button"
                 onClick={() => setAction(a)}
                 aria-pressed={action === a}
-                className={`relative -mb-px border-b-2 pb-2.5 text-base font-semibold capitalize transition-colors ${
+                className={`relative -mb-px border-b-2 pb-2.5 text-base font-semibold capitalize tracking-[-0.18px] transition-colors ${
                   action === a
                     ? 'border-text-primary text-text-primary'
                     : 'border-transparent text-text-muted hover:text-text-secondary'
@@ -515,7 +515,7 @@ export function PmTicket({
               <button
                 type="button"
                 onClick={() => setTypeMenu((v) => !v)}
-                className="flex items-center gap-1 text-sm font-medium text-text-primary"
+                className="flex items-center gap-1 text-sm font-medium tracking-[-0.09px] text-text-primary"
                 aria-haspopup="listbox"
                 aria-expanded={typeMenu}
               >
@@ -684,7 +684,7 @@ export function PmTicket({
             {/* Amount label + big live figure (inline editable) — Polymarket's
                 oversized "$0" amount display. */}
             <div className="mt-5 flex items-center justify-between">
-              <span className="text-base font-medium text-text-secondary">Amount</span>
+              <span className="text-base font-medium tracking-[-0.18px] text-text-primary">Amount</span>
               <div
                 className="flex items-baseline gap-0.5 tabular-nums"
                 style={{ color: amountNum > 0 ? 'var(--text)' : 'var(--text-3)' }}
@@ -702,7 +702,7 @@ export function PmTicket({
                   }}
                   placeholder="0"
                   size={Math.max(1, amount.length || 1)}
-                  className="max-w-[8rem] bg-transparent text-right text-[40px] font-semibold leading-none tabular-nums outline-none placeholder:text-text-muted"
+                  className="max-w-[8rem] bg-transparent text-right text-[40px] font-semibold leading-none tracking-[-1px] tabular-nums outline-none placeholder:text-text-muted"
                   style={{ color: 'inherit', width: `${Math.max(1, amount.length || 1)}ch` }}
                 />
               </div>
@@ -719,7 +719,7 @@ export function PmTicket({
                     setAmount(String((parseFloat(amount) || 0) + c))
                     setError('')
                   }}
-                  className="rounded-md border border-hairline px-3 py-1.5 text-xs font-semibold text-text-muted transition-colors hover:bg-surface-2"
+                  className="rounded-md border border-hairline px-3 py-1.5 text-xs font-semibold tracking-[-0.1px] text-text-muted transition-colors hover:bg-surface-2"
                 >
                   +{c >= 1000 ? `${(c / 1000).toFixed(c % 1000 ? 1 : 0)}k` : c}
                 </button>
@@ -754,7 +754,7 @@ export function PmTicket({
               type="button"
               onClick={handleTrade}
               disabled={!!user && !canSubmit}
-              className="btn btn-primary mt-4 w-full py-3 text-base"
+              className="btn btn-primary mt-4 h-[43px] w-full rounded-md text-sm font-semibold hover:bg-pip-500"
             >
               {loading ? 'Placing…' : tradeLabel}
             </button>
@@ -774,7 +774,7 @@ export function PmTicket({
                 </button>
               </div>
             )}
-            <p className="mt-3 text-center text-[12px] leading-relaxed text-text-muted">
+            <p className="mt-3 text-center text-[13px] leading-relaxed text-text-muted">
               By trading, you agree to the{' '}
               <a href="/legal/terms" className="underline hover:text-text-secondary">
                 Terms of Use

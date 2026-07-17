@@ -42,10 +42,10 @@
     --bg:var(--paper); --surface:var(--paper); --surface-2:var(--ink-50);
     --elevated:var(--paper);
     --text:var(--ink-950); --text-2:var(--ink-600); --text-3:var(--ink-500);
-    --hairline:var(--ink-200); --hairline-strong:var(--ink-300);
+    --hairline:var(--ink-100); --hairline-strong:var(--ink-200);
     /* Soft in-card divider (Polymarket neutral-100 #e6e8ea) — lighter than the
        structural --hairline; used for outcome-row/comment/footer separators. */
-    --hairline-soft:var(--ink-100);
+    --hairline-soft:var(--ink-50);
     /* Dotted chart gridline grey (PM paints horizontal ticks as a fine dotted
        line, observed stroke rgb(174,180,188) / dasharray 1px 3px). A dedicated
        token keeps the plot grid distinct from structural hairlines. */
