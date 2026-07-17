@@ -13,21 +13,21 @@
     /* Native UI (scrollbars, form controls, autofill) tracks the theme. */
     color-scheme: light;
     /* ---- Neutrals — Slate ---- */
-    --ink-950:#0A0C10; --ink-900:#111419; --ink-800:#1A1F27; --ink-700:#2A303B;
-    --ink-600:#3C4453; --ink-500:#5A6473; --ink-400:#808A99; --ink-300:#AAB2BF;
-    --ink-200:#D2D7DE; --ink-100:#E6E8EA; --ink-50:#F5F7FA; --paper:#FFFFFF;
+    --ink-950:#0E0F11; --ink-900:#1A1C1F; --ink-800:#31353A; --ink-700:#484E56;
+    --ink-600:#5F6772; --ink-500:#77808D; --ink-400:#939AA5; --ink-300:#AEB4BC;
+    --ink-200:#CACED3; --ink-100:#E6E8EA; --ink-50:#F4F5F6; --paper:#FFFFFF;
 
     /* ---- Brand — Pip Blue ---- */
     /* Brand blue = Polymarket measured #1452F0 (rgb 20,82,240). Ramp rebalanced
        to that hue: 600 hover-dark, 400 lighter, 300/100 light tints. */
-    --pip-600:#1043C8; --pip-500:#1452F0; --pip-400:#4C7BF5; --pip-300:#A6C0FB; --pip-100:#E6EEFE;
+    --pip-600:#1249D8; --pip-500:#1452F0; --pip-400:#4E7DF3; --pip-300:#7D9FF6; --pip-100:#E7EDFD;
     --pip-text:var(--pip-500); /* pip blue used AS TEXT; lightened under .dark for WCAG AA */
     /* ---- Accent — Brass (emphasis only, <=5% of surface) ---- */
     --brass-600:#B57E22; --brass-500:#D9A036; --brass-100:#F7ECD4;
 
     /* ---- Market semantics (desaturated — never neon) ---- */
-    --yes:#1F9D6B; --yes-700:#177C54; --yes-tint:#E3F3EC;
-    --no:#D1495B;  --no-700:#B23446;  --no-tint:#FBE7EA;
+    --yes:#30A159; --yes-700:#1F7A44; --yes-tint:#ECF9F1;
+    --no:#E23939;  --no-700:#C61D1D;  --no-tint:#FCEBEB;
     --warn:#C98A1E;
     /* a11y semantic TEXT colors (WCAG 2.1 AA >=4.5:1 as small text on every
        themed surface). Base --yes/--no stay for FILLS/lines/dots (graphics,
@@ -58,7 +58,7 @@
     --e3:0 16px 48px rgba(10,12,16,.16);
 
     /* ---- Radius (restrained) ---- */
-    --r-sm:8px; --r-md:12px; --r-lg:16px; --r-pill:999px;
+    --r-sm:7.2px; --r-md:9.2px; --r-lg:11.2px; --r-pill:999px;
 
     /* ---- Motion ---- */
     --dur-micro:120ms; --dur:200ms; --dur-in:280ms;

@@ -27,8 +27,8 @@ const config: Config = {
       colors: {
         // Brand — Pip Blue
         pip: {
-          100: '#E7EEFE', 300: '#A9C0FB', 400: '#5C82F2',
-          500: '#2B50E4', 600: '#1E44C9',
+          50: '#E7EDFD', 100: '#C4D3FB', 200: '#A1B9F9', 300: '#7D9FF6', 400: '#4E7DF3',
+          500: '#1452F0', 600: '#1249D8', 700: '#1041C0', 800: '#0E39A8', 900: '#0C3190',
           // Theme-aware "pip as text" token. Maps to --pip-text: #2B50E4 in
           // light, #8FB0FA in dark, so link/icon text on the page background
           // clears WCAG AA (4.5:1) in BOTH themes (raw pip-500 is only 3.14:1
@@ -38,19 +38,19 @@ const config: Config = {
         brass: { 100: '#F7ECD4', 500: '#D9A036', 600: '#B57E22' },
         // Market semantics (desaturated). `green`/`red` kept as aliases so
         // existing text-green-*/bg-red-* utilities render on-system.
-        green: { DEFAULT: '#1F9D6B', light: '#1F9D6B', dark: '#177C54', dim: 'var(--yes-tint)', faint: 'var(--yes-tint)' },
-        red:   { DEFAULT: '#D1495B', light: '#D1495B', dark: '#B23446', dim: 'var(--no-tint)', faint: 'var(--no-tint)' },
+        green: { DEFAULT: '#30A159', light: '#42C772', dark: '#1F7A44', dim: 'var(--yes-tint)', faint: 'var(--yes-tint)' },
+        red:   { DEFAULT: '#E23939', light: '#E23939', dark: '#C61D1D', dim: 'var(--no-tint)', faint: 'var(--no-tint)' },
         amber: { DEFAULT: '#C98A1E', light: '#D9A036', dim: 'var(--brass-100)' },
-        yes:   { DEFAULT: '#1F9D6B', 700: '#177C54' },
-        no:    { DEFAULT: '#D1495B', 700: '#B23446' },
+        yes:   { DEFAULT: '#30A159', 700: '#1F7A44' },
+        no:    { DEFAULT: '#E23939', 700: '#C61D1D' },
         // Semantic surfaces (from CSS vars)
         surface: 'var(--surface)',
         'surface-2': 'var(--surface-2)',
         hairline: 'var(--hairline)',
         border:  'var(--hairline)',
         ink: {
-          50: '#F5F7FA', 100: '#E8EBEF', 200: '#D2D7DE', 300: '#AAB2BF', 400: '#808A99',
-          500: '#5A6473', 600: '#3C4453', 700: '#2A303B', 800: '#1A1F27', 900: '#111419', 950: '#0A0C10',
+          50: '#F4F5F6', 100: '#E6E8EA', 200: '#CACED3', 300: '#AEB4BC', 400: '#939AA5',
+          500: '#77808D', 600: '#5F6772', 700: '#484E56', 800: '#31353A', 900: '#1A1C1F', 950: '#0E0F11',
         },
         text: {
           primary:   'var(--text)',
@@ -68,11 +68,11 @@ const config: Config = {
         no: { DEFAULT: 'var(--no-text)', 700: 'var(--no-700)' },
       },
       borderRadius: {
-        sm:  '8px',
-        DEFAULT: '8px',
-        md:  '12px',
-        lg:  '12px',
-        xl:  '16px',
+        sm:  '7.2px',
+        DEFAULT: '9.2px',
+        md:  '9.2px',
+        lg:  '11.2px',
+        xl:  '11.2px',
         '2xl': '16px',
         pill: '999px',
       },
