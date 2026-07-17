@@ -17,7 +17,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { EntityAvatar } from '@/components/ui/entity-avatar'
 import { normalizeOutcomes, type Outcome } from '@/lib/markets/outcomes'
-import { formatVolume } from '@/lib/utils'
 import type { Market, MarketOption } from '@/types'
 import {
   IconSort,
@@ -101,6 +100,13 @@ export function CandidateList({
     })
     return sorted
   }, [outcomes, query, sort, subtitleById])
+
+  // PM emphasises the front-runner's "Buy Yes" as a SOLID green button while
+  // every other row's Yes is a green tint. Lead = highest implied probability.
+  const leadId = useMemo(
+    () => (outcomes.length ? outcomes.reduce((a, b) => (b.price > a.price ? b : a)).id : ''),
+    [outcomes],
+  )
 
   // Default-select the front-runner on mount and align the ticket to it.
   useEffect(() => {
@@ -227,11 +233,12 @@ export function CandidateList({
 
           // Independent Yes/No buy pills — inline on wider widths, stacked
           // full-width below the name on narrow screens (Kalshi mobile pattern).
+          const isLead = o.id === leadId
           const dualPills = (variant: 'inline' | 'stack') => (
             <div
               className={
                 variant === 'inline'
-                  ? 'hidden flex-none items-center gap-1.5 sm:flex'
+                  ? 'hidden flex-none items-center gap-2 sm:flex'
                   : 'mt-2 grid grid-cols-2 gap-2 sm:hidden'
               }
             >
@@ -239,7 +246,7 @@ export function CandidateList({
                 type="button"
                 onClick={(e) => { e.stopPropagation(); choose(o, true, 'yes') }}
                 aria-label={`Buy Yes on ${o.label} at ${yesCents}`}
-                className={`pill-side pill-yes ${active && selectedSide === 'yes' ? 'armed' : ''} ${variant === 'inline' ? 'min-w-[84px]' : 'w-full'}`}
+                className={`pill-side ${isLead ? 'pill-yes-lead' : 'pill-yes'} ${active && selectedSide === 'yes' ? 'armed' : ''} ${variant === 'inline' ? 'w-[104px] lg:w-[120px]' : 'w-full'}`}
               >
                 Buy Yes {yesCents}
               </button>
@@ -247,7 +254,7 @@ export function CandidateList({
                 type="button"
                 onClick={(e) => { e.stopPropagation(); choose(o, true, 'no') }}
                 aria-label={`Buy No on ${o.label} at ${noCents}`}
-                className={`pill-side pill-no ${active && selectedSide === 'no' ? 'armed' : ''} ${variant === 'inline' ? 'min-w-[84px]' : 'w-full'}`}
+                className={`pill-side pill-no ${active && selectedSide === 'no' ? 'armed' : ''} ${variant === 'inline' ? 'w-[104px] lg:w-[120px]' : 'w-full'}`}
               >
                 Buy No {noCents}
               </button>
@@ -282,21 +289,23 @@ export function CandidateList({
                 <EntityAvatar
                   name={o.label}
                   imageUrl={o.imageUrl}
-                  size={34}
+                  size={40}
                   shape={kind === 'person' ? 'circle' : 'squircle'}
                 />
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-1.5">
-                    <span className="truncate text-[13.5px] font-semibold text-text-primary">
+                    <span className="truncate text-[15px] font-semibold text-text-primary sm:text-base">
                       {o.label}
                     </span>
-                    {isWinner && <IconTrophy size={13} className="flex-none text-yes" />}
+                    {isWinner && <IconTrophy size={14} className="flex-none text-yes" />}
                   </div>
-                  <div className="flex items-center gap-1.5 truncate text-[11px] text-text-muted">
+                  <div className="flex items-center gap-1.5 truncate text-[13px] text-text-secondary">
                     {subtitle && <span className="truncate">{subtitle}</span>}
                     {subtitle && o.volumeUsd > 0 && <span aria-hidden className="text-hairline">·</span>}
                     {o.volumeUsd > 0 && (
-                      <span className="flex-none tabular-nums">{formatVolume(o.volumeUsd)} Vol.</span>
+                      <span className="flex-none tabular-nums">
+                        ${Math.round(o.volumeUsd).toLocaleString('en-US')} Vol.
+                      </span>
                     )}
                   </div>
                 </div>
@@ -304,7 +313,7 @@ export function CandidateList({
                 {/* Bold standalone probability + buy affordance */}
                 <div className="flex flex-none items-center gap-2.5">
                   <span
-                    className="text-[22px] font-bold leading-none tabular-nums text-text-primary sm:text-[20px]"
+                    className="text-[26px] font-semibold leading-none tabular-nums text-text-primary sm:text-[28px]"
                     aria-label={pct < 1 ? 'less than 1 percent' : pct > 99 ? 'greater than 99 percent' : `${pct} percent`}
                   >
                     {pctLabel}
@@ -317,7 +326,7 @@ export function CandidateList({
                         type="button"
                         onClick={(e) => { e.stopPropagation(); choose(o, true, 'yes') }}
                         aria-label={`Buy Yes on ${o.label} at ${cents(o.price)}`}
-                        className={`pill-side pill-yes min-w-[84px] ${active ? 'armed' : ''}`}
+                        className={`pill-side ${isLead ? 'pill-yes-lead' : 'pill-yes'} w-[104px] lg:w-[120px] ${active ? 'armed' : ''}`}
                       >
                         Buy Yes {cents(o.price)}
                       </button>
