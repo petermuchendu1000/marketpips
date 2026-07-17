@@ -461,9 +461,11 @@ export function PmTicket({
       <div className="flex items-center gap-3 border-b border-hairline p-4">
         <EntityAvatar name={market.title} imageUrl={market.cover_image_url} size={38} shape="squircle" />
         <div className="min-w-0 flex-1">
-          <p className="truncate text-sm font-semibold text-text-primary">{market.title}</p>
+          {/* PM: market title is MUTED (text-secondary, medium); the selected
+              outcome line below it is the emphasised, larger text-base row. */}
+          <p className="truncate text-sm font-medium text-text-secondary">{market.title}</p>
           <div className="flex items-center gap-1.5">
-            <span className={`truncate text-xs font-medium ${outcomeTone}`}>{titleOutcome}</span>
+            <span className={`truncate text-base font-semibold ${outcomeTone}`}>{titleOutcome}</span>
             {isOpen && (!isMulti || indepMulti) && (
               <button
                 type="button"
@@ -497,7 +499,7 @@ export function PmTicket({
                 type="button"
                 onClick={() => setAction(a)}
                 aria-pressed={action === a}
-                className={`relative -mb-px border-b-2 pb-2.5 text-[15px] font-semibold capitalize transition-colors ${
+                className={`relative -mb-px border-b-2 pb-2.5 text-[17px] font-semibold capitalize transition-colors ${
                   action === a
                     ? 'border-text-primary text-text-primary'
                     : 'border-transparent text-text-muted hover:text-text-secondary'
