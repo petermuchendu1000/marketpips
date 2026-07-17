@@ -18,6 +18,7 @@ import { MarketRules } from '@/components/markets/market-rules'
 import { MarketFaq } from '@/components/markets/market-faq'
 import { buildMarketFaq } from '@/lib/markets/faq'
 import { RelatedMarkets } from '@/components/markets/related-markets'
+import { ContractSpecs } from '@/components/markets/contract-specs'
 import { normalizeOutcomes, isMultiOutcome, isIndependentOptions } from '@/lib/markets/outcomes'
 import { isFeatureEnabled } from '@/lib/flags'
 import { formatUSD } from '@/lib/utils'
@@ -314,6 +315,18 @@ export default async function MarketPage({
             closesAt={market.closes_at}
             resolvedAt={market.resolved_at}
             isResolved={market.status === 'resolved'}
+          />
+
+          {/* Mobile-only contract specs grid (PM parity): Volume · End Date ·
+              Market Opened · Resolver — sits right under Rules/Context on mobile.
+              Desktop keeps the richer specs card in the sidebar (hidden here). */}
+          <ContractSpecs
+            className="lg:hidden"
+            volumeUsd={market.total_volume_usd}
+            endDate={market.closes_at}
+            openedAt={market.created_at}
+            resolutionSource={market.resolution_source}
+            createdBy={market.creator?.display_name || market.creator?.username || null}
           />
 
           {/* Community — Comments / Top holders / Positions / Activity (tabs). */}

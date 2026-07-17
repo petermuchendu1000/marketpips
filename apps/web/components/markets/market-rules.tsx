@@ -1,9 +1,15 @@
 'use client'
 
-// Rules / Market Context — tabbed resolution panel with progressive "Show more"
-// truncation. Mirrors the two-tab pattern found on leading prediction markets
-// (settlement rules vs. background context) while staying on MarketPips tokens
-// and copy. Text-first, SSR-friendly content is passed in from the server page.
+/**
+ * MarketRules
+ *
+ * Tabbed panel shown on the market-detail page that surfaces resolution
+ * details for a market. Provides two tabs — "Rules" (resolution criteria +
+ * optional resolution source) and "Market Context" (market description plus
+ * creator / timing / source metadata). Long bodies are truncated with a
+ * "Show more" / "Show less" toggle. Fully keyboard/screen-reader accessible
+ * via role=tablist/tab/tabpanel with aria-selected / aria-controls wiring.
+ */
 
 import { useId, useState } from 'react'
 import { formatDistanceToNow, format } from 'date-fns'
@@ -11,10 +17,8 @@ import { IconShield, IconInfo, IconExternalLink } from '@/components/ui/icons'
 
 type TabKey = 'rules' | 'context'
 
-/** Collapsible long-form body: clamps to `lines`, reveals in full on demand. */
 function Expandable({ text, lines = 6 }: { text: string; lines?: number }) {
   const [open, setOpen] = useState(false)
-  // Only offer the toggle when the body is genuinely long enough to clip.
   const isLong = text.trim().length > 320
   return (
     <div>
@@ -59,29 +63,25 @@ export function MarketRules({
   resolutionCriteria: string
   description: string
   resolutionSource?: string | null
-  /** Market author display name (moved out of the header identity strip). */
   createdBy?: string | null
-  /** ISO close date — always shown in the context meta row. */
   closesAt: string
-  /** ISO resolved date, when the market has settled. */
   resolvedAt?: string | null
   isResolved?: boolean
 }) {
   const [tab, setTab] = useState<TabKey>('rules')
   const baseId = useId()
   const hasDescription = Boolean(description && description.trim().length > 0)
-
-  // The context tab now ALSO carries the market's provenance (author + close /
-  // resolution date) that used to sit under the title, so it is always present.
   const tabs: { key: TabKey; label: string; icon: React.ReactNode }[] = [
     { key: 'rules', label: 'Rules', icon: <IconShield size={13} /> },
-    { key: 'context', label: 'Market context', icon: <IconInfo size={13} /> },
+    { key: 'context', label: 'Market Context', icon: <IconInfo size={13} /> },
   ]
-
   return (
     <div className="card p-4">
-      {/* Tab bar */}
-      <div role="tablist" aria-label="Market resolution details" className="mb-4 flex gap-1 border-b border-hairline">
+      <div
+        role="tablist"
+        aria-label="Market resolution details"
+        className="mb-4 flex gap-1 border-b border-hairline"
+      >
         {tabs.map((t) => {
           const active = tab === t.key
           return (
@@ -104,9 +104,12 @@ export function MarketRules({
           )
         })}
       </div>
-
       {tab === 'rules' && (
-        <div role="tabpanel" id={`${baseId}-panel-rules`} aria-labelledby={`${baseId}-tab-rules`}>
+        <div
+          role="tabpanel"
+          id={`${baseId}-panel-rules`}
+          aria-labelledby={`${baseId}-tab-rules`}
+        >
           <Expandable text={resolutionCriteria} />
           {resolutionSource && (
             <a
@@ -120,17 +123,19 @@ export function MarketRules({
           )}
         </div>
       )}
-
       {tab === 'context' && (
-        <div role="tabpanel" id={`${baseId}-panel-context`} aria-labelledby={`${baseId}-tab-context`}>
+        <div
+          role="tabpanel"
+          id={`${baseId}-panel-context`}
+          aria-labelledby={`${baseId}-tab-context`}
+        >
           {hasDescription ? (
             <Expandable text={description} />
           ) : (
-            <p className="text-sm text-text-muted">No additional context was provided for this market.</p>
+            <p className="text-sm text-text-muted">
+              No additional context was provided for this market.
+            </p>
           )}
-
-          {/* Provenance + resolution source — relocated here from the header
-              identity strip (keeps the top of the page lean, options higher). */}
           <div className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-1.5 border-t border-hairline pt-3 text-xs text-text-muted">
             {createdBy && (
               <>
