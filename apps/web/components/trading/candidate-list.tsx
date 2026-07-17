@@ -245,11 +245,12 @@ export function CandidateList({
               role="radio"
               aria-checked={active}
               tabIndex={active ? 0 : -1}
-              // Tapping the card body = tapping Buy Yes: opens the sheet armed to
-              // YES on mobile / arms the sidebar ticket on desktop (PM behaviour —
-              // the option name is not a separate navigation, it is a trade entry).
-              // Keyboard only moves/arms so the radiogroup stays a11y-clean.
-              onClick={() => choose(o, true, 'yes')}
+              // PM parity (verified live): tapping the card body/name opens the
+              // MARKET view for this option (chart/order-book/rules) — it does NOT
+              // place a trade. Only the Buy Yes / Buy No pills open the trade sheet.
+              // In our single-page model that means: select this option (drives the
+              // shared chart/detail) without opening the trade sheet.
+              onClick={() => choose(o, false)}
               onKeyDown={(e) => {
                 if (e.key === 'Enter' || e.key === ' ') {
                   e.preventDefault()
