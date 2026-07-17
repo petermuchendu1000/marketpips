@@ -137,7 +137,8 @@ export function MarketHeader({ market, outcomes, isMulti }: MarketHeaderProps) {
             <EntityAvatar name={market.title} imageUrl={market.cover_image_url} size={40} radius={6} />
           </div>
           <div className="hidden min-[480px]:block">
-            <EntityAvatar name={market.title} imageUrl={market.cover_image_url} size={64} radius={10} />
+            {/* PM measured: desktop identity icon 64×64, radius 7.2px (rounded-sm). */}
+            <EntityAvatar name={market.title} imageUrl={market.cover_image_url} size={64} radius={7} />
           </div>
         </div>
 
