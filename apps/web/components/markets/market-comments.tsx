@@ -15,11 +15,12 @@ import { TraderAvatar } from '@/components/ui/trader-avatar'
 import { MarketActivity } from '@/components/markets/market-activity'
 import { TopHolders } from '@/components/markets/top-holders'
 import { MarketPositions } from '@/components/markets/market-positions'
-import { IconComments, IconArrowRight, IconTrophy, IconPortfolio, IconClock } from '@/components/ui/icons'
+import { IconComments, IconTrophy, IconPortfolio, IconClock } from '@/components/ui/icons'
 import toast from 'react-hot-toast'
 import type { Comment, MarketOption } from '@/types'
 
 type TabKey = 'comments' | 'holders' | 'positions' | 'activity'
+type CommentSort = 'newest' | 'oldest'
 
 function Spinner() {
   return (
@@ -82,6 +83,8 @@ export function MarketComments({ marketId, options, resolutionType }: MarketComm
   const [newComment, setNewComment] = useState('')
   const [isLoading, setIsLoading] = useState(true)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  // PM parity: comments carry a sort control (their default reads "Newest").
+  const [sort, setSort] = useState<CommentSort>('newest')
 
   // ---- lazy tab state -----------------------------------------------------
   // Top Holders and Positions are delegated to their own RPC-backed boards
@@ -151,9 +154,23 @@ export function MarketComments({ marketId, options, resolutionType }: MarketComm
     setIsSubmitting(false)
   }
 
+  // Client-side ordering of the already-fetched page (PM's "Newest" default,
+  // with an "Oldest" alternative). Sorting a fetched slice keeps the control
+  // instant with no refetch; `created_at` is the single source of truth.
+  const sortedComments = useMemo(() => {
+    const arr = [...comments]
+    arr.sort((a, b) => {
+      const ta = new Date(a.created_at).getTime()
+      const tb = new Date(b.created_at).getTime()
+      return sort === 'newest' ? tb - ta : ta - tb
+    })
+    return arr
+  }, [comments, sort])
+
   const tabs: { key: TabKey; label: string; icon: React.ReactNode }[] = [
     { key: 'comments', label: `Comments${comments.length ? ` ${comments.length}` : ''}`, icon: <IconComments size={13} /> },
-    { key: 'holders', label: 'Top holders', icon: <IconTrophy size={13} /> },
+    // PM label casing is "Top Holders" (both words capitalised).
+    { key: 'holders', label: 'Top Holders', icon: <IconTrophy size={13} /> },
     { key: 'positions', label: 'Positions', icon: <IconPortfolio size={13} /> },
     { key: 'activity', label: 'Activity', icon: <IconClock size={13} /> },
   ]
@@ -204,7 +221,9 @@ export function MarketComments({ marketId, options, resolutionType }: MarketComm
                 className="btn btn-primary flex-none"
                 aria-label="Post comment"
               >
-                {isSubmitting ? <Spinner /> : <IconArrowRight size={16} />}
+                {/* PM parity: the composer action is a text "Post" button (with
+                    the arrow glyph kept as a compact affordance while sending). */}
+                {isSubmitting ? <Spinner /> : 'Post'}
               </button>
             </form>
           )}
@@ -213,8 +232,36 @@ export function MarketComments({ marketId, options, resolutionType }: MarketComm
           ) : comments.length === 0 ? (
             <EmptyState>No comments yet. Be the first to share your prediction.</EmptyState>
           ) : (
-            <div className="space-y-4">
-              {comments.map((comment) => (
+            <>
+              {/* Sort control (PM parity — their comments default to "Newest"). */}
+              <div className="mb-3 flex items-center justify-between">
+                <span className="text-xs text-text-muted">
+                  {comments.length} {comments.length === 1 ? 'comment' : 'comments'}
+                </span>
+                <div className="relative">
+                  <label htmlFor="comment-sort" className="sr-only">
+                    Sort comments
+                  </label>
+                  <select
+                    id="comment-sort"
+                    value={sort}
+                    onChange={(e) => setSort(e.target.value as CommentSort)}
+                    className="appearance-none rounded-sm border border-hairline bg-transparent py-1 pl-2.5 pr-7 text-xs font-semibold text-text-secondary transition-colors hover:text-text-primary"
+                  >
+                    <option value="newest">Newest</option>
+                    <option value="oldest">Oldest</option>
+                  </select>
+                  <svg
+                    className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-text-muted"
+                    width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
+                    strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"
+                  >
+                    <path d="M6 9l6 6 6-6" />
+                  </svg>
+                </div>
+              </div>
+              <div className="space-y-4">
+              {sortedComments.map((comment) => (
                 <div key={comment.id} className="flex gap-3">
                   <Avatar id={comment.user_id} u={comment.user} />
                   <div className="min-w-0 flex-1">
@@ -230,7 +277,8 @@ export function MarketComments({ marketId, options, resolutionType }: MarketComm
                   </div>
                 </div>
               ))}
-            </div>
+              </div>
+            </>
           )}
         </>
       )}
