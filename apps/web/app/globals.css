@@ -287,27 +287,30 @@
   .prob-bar { height:8px; border-radius:var(--r-pill); background:var(--no-tint); overflow:hidden; position:relative; }
   .prob-bar-fill { height:100%; background:var(--yes); border-radius:var(--r-pill); transition:width var(--dur-in) var(--ease-move); }
 
-  /* ---- Candidate-board Yes/No side pills — Polymarket parity ---------------
-     PM ground truth (event/…-nominee-2028 DOM): filled tint pills, NOT outlined.
-       Buy Yes (leading row): SOLID  bg-green-600 / white text
-       Buy Yes (other rows) : TINT   bg-green-500/15 / green text, hover /25
-       Buy No  (all rows)   : TINT   bg-red-500/9  / red text,   hover /13
-       Geometry: h-12 · rounded-sm · font-semibold · 14px.
-     The `.armed` state (row currently loaded in the ticket) deepens the tint. */
+  /* ---- Candidate-board Yes/No side pills — Polymarket MEASURED parity --------
+     getComputedStyle on the live PM board (@1280): 14px / 600, letter-spacing
+     -0.09px, line-height 20px, min-height 48px, width 136px (set per-call),
+     border-radius 7.2px, padding 0 16px, gap 4px, transition background-color +
+     color 0.15s cubic-bezier(.4,0,.2,1). Colors are PM's EXACT values, not our
+     --yes/--no tokens:  green #30A159, red #E23939.
+       Buy Yes (leading row): SOLID  #30A159 / #fff   (no hover colour change)
+       Buy Yes (other rows) : TINT   rgba(#30A159,.15) / #30A159 → hover .25
+       Buy No  (all rows)   : TINT   rgba(#E23939,.09) / #E23939 → hover .13 */
   .pill-side {
-    display:inline-flex; align-items:center; justify-content:center; gap:6px;
-    border:0; border-radius:var(--r-sm);
-    min-height:44px; padding:0 16px; font-size:14px; font-weight:600; line-height:1;
+    display:inline-flex; align-items:center; justify-content:center; gap:4px;
+    border:0; border-radius:7px;
+    min-height:48px; padding:0 16px;
+    font-size:14px; font-weight:600; line-height:20px; letter-spacing:-0.09px;
     background:transparent; white-space:nowrap; cursor:pointer;
-    transition:background var(--dur), color var(--dur);
+    transition:background-color .15s cubic-bezier(.4,0,.2,1), color .15s cubic-bezier(.4,0,.2,1);
   }
-  .pill-yes { color:var(--yes-700); background:color-mix(in srgb, var(--yes) 15%, transparent); }
-  .pill-yes:hover:not(:disabled), .pill-yes.armed { background:color-mix(in srgb, var(--yes) 25%, transparent); }
-  .pill-no  { color:var(--no-700);  background:color-mix(in srgb, var(--no) 10%, transparent); }
-  .pill-no:hover:not(:disabled), .pill-no.armed  { background:color-mix(in srgb, var(--no) 18%, transparent); }
-  /* Leading row's Buy Yes — solid emphasis (defined AFTER .pill-yes to win). */
-  .pill-yes-lead { color:#fff; background:var(--yes); }
-  .pill-yes-lead:hover:not(:disabled), .pill-yes-lead.armed { color:#fff; background:var(--yes-700); }
+  .pill-yes { color:#30A159; background:rgba(48,161,89,0.15); }
+  .pill-yes:hover:not(:disabled), .pill-yes.armed { background:rgba(48,161,89,0.25); }
+  .pill-no  { color:#E23939; background:rgba(226,57,57,0.09); }
+  .pill-no:hover:not(:disabled), .pill-no.armed  { background:rgba(226,57,57,0.13); }
+  /* Leading row's Buy Yes — PM solid fill, no hover recolour (defined last). */
+  .pill-yes-lead { color:#fff; background:#30A159; }
+  .pill-yes-lead:hover:not(:disabled), .pill-yes-lead.armed { color:#fff; background:#30A159; }
   .pill-side:disabled { opacity:0.55; cursor:not-allowed; }
 
   /* ---- Badges ---- */

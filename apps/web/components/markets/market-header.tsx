@@ -191,9 +191,9 @@ export function MarketHeader({ market, outcomes, isMulti }: MarketHeaderProps) {
             </div>
           </div>
 
-          {/* PM: `!font-semibold text-heading-2xl text-pretty` — large, tight,
-              balanced wrapping. ~24px < sm, ~30px on desktop. */}
-          <h1 className="font-display text-2xl font-semibold leading-[1.15] text-pretty text-text-primary sm:text-[28px] lg:text-[30px]">
+          {/* PM measured (getComputedStyle @1280): 24px / 600 / lh 28px /
+              letter-spacing -0.36px / color #0E0F11. NOT larger on desktop. */}
+          <h1 className="font-display text-2xl font-semibold leading-[28px] tracking-[-0.36px] text-pretty text-text-primary">
             {market.title}
           </h1>
 

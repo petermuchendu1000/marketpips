@@ -246,7 +246,7 @@ export function CandidateList({
                 type="button"
                 onClick={(e) => { e.stopPropagation(); choose(o, true, 'yes') }}
                 aria-label={`Buy Yes on ${o.label} at ${yesCents}`}
-                className={`pill-side ${isLead ? 'pill-yes-lead' : 'pill-yes'} ${active && selectedSide === 'yes' ? 'armed' : ''} ${variant === 'inline' ? 'w-[104px] lg:w-[120px]' : 'w-full'}`}
+                className={`pill-side ${isLead ? 'pill-yes-lead' : 'pill-yes'} ${active && selectedSide === 'yes' ? 'armed' : ''} ${variant === 'inline' ? 'w-[112px] lg:w-[136px]' : 'w-full'}`}
               >
                 Buy Yes {yesCents}
               </button>
@@ -254,7 +254,7 @@ export function CandidateList({
                 type="button"
                 onClick={(e) => { e.stopPropagation(); choose(o, true, 'no') }}
                 aria-label={`Buy No on ${o.label} at ${noCents}`}
-                className={`pill-side pill-no ${active && selectedSide === 'no' ? 'armed' : ''} ${variant === 'inline' ? 'w-[104px] lg:w-[120px]' : 'w-full'}`}
+                className={`pill-side pill-no ${active && selectedSide === 'no' ? 'armed' : ''} ${variant === 'inline' ? 'w-[112px] lg:w-[136px]' : 'w-full'}`}
               >
                 Buy No {noCents}
               </button>
@@ -281,7 +281,7 @@ export function CandidateList({
                 }
               }}
               style={{ borderLeftColor: active ? 'var(--pip-400)' : 'transparent' }}
-              className={`group cursor-pointer border-l-2 px-4 py-2.5 transition-colors ${
+              className={`group cursor-pointer border-l-2 px-4 py-3 transition-colors ${
                 active ? 'bg-surface-2' : 'hover:bg-surface-2'
               } ${isLoser ? 'opacity-55' : ''}`}
             >
@@ -294,7 +294,7 @@ export function CandidateList({
                 />
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-1.5">
-                    <span className="truncate text-[15px] font-semibold text-text-primary sm:text-base">
+                    <span className="truncate text-base font-semibold tracking-[-0.18px] text-text-primary">
                       {o.label}
                     </span>
                     {isWinner && <IconTrophy size={14} className="flex-none text-yes" />}
@@ -313,7 +313,7 @@ export function CandidateList({
                 {/* Bold standalone probability + buy affordance */}
                 <div className="flex flex-none items-center gap-2.5">
                   <span
-                    className="text-[26px] font-semibold leading-none tabular-nums text-text-primary sm:text-[28px]"
+                    className="text-[28px] font-semibold leading-none tracking-[-0.42px] tabular-nums text-text-primary"
                     aria-label={pct < 1 ? 'less than 1 percent' : pct > 99 ? 'greater than 99 percent' : `${pct} percent`}
                   >
                     {pctLabel}
@@ -326,7 +326,7 @@ export function CandidateList({
                         type="button"
                         onClick={(e) => { e.stopPropagation(); choose(o, true, 'yes') }}
                         aria-label={`Buy Yes on ${o.label} at ${cents(o.price)}`}
-                        className={`pill-side ${isLead ? 'pill-yes-lead' : 'pill-yes'} w-[104px] lg:w-[120px] ${active ? 'armed' : ''}`}
+                        className={`pill-side ${isLead ? 'pill-yes-lead' : 'pill-yes'} w-[112px] lg:w-[136px] ${active ? 'armed' : ''}`}
                       >
                         Buy Yes {cents(o.price)}
                       </button>

@@ -499,7 +499,7 @@ export function PmTicket({
                 type="button"
                 onClick={() => setAction(a)}
                 aria-pressed={action === a}
-                className={`relative -mb-px border-b-2 pb-2.5 text-[17px] font-semibold capitalize transition-colors ${
+                className={`relative -mb-px border-b-2 pb-2.5 text-base font-semibold capitalize transition-colors ${
                   action === a
                     ? 'border-text-primary text-text-primary'
                     : 'border-transparent text-text-muted hover:text-text-secondary'

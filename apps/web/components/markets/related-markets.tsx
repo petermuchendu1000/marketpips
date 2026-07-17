@@ -92,7 +92,7 @@ export async function RelatedMarkets({ marketId, category }: RelatedMarketsProps
                 imageUrl={market.cover_image_url}
                 size={40}
                 shape="squircle"
-                radius={6}
+                radius={9}
               />
 
               <span className="flex min-w-0 flex-1 flex-col gap-0.5">
