@@ -15,7 +15,6 @@ import { TraderAvatar } from '@/components/ui/trader-avatar'
 import { MarketActivity } from '@/components/markets/market-activity'
 import { TopHolders } from '@/components/markets/top-holders'
 import { MarketPositions } from '@/components/markets/market-positions'
-import { IconComments, IconTrophy, IconPortfolio, IconClock } from '@/components/ui/icons'
 import toast from 'react-hot-toast'
 import type { Comment, MarketOption } from '@/types'
 
@@ -167,18 +166,21 @@ export function MarketComments({ marketId, options, resolutionType }: MarketComm
     return arr
   }, [comments, sort])
 
-  const tabs: { key: TabKey; label: string; icon: React.ReactNode }[] = [
-    { key: 'comments', label: `Comments${comments.length ? ` ${comments.length}` : ''}`, icon: <IconComments size={13} /> },
+  const tabs: { key: TabKey; label: string }[] = [
+    // PM shows the count in parens with a thousands separator: "Comments (3,993)".
+    { key: 'comments', label: `Comments${comments.length ? ` (${comments.length.toLocaleString('en-US')})` : ''}` },
     // PM label casing is "Top Holders" (both words capitalised).
-    { key: 'holders', label: 'Top Holders', icon: <IconTrophy size={13} /> },
-    { key: 'positions', label: 'Positions', icon: <IconPortfolio size={13} /> },
-    { key: 'activity', label: 'Activity', icon: <IconClock size={13} /> },
+    { key: 'holders', label: 'Top Holders' },
+    { key: 'positions', label: 'Positions' },
+    { key: 'activity', label: 'Activity' },
   ]
 
   return (
     <div className="card p-4">
-      {/* Tab bar */}
-      <div role="tablist" aria-label="Community" className="mb-4 flex gap-1 overflow-x-auto border-b border-hairline">
+      {/* Tab bar — PM parity: color-only active state (no underline bar, no
+          icons), 16px semibold labels, gap-4, horizontally scrollable. Active =
+          primary ink, inactive = muted grey. */}
+      <div role="tablist" aria-label="Community" className="mb-4 flex gap-4 overflow-x-auto">
         {tabs.map((t) => {
           const active = tab === t.key
           return (
@@ -187,11 +189,10 @@ export function MarketComments({ marketId, options, resolutionType }: MarketComm
               role="tab"
               aria-selected={active}
               onClick={() => setTab(t.key)}
-              className={`-mb-px flex flex-none items-center gap-1.5 border-b-2 px-3 pb-2.5 pt-1 text-sm font-semibold transition-colors ${
-                active ? 'border-pip-500 text-text-primary' : 'border-transparent text-text-muted hover:text-text-secondary'
+              className={`flex-none whitespace-nowrap pb-2 pt-1 text-base font-semibold transition-colors ${
+                active ? 'text-text-primary' : 'text-text-muted hover:text-text-secondary'
               }`}
             >
-              {t.icon}
               {t.label}
             </button>
           )
@@ -204,14 +205,14 @@ export function MarketComments({ marketId, options, resolutionType }: MarketComm
           {user && (
             <form onSubmit={handleSubmit} className="mb-4 flex gap-2">
               <label htmlFor="market-comment" className="sr-only">
-                Share your analysis
+                Add a comment
               </label>
               <input
                 id="market-comment"
                 type="text"
                 value={newComment}
                 onChange={(e) => setNewComment(e.target.value)}
-                placeholder="Share your analysis…"
+                placeholder="Add a comment…"
                 maxLength={500}
                 className="input flex-1"
               />
