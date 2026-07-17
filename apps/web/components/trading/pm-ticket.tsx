@@ -515,7 +515,7 @@ export function PmTicket({
               <button
                 type="button"
                 onClick={() => setTypeMenu((v) => !v)}
-                className="flex items-center gap-1 text-sm font-medium text-text-secondary hover:text-text-primary"
+                className="flex items-center gap-1 text-sm font-medium text-text-primary"
                 aria-haspopup="listbox"
                 aria-expanded={typeMenu}
               >
@@ -689,7 +689,8 @@ export function PmTicket({
                 className="flex items-baseline gap-0.5 tabular-nums"
                 style={{ color: amountNum > 0 ? 'var(--text)' : 'var(--text-3)' }}
               >
-                <span className="text-2xl font-bold">{currencyInfo?.symbol}</span>
+                {/* PM measured: amount entry is 40px / font-weight 600. */}
+                <span className="text-[40px] font-semibold leading-none">{currencyInfo?.symbol}</span>
                 <input
                   aria-label="Trade amount"
                   inputMode="decimal"
@@ -701,7 +702,7 @@ export function PmTicket({
                   }}
                   placeholder="0"
                   size={Math.max(1, amount.length || 1)}
-                  className="max-w-[8rem] bg-transparent text-right text-4xl font-bold tabular-nums outline-none placeholder:text-text-muted"
+                  className="max-w-[8rem] bg-transparent text-right text-[40px] font-semibold leading-none tabular-nums outline-none placeholder:text-text-muted"
                   style={{ color: 'inherit', width: `${Math.max(1, amount.length || 1)}ch` }}
                 />
               </div>
@@ -718,7 +719,7 @@ export function PmTicket({
                     setAmount(String((parseFloat(amount) || 0) + c))
                     setError('')
                   }}
-                  className="rounded-pill border border-hairline px-3.5 py-1.5 text-sm font-semibold text-text-secondary transition-colors hover:border-pip-400 hover:text-pip-500"
+                  className="rounded-md border border-hairline px-3 py-1.5 text-xs font-semibold text-text-muted transition-colors hover:bg-surface-2"
                 >
                   +{c >= 1000 ? `${(c / 1000).toFixed(c % 1000 ? 1 : 0)}k` : c}
                 </button>

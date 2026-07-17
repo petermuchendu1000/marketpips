@@ -279,7 +279,7 @@ export function PriceChart({ data, currentYes = 0.5, volumeUsd = 0, resolutionDa
             {formatUSD(volumeUsd)} Vol.
           </span>
           {formatResolutionDate(resolutionDate) && (
-            <span className="text-[13px] font-medium text-text-secondary">
+            <span className="text-[13px] font-medium text-text-muted">
               {formatResolutionDate(resolutionDate)}
             </span>
           )}
@@ -304,7 +304,7 @@ export function PriceChart({ data, currentYes = 0.5, volumeUsd = 0, resolutionDa
                 aria-selected={active}
                 onClick={() => setTimeframe(tf.key)}
                 className={`rounded-md px-1.5 py-1 text-sm font-semibold transition-colors ${
-                  active ? 'text-text-primary' : 'text-text-secondary hover:bg-surface-2 hover:text-text-primary'
+                  active ? 'text-text-primary' : 'text-text-muted hover:bg-surface-2 hover:text-text-primary'
                 }`}
               >
                 {tf.label}
