@@ -1,9 +1,24 @@
 // components/markets/related-markets.tsx
-// Polymarket parity (G10): the market-detail "Related" block is a COMPACT
-// VERTICAL LIST, not a card grid. Each row is `icon · title · (leading outcome
-// name for multi) · mini leading-probability %`, linking to the market. Heading
-// reads "Related" (matching PM), and the whole block naturally hides when there
-// are no same-category peers.
+// ---------------------------------------------------------------------------
+// Polymarket parity (M7). Ground truth captured from PM's live market-detail
+// DOM (event/democratic-presidential-nominee-2028). PM's "Related" block is a
+// BORDERLESS vertical list of ghost rows — NOT a bordered card grid. Each row:
+//
+//   <a href="/event/…">
+//     <div ...py-1 lg:px-2.5 lg:py-2 flex flex-row items-center gap-2.5 w-full
+//          cursor-pointer rounded-lg bg-button-ghost-bg lg:hover:…-hover>
+//       <div relative overflow-hidden rounded-md  style="h40 w40 minw40">
+//         <img object-cover>                       ← 40×40 rounded-md cover
+//       <div flex flex-col flex-1 gap-0.5>
+//         <p text-text font-medium line-clamp-2 text-sm>{title}</p>
+//       <div flex flex-col my-auto items-end ml-1>
+//         <span text-text font-medium text-base lg:text-lg leading-normal>{pct}%</span>
+//         <div text-xs text-text-secondary>{leading outcome}</div>
+//
+// Token map (PM → MarketPips): text-text→text-text-primary,
+// text-text-secondary→text-text-secondary, button-ghost hover→hover:bg-surface-2,
+// icon rounded-md (6px) via EntityAvatar radius={6}. Heading is
+// `text-text font-medium mb-4` (PM), NOT the old text-base font-semibold box.
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
 import { EntityAvatar } from '@/components/ui/entity-avatar'
@@ -46,10 +61,13 @@ export async function RelatedMarkets({ marketId, category }: RelatedMarketsProps
 
   return (
     <section aria-labelledby="related-heading">
-      <h2 id="related-heading" className="mb-2 text-base font-semibold text-text-primary">
+      {/* PM: `text-text font-medium mb-4`. */}
+      <h2 id="related-heading" className="mb-4 text-base font-medium text-text-primary">
         Related
       </h2>
-      <ul className="overflow-hidden rounded-md border border-hairline">
+
+      {/* PM: borderless vertical stack of ghost rows (no card frame, no dividers). */}
+      <div className="flex w-full flex-col">
         {typed.map((market) => {
           const isMulti = market.resolution_type === 'multiple_choice'
           const lead = leadByMarket.get(market.id)
@@ -58,38 +76,47 @@ export async function RelatedMarkets({ marketId, category }: RelatedMarketsProps
               ? Math.round(lead.price * 100)
               : null
             : Math.round((market.yes_price ?? 0) * 100)
+          // PM shows the leading OUTCOME name under the % (e.g. "JD Vance").
+          // Multi → leading candidate label; binary carries no sublabel in PM.
+          const subLabel = isMulti ? lead?.label ?? null : null
 
           return (
-            <li key={market.id} className="border-b border-hairline-soft last:border-b-0">
-              <Link
-                href={`/markets/${market.slug}`}
-                className="group flex items-center gap-3 px-3 py-2.5 transition-colors hover:bg-surface-2"
-              >
-                <EntityAvatar
-                  name={market.title}
-                  imageUrl={market.cover_image_url}
-                  size={32}
-                  shape="squircle"
-                  radius={6}
-                />
-                <span className="min-w-0 flex-1">
-                  <span className="block truncate text-sm font-medium text-text-primary group-hover:text-pip-text">
-                    {market.title}
-                  </span>
-                  {isMulti && lead && (
-                    <span className="block truncate text-xs text-text-muted">{lead.label}</span>
-                  )}
+            <Link
+              key={market.id}
+              href={`/markets/${market.slug}`}
+              className="group relative flex w-full cursor-pointer flex-row items-center gap-2.5 rounded-lg py-1 transition-colors lg:px-2.5 lg:py-2 lg:hover:bg-surface-2"
+            >
+              {/* 40×40 rounded-md cover icon (PM exact). */}
+              <EntityAvatar
+                name={market.title}
+                imageUrl={market.cover_image_url}
+                size={40}
+                shape="squircle"
+                radius={6}
+              />
+
+              <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+                <span className="line-clamp-2 text-sm font-medium text-text-primary">
+                  {market.title}
                 </span>
-                {pct != null && (
-                  <span className="flex-none text-sm font-semibold tabular-nums text-text-primary">
+              </span>
+
+              {pct != null && (
+                <span className="my-auto ml-1 flex flex-none flex-col items-end">
+                  <span className="text-base font-medium leading-normal tabular-nums text-text-primary lg:text-lg">
                     {pct}%
                   </span>
-                )}
-              </Link>
-            </li>
+                  {subLabel && (
+                    <span className="max-w-[7.5rem] truncate text-xs text-text-secondary">
+                      {subLabel}
+                    </span>
+                  )}
+                </span>
+              )}
+            </Link>
           )
         })}
-      </ul>
+      </div>
     </section>
   )
 }
