@@ -39,7 +39,8 @@ export function MarketFaq({ items }: { items: FaqItem[] }) {
   if (!items.length) return null
   return (
     <div className="card p-4">
-      <h2 className="mb-1 text-sm font-semibold text-text-secondary">Frequently asked questions</h2>
+      {/* PM: `text-[16px] font-semibold text-text-primary mb-2`, Title Case. */}
+      <h2 className="mb-2 text-[16px] font-semibold text-text-primary">Frequently Asked Questions</h2>
       <div>
         {items.map((item, i) => (
           <FaqRow key={i} item={item} defaultOpen={i === 0} />
