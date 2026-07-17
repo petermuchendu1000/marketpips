@@ -148,7 +148,7 @@ export function MarketHeader({ market, outcomes, isMulti }: MarketHeaderProps) {
               to the title — so on a phone the title uses the full column width
               and never has to wrap around the icons. */}
           <div className="mb-1.5 flex items-center justify-between gap-2">
-            <div className="flex min-w-0 items-center gap-1.5 text-xs text-text-muted">
+            <div className="flex min-w-0 items-center gap-1.5 text-[14px] font-medium leading-5 tracking-[-0.09px] text-text-muted">
               <CategoryIcon category={market.category} size={13} />
               <span className="truncate">{category.label}</span>
               {market.tags[0] && (
