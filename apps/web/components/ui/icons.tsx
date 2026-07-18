@@ -170,6 +170,10 @@ export const IconMoon = icon(<><path d="M20 14.5A8 8 0 019.5 4a1 1 0 00-1.3-1.2A
 // Bookmark (watchlist affordance on the market card footer) — same 24px grid
 // and 1.75 stroke as the rest of the set; a clean tag with the notched foot.
 export const IconBookmark = icon(<><path d="M6 4.5h12a1 1 0 011 1V20l-7-4-7 4V5.5a1 1 0 011-1z"/></>)
+// Embed / code — the "</>" affordance in PM's market-drawer header cluster.
+export const IconCode = icon(<><path d="M8 6l-6 6 6 6"/><path d="M16 6l6 6-6 6"/></>)
+// Shuffle — the chart-footer control next to the timeframe toggles in PM.
+export const IconShuffle = icon(<><path d="M16 3h5v5"/><path d="M21 3l-7 7"/><path d="M8 21H3v-5"/><path d="M3 21l7-7"/><path d="M21 16v5h-5"/><path d="M15 15l6 6"/><path d="M3 3l6 6"/></>)
 // Rewards (gift) — traced 1:1 from Polymarket's card-footer icon (viewBox 0 0 18
 // 18): a ribboned gift box. Opens the "Earn rewards by placing limit orders"
 // affordance on reward-eligible markets.

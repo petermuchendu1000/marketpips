@@ -21,7 +21,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { normalizeOutcomes } from '@/lib/markets/outcomes'
 import { MarketRules } from '@/components/markets/market-rules'
 import { EntityAvatar } from '@/components/ui/entity-avatar'
-import { IconX } from '@/components/ui/icons'
+import { IconChevronLeft, IconCode, IconBookmark, IconLink } from '@/components/ui/icons'
 import type { Market, MarketOption } from '@/types'
 
 export function MarketDrawer({
@@ -74,6 +74,10 @@ export function MarketDrawer({
   if (!o) return null
 
   const pct = Math.round(o.price * 100)
+  // PM shows a coloured change delta beside "% chance". We only render it from a
+  // real value; per-option price history is plumbed in the next slice, so this
+  // stays undefined for now (no fabricated movement).
+  const changePct: number | undefined = undefined
   const yesCents = `${((o.yesPrice ?? o.price) * 100).toFixed(1)}\u00A2`
   const noCents = `${((o.noPrice ?? 1 - o.price) * 100).toFixed(1)}\u00A2`
 
@@ -113,38 +117,83 @@ export function MarketDrawer({
         className="fixed inset-x-0 bottom-0 z-50 flex max-h-[88vh] flex-col rounded-t-3xl border-t border-hairline bg-surface outline-none animate-slide-up"
         style={dragY > 0 ? { transform: `translateY(${dragY}px)` } : undefined}
       >
-        {/* Grab handle (60×5, PM). */}
+        {/* PM header control row: back ‹ (left) + embed/bookmark/share cluster
+            (right). Doubles as the swipe-to-dismiss grab zone. PM's market view
+            dismisses via the back chevron — there is no centred grab handle. */}
         <div
-          className="flex justify-center pb-1 pt-2.5"
+          className="flex-none px-4 pb-1 pt-3"
           onTouchStart={onTouchStart}
           onTouchMove={onTouchMove}
           onTouchEnd={onTouchEnd}
         >
-          <span className="h-[5px] w-[60px] rounded-full bg-hairline-strong" aria-hidden />
+          <div className="flex items-center justify-between">
+            <button
+              type="button"
+              onClick={close}
+              aria-label="Back"
+              className="grid h-9 w-9 place-items-center rounded-full bg-surface-2 text-text-primary transition-opacity hover:opacity-80"
+            >
+              <IconChevronLeft size={20} />
+            </button>
+            <div className="flex items-center gap-1">
+              <button
+                type="button"
+                aria-label="Embed"
+                className="grid h-9 w-9 place-items-center rounded-full text-text-primary transition-colors hover:bg-surface-2"
+              >
+                <IconCode size={19} />
+              </button>
+              <button
+                type="button"
+                aria-label="Bookmark"
+                className="grid h-9 w-9 place-items-center rounded-full text-text-primary transition-colors hover:bg-surface-2"
+              >
+                <IconBookmark size={19} />
+              </button>
+              <button
+                type="button"
+                aria-label="Share"
+                className="grid h-9 w-9 place-items-center rounded-full text-text-primary transition-colors hover:bg-surface-2"
+              >
+                <IconLink size={19} />
+              </button>
+            </div>
+          </div>
         </div>
 
         {/* Scrollable market view */}
         <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-4">
-          <div className="flex items-center gap-3 pb-4 pt-1">
-            <EntityAvatar name={o.label} imageUrl={o.imageUrl} size={44} shape="squircle" />
-            <div className="min-w-0 flex-1">
-              <h2 className="truncate text-lg font-semibold text-text-primary">{o.label}</h2>
-              <p className="text-sm text-text-muted">
-                {pct}% chance
-                {o.volumeUsd > 0 && (
-                  <> · ${Math.round(o.volumeUsd).toLocaleString('en-US')} Vol.</>
-                )}
-              </p>
-            </div>
-            <button
-              type="button"
-              onClick={close}
-              aria-label="Close"
-              className="flex-none rounded-full p-2 text-text-muted transition-colors hover:bg-surface-2 hover:text-text-primary"
-            >
-              <IconX size={18} />
-            </button>
+          {/* Identity: flag/entity avatar + bold title (PM: 40px squircle, ~28px title) */}
+          <div className="flex items-center gap-3 pt-1">
+            <EntityAvatar name={o.label} imageUrl={o.imageUrl} size={40} shape="squircle" />
+            <h2 className="min-w-0 flex-1 truncate text-[28px] font-bold leading-tight text-text-primary">
+              {o.label}
+            </h2>
           </div>
+
+          {/* Blue "% chance" + green positive-delta (PM: #1452F0 chance, #42C772
+              delta). The delta renders only when a real change value is present
+              (per-option history is plumbed in the next slice — no fabricated %). */}
+          <div className="mt-2.5 flex items-baseline gap-2">
+            <span className="text-[30px] font-bold leading-none text-pip-500">
+              {pct}% <span className="font-bold">chance</span>
+            </span>
+            {typeof changePct === 'number' && changePct !== 0 && (
+              <span
+                className={`text-base font-semibold ${changePct > 0 ? 'text-[#42C772]' : 'text-[#E23939]'}`}
+              >
+                {changePct > 0 ? '▲' : '▼'} {Math.abs(changePct)}%
+              </span>
+            )}
+          </div>
+
+          {/* Volume — PM shows this in the chart footer; kept here until the
+              per-option price chart + timeframe toggles land (next slice). */}
+          {o.volumeUsd > 0 && (
+            <p className="mt-2 text-sm text-text-muted">
+              ${Math.round(o.volumeUsd).toLocaleString('en-US')} Vol.
+            </p>
+          )}
 
           <MarketRules
             resolutionCriteria={market.resolution_criteria}
