@@ -1,5 +1,5 @@
 // app/markets/[slug]/page.tsx — Market detail + trading
-import { Suspense, cache, type ReactNode } from 'react'
+import { Suspense, cache } from 'react'
 import { notFound } from 'next/navigation'
 import type { Metadata } from 'next'
 import { createClient } from '@/lib/supabase/server'
@@ -24,10 +24,6 @@ import { MarketContextNews } from '@/components/markets/market-context-news'
 import { getMarketContextNews } from '@/lib/markets/context-news-data'
 import { normalizeOutcomes, isMultiOutcome, isIndependentOptions } from '@/lib/markets/outcomes'
 import { isFeatureEnabled } from '@/lib/flags'
-import { formatUSD } from '@/lib/utils'
-import {
-  IconInfo,
-} from '@/components/ui/icons'
 import type { Market, MarketOption } from '@/types'
 
 // Live market data — render dynamically per request (no static prerender).
@@ -140,24 +136,6 @@ async function MarketPriceHistory({
 }
 
 /** Consistent section heading with a token-styled icon chip. */
-function SectionTitle({ icon, children }: { icon: ReactNode; children: ReactNode }) {
-  return (
-    <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold text-text-secondary">
-      <span className="flex h-6 w-6 items-center justify-center rounded-sm bg-pip-100 text-pip-500">{icon}</span>
-      {children}
-    </h2>
-  )
-}
-
-function SpecRow({ label, value }: { label: string; value: ReactNode }) {
-  return (
-    <div className="flex items-center justify-between gap-4 py-2 text-sm">
-      <dt className="text-text-muted">{label}</dt>
-      <dd className="text-right font-medium text-text-primary">{value}</dd>
-    </div>
-  )
-}
-
 export default async function MarketPage({
   params,
   searchParams,
@@ -178,7 +156,6 @@ export default async function MarketPage({
     .then(() => {})
 
   const closesAt = new Date(market.closes_at)
-  const resolvesAt = market.resolves_at ? new Date(market.resolves_at) : null
   const dateFmt: Intl.DateTimeFormatOptions = { day: 'numeric', month: 'short', year: 'numeric' }
 
   // Canonical outcome model — the single place the UI learns binary vs multi.
@@ -392,31 +369,14 @@ export default async function MarketPage({
 
             {/* Real-time position & P&L (only renders when the user holds one) */}
             <PositionSummary market={market} options={options} />
-
-            {/* Contract specs */}
-            <div className="card p-4">
-              <SectionTitle icon={<IconInfo size={14} />}>Contract specs</SectionTitle>
-              <dl className="divide-y divide-hairline">
-                <SpecRow
-                  label="Type"
-                  value={isMulti ? `Multiple choice · ${outcomes.length} options` : 'Binary (YES / NO)'}
-                />
-                <SpecRow label="Total volume" value={formatUSD(market.total_volume_usd)} />
-                <SpecRow label="Liquidity" value={formatUSD(market.liquidity_pool_usd)} />
-                <SpecRow label="Total bets" value={market.total_bets.toLocaleString()} />
-                <SpecRow label="Unique traders" value={market.unique_bettors.toLocaleString()} />
-                <SpecRow label="Closes" value={closesAt.toLocaleDateString('en-GB', dateFmt)} />
-                {resolvesAt && <SpecRow label="Resolves by" value={resolvesAt.toLocaleDateString('en-GB', dateFmt)} />}
-                <SpecRow label="Platform fee" value={`${(market.platform_fee_rate * 100).toFixed(1)}%`} />
-                <SpecRow label="Creator reward" value={`${(market.creator_reward_rate * 100).toFixed(2)}%`} />
-              </dl>
-            </div>
           </div>
-        </div>
-      </div>
 
-      <div className="mt-10">
-        <RelatedMarkets marketId={market.id} category={market.category} />
+          {/* Related markets rail — PM shows related events directly under the
+              ticket in the right column (NOT a contract-specs card). The richer
+              contract-specs grid lives only in the mobile column under Rules
+              (the <ContractSpecs className="lg:hidden" /> above). */}
+          <RelatedMarkets marketId={market.id} category={market.category} />
+        </div>
       </div>
 
       {/* Mobile-only sticky trade bar + bottom sheet (thumb-zone conversion). */}

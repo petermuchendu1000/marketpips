@@ -62,3 +62,38 @@ yet measured it is marked TODO with the reason.
 - Chart Y-axis / X-axis tick typography, gridline dash pattern, scrubber
 - Comments composer + tab bar active-underline metrics
 - Mobile viewport (390px) re-measure of header / legend (stacked) / board
+
+
+---
+
+## Desktop ticket + right-rail — re-captured 2026-07-18
+Source: live `https://polymarket.com/event/presidential-election-winner-2028`,
+desktop 1440×1024 DPR2. Harness: `tools/pm-parity/capture_desktop_buttons.py`.
+Colors read from pixels (`d10-rail.png`) — unambiguous ground truth.
+
+### Yes / No ticket buttons (binary + independent multi)
+| State | Fill | Text | Notes |
+|---|---|---|---|
+| Selected **Yes** | `#30A159` `rgb(48,161,89)` (== repo `--yes`) | white | matches ours |
+| Selected **No** | `#E23939` (repo `--no`) | white | red fill |
+| **Unselected** (either) | `#F4F5F6` `rgb(244,245,246)` (== repo `--surface-2`/`--ink-50`) | `#818283` `rgb(129,130,131)` muted gray | ours was `--text-2` `#5F6772` (too dark) → fixed to `--text-3` |
+| Geometry | two-up grid, gap ~12px, radius ~8px (`rounded-lg`), height ~47px | — | label + price, `font-semibold`, `text-[15px]` |
+| **Price format** | **one decimal** `19.8¢` / `80.3¢`; trailing `.0` dropped (`20¢`) | — | ours rounded to whole → fixed `cents()` to 1-dp |
+
+Order-type control on desktop: a **"Market ▾"** text trigger, `rgb(14,15,17)`,
+inline at the right of the Buy/Sell tab row (90×20).
+
+### Right rail below the ticket = RELATED markets (NOT contract specs)
+PM shows a borderless vertical list of related events directly under the ticket
+(after the "By trading…" line + promo). **There is no "Contract specs" card in
+PM's desktop rail.** Our fix: removed the sidebar Contract-specs card and moved
+`<RelatedMarkets>` into the rail; the richer specs grid stays mobile-only
+(`<ContractSpecs className="lg:hidden">` under Rules).
+
+| Related row | Measured |
+|---|---|
+| Row | ~332×59, borderless, no bg, ~8px gap between rows |
+| Icon | ~40–44 circular/rounded, left; text offset ~60px |
+| Title | **14px / 500**, `rgb(24,24,27)` `#18181B`, 2-line clamp |
+| Price | **18px / 500**, `rgb(24,24,27)`, right-aligned, shown in **¢** (`41¢`, `20¢`, `59¢`) — ours showed `%` → fixed to `¢` |
+| Sub-entity | **12px / 400**, `rgb(119,128,141)` muted, right-aligned under price (leading outcome, e.g. "J.D. Vance") |

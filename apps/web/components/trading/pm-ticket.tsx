@@ -511,7 +511,12 @@ export function PmTicket({
     }
   }, [action, user, sellPosition, supabase, market.id, market.title, options])
 
-  const cents = (p: number) => `${Math.round(p * 100)}¢`
+  // PM ticket prices render to one decimal (e.g. 19.8¢, 80.3¢); trailing .0 is
+  // dropped so round prices read cleanly (20¢). Matches live PM order ticket.
+  const cents = (p: number) => {
+    const s = (p * 100).toFixed(1)
+    return `${s.endsWith('.0') ? s.slice(0, -2) : s}¢`
+  }
 
   const goToAuth = (route: '/auth/login' | '/auth/register') => {
     if (typeof window !== 'undefined') {
@@ -1040,7 +1045,7 @@ export function PmTicket({
                   style={
                     side === 'yes'
                       ? { background: 'var(--yes)', color: '#fff' }
-                      : { background: 'var(--surface-2)', color: 'var(--text-2)' }
+                      : { background: 'var(--surface-2)', color: 'var(--text-3)' }
                   }
                 >
                   <span>{yesLabel}</span>
@@ -1054,7 +1059,7 @@ export function PmTicket({
                   style={
                     side === 'no'
                       ? { background: 'var(--no)', color: '#fff' }
-                      : { background: 'var(--surface-2)', color: 'var(--text-2)' }
+                      : { background: 'var(--surface-2)', color: 'var(--text-3)' }
                   }
                 >
                   <span>{noLabel}</span>
