@@ -12,17 +12,22 @@
 // this and opens the compact Trade drawer directly.
 //
 // Our single-page model shares one market across candidates, so the drawer shows
-// the option header (avatar · label · % chance · volume) and the market Rules;
-// the price chart + order book are gated on per-option history/book data that is
-// not yet plumbed to the client (tracked separately). The bottom bar hands off
-// to the Trade drawer (MobileTradeBar) via marketpips:select-option so there is
-// ONE trade surface / one source of truth.
-import { useCallback, useEffect, useRef, useState } from 'react'
+// the option header (avatar · label · % chance · delta), THAT option's price
+// chart (single line in the option's persistent series colour, PM timeframes),
+// an Order Book section, and the market Rules. The bottom bar hands off to the
+// Trade drawer (MobileTradeBar) via marketpips:select-option so there is ONE
+// trade surface / one source of truth.
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { normalizeOutcomes } from '@/lib/markets/outcomes'
+import { buildSeriesColorMap } from '@/lib/markets/series-color'
 import { MarketRules } from '@/components/markets/market-rules'
+import { OutcomesChart } from '@/components/markets/outcomes-chart'
 import { EntityAvatar } from '@/components/ui/entity-avatar'
-import { IconChevronLeft, IconCode, IconBookmark, IconLink } from '@/components/ui/icons'
+import { createClient } from '@/lib/supabase/client'
+import { IconChevronLeft, IconChevronDown, IconCode, IconBookmark, IconLink, IconInfo } from '@/components/ui/icons'
 import type { Market, MarketOption } from '@/types'
+
+interface OptionTick { optionId: string; price: number; recordedAt: string }
 
 export function MarketDrawer({
   market,
@@ -35,8 +40,16 @@ export function MarketDrawer({
   const sheetRef = useRef<HTMLDivElement>(null)
   const dragStartY = useRef<number | null>(null)
   const [dragY, setDragY] = useState(0)
+  // Lazily-fetched per-option probability history (only when a drawer opens).
+  const [history, setHistory] = useState<OptionTick[]>([])
+  const [histLoaded, setHistLoaded] = useState(false)
+  // Order Book is collapsed by default (PM).
+  const [bookOpen, setBookOpen] = useState(false)
 
   const outcomes = normalizeOutcomes(market, options)
+  // Persistent id→colour map (ranked by price) shared with the overview chart,
+  // so an option keeps ONE colour everywhere (leader=blue, 2nd=green, …).
+  const colorMap = useMemo(() => buildSeriesColorMap(outcomes), [outcomes])
   const o = outcomes.find((x) => x.id === openId) || null
 
   const close = useCallback(() => {
@@ -54,6 +67,37 @@ export function MarketDrawer({
     window.addEventListener('marketpips:open-market', onOpen as EventListener)
     return () => window.removeEventListener('marketpips:open-market', onOpen as EventListener)
   }, [market.id])
+
+  // Lazily fetch THIS option's probability history the first time it opens. One
+  // small query (price ticks for a single option); reused across re-opens via
+  // the histLoaded guard keyed on openId.
+  useEffect(() => {
+    if (!openId) return
+    let cancelled = false
+    setHistLoaded(false)
+    setHistory([])
+    const supabase = createClient()
+    supabase
+      .from('price_history')
+      .select('market_option_id, price, recorded_at')
+      .eq('market_option_id', openId)
+      .order('recorded_at', { ascending: true })
+      .limit(1000)
+      .then(({ data }) => {
+        if (cancelled) return
+        setHistory(
+          (data || []).map((h) => ({
+            optionId: h.market_option_id as string,
+            price: Number(h.price ?? 0),
+            recordedAt: h.recorded_at as string,
+          })),
+        )
+        setHistLoaded(true)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [openId])
 
   // Body-scroll lock + Esc-to-close while open.
   useEffect(() => {
@@ -74,10 +118,14 @@ export function MarketDrawer({
   if (!o) return null
 
   const pct = Math.round(o.price * 100)
-  // PM shows a coloured change delta beside "% chance". We only render it from a
-  // real value; per-option price history is plumbed in the next slice, so this
-  // stays undefined for now (no fabricated movement).
-  const changePct: number | undefined = undefined
+  // Option's persistent series colour (matches the overview chart/legend).
+  const seriesColor = colorMap.get(o.id) ?? 'var(--pip-500)'
+  // PM's coloured delta = change in percentage POINTS over the shown range
+  // (e.g. Spain 16%→59% ≈ ▲43%). Derived from real history; hidden until loaded.
+  const changePct: number | undefined =
+    histLoaded && history.length >= 2
+      ? Math.round((history[history.length - 1].price - history[0].price) * 100)
+      : undefined
   const yesCents = `${((o.yesPrice ?? o.price) * 100).toFixed(1)}\u00A2`
   const noCents = `${((o.noPrice ?? 1 - o.price) * 100).toFixed(1)}\u00A2`
 
@@ -171,11 +219,13 @@ export function MarketDrawer({
             </h2>
           </div>
 
-          {/* Blue "% chance" + green positive-delta (PM: #1452F0 chance, #42C772
-              delta). The delta renders only when a real change value is present
-              (per-option history is plumbed in the next slice — no fabricated %). */}
+          {/* "% chance" in the option's persistent series colour + coloured
+              delta (PM: #42C772 up / #E23939 down), from real history. */}
           <div className="mt-2.5 flex items-baseline gap-2">
-            <span className="text-[30px] font-bold leading-none text-pip-500">
+            <span
+              className="text-[30px] font-bold leading-none"
+              style={{ color: seriesColor }}
+            >
               {pct}% <span className="font-bold">chance</span>
             </span>
             {typeof changePct === 'number' && changePct !== 0 && (
@@ -187,13 +237,49 @@ export function MarketDrawer({
             )}
           </div>
 
-          {/* Volume — PM shows this in the chart footer; kept here until the
-              per-option price chart + timeframe toggles land (next slice). */}
-          {o.volumeUsd > 0 && (
-            <p className="mt-2 text-sm text-text-muted">
-              ${Math.round(o.volumeUsd).toLocaleString('en-US')} Vol.
-            </p>
-          )}
+          {/* THIS option's price chart — single line in the option's colour,
+              PM timeframes (1H·1D·1W·1M·MAX), Vol in the footer. Reuses the
+              overview chart engine (pivot, %-axis, dotted grid, endpoint dot). */}
+          <div className="mt-4">
+            {!histLoaded ? (
+              <div className="h-48 animate-pulse rounded-lg bg-surface-2" aria-hidden />
+            ) : (
+              <OutcomesChart
+                options={[{ id: o.id, label: o.label, price: o.price }]}
+                data={history.map((h) => ({ optionId: h.optionId, price: h.price, recordedAt: h.recordedAt }))}
+                volumeUsd={o.volumeUsd > 0 ? o.volumeUsd : undefined}
+                colorMap={colorMap}
+                showLegend={false}
+                compactTimeframes
+              />
+            )}
+          </div>
+
+          {/* Order Book — collapsible (PM). Live depth is not yet plumbed to the
+              client, so the expanded state shows an honest empty message rather
+              than fabricated bids/asks. */}
+          <div className="mt-4 overflow-hidden rounded-xl border border-hairline">
+            <button
+              type="button"
+              onClick={() => setBookOpen((v) => !v)}
+              aria-expanded={bookOpen}
+              className="flex w-full items-center justify-between px-4 py-3.5 text-left"
+            >
+              <span className="flex items-center gap-1.5 text-base font-semibold text-text-primary">
+                Order Book
+                <IconInfo size={15} className="text-text-muted" />
+              </span>
+              <IconChevronDown
+                size={20}
+                className={`text-text-muted transition-transform ${bookOpen ? 'rotate-180' : ''}`}
+              />
+            </button>
+            {bookOpen && (
+              <div className="border-t border-hairline px-4 py-6 text-center text-sm text-text-muted">
+                Order book depth isn’t available for this market yet.
+              </div>
+            )}
+          </div>
 
           <MarketRules
             resolutionCriteria={market.resolution_criteria}

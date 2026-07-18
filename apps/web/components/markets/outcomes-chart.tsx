@@ -14,6 +14,7 @@ import {
 import { format } from 'date-fns'
 import { IconTrophy, IconClock } from '@/components/ui/icons'
 import { niceProbScale, CHART_GRID_DASH } from '@/lib/markets/chart-scale'
+import { SERIES_PALETTE as PALETTE } from '@/lib/markets/series-color'
 
 export interface OutcomeSeriesOption {
   id: string
@@ -35,6 +36,14 @@ interface OutcomesChartProps {
   volumeUsd?: number
   /** Market close date (ISO) — footer clock chip (PM parity). */
   closesAt?: string
+  /** External id→colour map so a single option keeps its overview colour when
+   *  the chart is reused inside the per-option Market drawer. When omitted the
+   *  map is derived internally (ranked by price). */
+  colorMap?: Map<string, string>
+  /** Hide the multi-series legend (the drawer shows the big "% chance" instead). */
+  showLegend?: boolean
+  /** Drawer parity: hide 6H and relabel ALL→MAX (PM: 1H · 1D · 1W · 1M · MAX). */
+  compactTimeframes?: boolean
 }
 
 // Timeframe range toggles — exact Polymarket set + order: 1H · 6H · 1D · 1W · 1M · ALL.
@@ -50,12 +59,9 @@ const TIMEFRAMES: { key: Timeframe; label: string; ms: number | null }[] = [
   { key: 'ALL', label: 'ALL', ms: null },
 ]
 
-// Brand-led categorical palette (shared with the allocation donut).
-const PALETTE = [
-  'var(--pip-500)', 'var(--yes)', '#7c6cf0', '#e0973b',
-  '#3aa5c2', '#c2557a', '#5b8def', '#9a8c5c',
-  '#4bb37b', '#d06a4a', '#8a6cf0', '#b0983a',
-]
+// Per-option colours come from the shared source of truth so the overview
+// chart, its legend/tooltip, and the per-option Market drawer all agree
+// (see PALETTE import at the top of this file).
 
 interface TooltipProps {
   active?: boolean
@@ -111,7 +117,7 @@ function makeLiveEndpoint(lastIndex: number, color: string) {
   return LiveEndpoint
 }
 
-export function OutcomesChart({ options, data, volumeUsd, closesAt }: OutcomesChartProps) {
+export function OutcomesChart({ options, data, volumeUsd, closesAt, colorMap, showLegend = true, compactTimeframes = false }: OutcomesChartProps) {
   const [timeframe, setTimeframe] = useState<Timeframe>('ALL')
 
   // Stable option order + color assignment, ranked by current price.
@@ -120,10 +126,20 @@ export function OutcomesChart({ options, data, volumeUsd, closesAt }: OutcomesCh
     [options],
   )
   const colorById = useMemo(() => {
+    if (colorMap) return colorMap
     const m = new Map<string, string>()
     ranked.forEach((o, i) => m.set(o.id, PALETTE[i % PALETTE.length]))
     return m
-  }, [ranked])
+  }, [ranked, colorMap])
+
+  // Visible timeframe toggles: PM's drawer drops 6H and shows ALL as "MAX".
+  const timeframes = useMemo(
+    () =>
+      (compactTimeframes ? TIMEFRAMES.filter((t) => t.key !== '6H') : TIMEFRAMES).map((t) =>
+        compactTimeframes && t.key === 'ALL' ? { ...t, label: 'MAX' } : t,
+      ),
+    [compactTimeframes],
+  )
 
   // Pivot per-option ticks into one row per timestamp: { time, [optionId]: price }.
   // Built once WITHOUT the timeframe filter, forward-filled so lines stay
@@ -210,6 +226,7 @@ export function OutcomesChart({ options, data, volumeUsd, closesAt }: OutcomesCh
       {/* Legend — PM places the color key ABOVE the plot: dot · name · current %.
           On a phone only the top 4 series show (matching PM); the rest reveal at
           >=sm where there's room. */}
+      {showLegend && (
       <ul className="mb-2 flex flex-wrap items-center gap-x-4 gap-y-1">
         {ranked.map((o, i) => (
           <li
@@ -226,6 +243,7 @@ export function OutcomesChart({ options, data, volumeUsd, closesAt }: OutcomesCh
           </li>
         ))}
       </ul>
+      )}
 
       <div className="relative h-48" role="img" aria-label={summary}>
         <p className="sr-only">{summary}</p>
@@ -314,7 +332,7 @@ export function OutcomesChart({ options, data, volumeUsd, closesAt }: OutcomesCh
           aria-label="Chart timeframe"
           className="inline-flex max-w-full flex-none overflow-x-auto rounded-sm border border-hairline p-0.5"
         >
-          {TIMEFRAMES.map((tf) => {
+          {timeframes.map((tf) => {
             const active = tf.key === timeframe
             return (
               <button
