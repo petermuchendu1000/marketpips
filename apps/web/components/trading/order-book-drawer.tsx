@@ -111,15 +111,20 @@ export function OrderBookDrawer({
               role="tab"
               aria-selected={tab === t.key}
               onClick={() => setTab(t.key)}
-              className={`text-sm font-semibold transition-colors ${
-                tab === t.key ? 'text-text-primary' : 'text-text-muted hover:text-text-secondary'
+              // PM parity (live-measured 2026-07-18): tabs are 14px/600, active
+              // near-black, inactive muted #77808D that LIGHTENS to #AEB4BC on
+              // hover (not darkens); 0.15s color transition; -0.09px tracking.
+              className={`text-sm font-semibold tracking-[-0.09px] transition-colors duration-150 ${
+                tab === t.key ? 'text-text-primary' : 'text-text-muted hover:text-[var(--ink-300)]'
               }`}
             >
               {t.label}
             </button>
           ))}
         </div>
-        <div className="flex items-center gap-3 text-xs font-semibold">
+        {/* Right chrome. PM parity: Maker Rebate + Rewards are 14px/600, the
+            tick is a 12px muted BORDERED chip (not plain text). */}
+        <div className="flex items-center gap-3 text-sm font-semibold">
           <span className="flex items-center gap-1 text-amber" title="Maker rebate eligible">
             <span aria-hidden>🪙</span> Maker Rebate
           </span>
@@ -132,7 +137,9 @@ export function OrderBookDrawer({
           >
             <IconRefresh size={14} />
           </button>
-          <span className="text-text-muted">0.1¢</span>
+          <span className="rounded border border-hairline px-1.5 py-0.5 text-xs font-medium text-text-muted">
+            0.1¢
+          </span>
         </div>
       </div>
 
@@ -158,20 +165,28 @@ export function OrderBookDrawer({
       )}
 
       {tab === 'resolution' && (
-        <div className="flex items-start justify-between gap-4 pt-4">
-          <button
-            type="button"
-            className="rounded-[9px] border border-hairline px-3 py-1.5 text-sm font-semibold text-text-primary transition-colors hover:bg-surface-2"
-          >
-            Propose resolution
-          </button>
-          <div className="min-w-0 flex-1">
-            {resolutionCriteria ? (
-              <p className="text-sm leading-relaxed text-text-secondary">{resolutionCriteria}</p>
-            ) : (
-              <p className="text-sm text-text-muted">Resolution details will be published here.</p>
-            )}
+        // PM parity: a "Propose resolution" outlined pill (left) + a
+        // "View details ↗" link (right); criteria text sits below when present.
+        <div className="pt-4">
+          <div className="flex items-center justify-between gap-4">
+            <button
+              type="button"
+              className="rounded-[9px] border border-hairline px-3 py-1.5 text-sm font-semibold text-text-primary transition-colors hover:bg-surface-2"
+            >
+              Propose resolution
+            </button>
+            <a
+              href={resolvesAt ? '#resolution' : '#resolution'}
+              className="inline-flex items-center gap-0.5 text-sm font-semibold text-pip-text transition-opacity hover:opacity-80"
+            >
+              View details <span aria-hidden>↗</span>
+            </a>
           </div>
+          {resolutionCriteria ? (
+            <p className="mt-3 text-sm leading-relaxed text-text-secondary">{resolutionCriteria}</p>
+          ) : (
+            <p className="mt-3 text-sm text-text-muted">Resolution details will be published here.</p>
+          )}
         </div>
       )}
     </div>
@@ -201,7 +216,14 @@ function BookTable({
     <div className="mt-2">
       {/* Column header */}
       <div className="flex items-center justify-between px-1 pb-1 text-[10px] font-semibold uppercase tracking-wider text-text-muted">
-        <span>Trade Yes</span>
+        {/* PM shows a "TRADE YES" heading + a small two-column layout glyph. */}
+        <span className="flex items-center gap-1">
+          <span>Trade Yes</span>
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
+            <rect x="3" y="4" width="7" height="16" rx="1" />
+            <rect x="14" y="4" width="7" height="16" rx="1" />
+          </svg>
+        </span>
         <div className="flex gap-10">
           <span className="w-16 text-right">Price</span>
           <span className="w-20 text-right">Shares</span>
