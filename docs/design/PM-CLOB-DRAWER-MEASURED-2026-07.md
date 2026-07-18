@@ -91,6 +91,27 @@ Last: 19.7% (19.7¢)                 Spread: 0.1¢
 Note **TOTAL is cumulative** down each side from the inside price outward
 (e.g. bids: 5,886.30 → 9,940.64 → … increasing), not per-row notional.
 
+## Tab states (all three captured)
+### Order Book (default)
+The depth table documented above. Header row shows **`TRADE YES`** (10px/600
+muted) + a small layout icon — this is a **static heading** (the book already
+shows both sides: asks = Yes sells, bids = Yes buys); it is not a Yes/No flip.
+The book **auto-refreshes** live (observed top ask move 20.3% → 20.5% between
+polls) — the refresh icon in the tab-bar right cluster forces a re-fetch.
+
+### Graph (`04-tab-graph.png`)
+Per-candidate **Yes-probability line chart** inside the drawer:
+- Header: large **blue** current value (e.g. `19.7%`) + change chip
+  (`▼7%` red) — the candidate's implied Yes probability + period change.
+- Single line (this candidate only, blue), y-axis auto-scaled (~10%→35% here),
+  faint `Polymarket` watermark.
+- Time-range buttons: **`1H · 6H · 1D · 1W · 1M · ALL`** (same set as the top
+  market chart). Default `ALL`.
+
+### Resolution (`04-tab-resolution.png`)
+Minimal: a **`Propose resolution`** outlined button (left) + **`View details ↗`**
+link (right, opens the UMA/resolution details). No table.
+
 ## Color → repo token map
 | PM computed | Meaning | Repo token |
 |---|---|---|
