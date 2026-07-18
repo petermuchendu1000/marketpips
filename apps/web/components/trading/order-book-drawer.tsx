@@ -45,9 +45,11 @@ export function OrderBookDrawer({
 }) {
   const [tab, setTab] = useState<Tab>('book')
   const [series, setSeries] = useState<PricePoint[] | null>(null)
+  // Which side's book is shown — flipped by the "TRADE YES/NO" header glyph (PM).
+  const [bookSide, setBookSide] = useState<'yes' | 'no'>(side)
 
   // Poll the book only while the Order Book tab is visible (save requests + battery).
-  const { book, loading, error: bookErr, reload } = useClobBook(marketRef, optionId, side, tab === 'book')
+  const { book, loading, error: bookErr, reload } = useClobBook(marketRef, optionId, bookSide, tab === 'book')
 
   // Lazy-load the candidate's history the first time Graph is opened.
   useEffect(() => {
@@ -109,7 +111,16 @@ export function OrderBookDrawer({
         </div>
       </div>
 
-      {tab === 'book' && <BookTable book={book} loading={loading} error={bookErr} />}
+      {tab === 'book' && (
+        <BookTable
+          key={bookSide}
+          book={book}
+          loading={loading}
+          error={bookErr}
+          side={bookSide}
+          onToggleSide={() => setBookSide((s) => (s === 'yes' ? 'no' : 'yes'))}
+        />
+      )}
 
       {tab === 'graph' && (
         <div className="pt-3">

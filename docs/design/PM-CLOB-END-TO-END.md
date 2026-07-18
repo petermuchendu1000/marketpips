@@ -188,6 +188,34 @@ TOTAL is cumulative from the inside price outward (confirms `withCumulativeTotal
 
 ---
 
+## 4b. Order-book SCROLL behavior (live-measured 2026-07-18 — desktop == mobile)
+
+The ladder is **virtualized inside a fixed scroll window**, identical on both
+viewports (`/home/user/pm-live/scroll/`):
+| Fact | Measured |
+|---|---|
+| Scroll container | `<div class="relative h-full max-h-[var(--max-height)] overflow-y-auto w-full">` |
+| Window height | **`max-height: 360px`**, `height: 360px`, `overflow-y: auto` |
+| Content height | `scrollHeight` ≈ **8100px** (full depth, ~225 rows @ 36px) — not just the inside levels |
+| Column header | **`position: sticky; top: 0`** — pinned while the ladder scrolls |
+| Last/Spread divider | `position: static` — scrolls with the content |
+| Initial scroll | auto-scrolled to the **inside** on open (desktop `scrollTop` 4896/7740; mobile 600/2528) — best ask/bid visible; scroll ↑ = deeper asks, ↓ = deeper bids |
+| Row pitch | 36px → ~10 rows visible in the window |
+
+Our `BookTable` now mirrors this exactly: `max-h-[360px] overflow-y-auto`,
+sticky `top-0` header, static divider, and a one-time center-on-the-divider on
+first load (never re-centers on later polls, so it never fights manual scroll).
+Shared → desktop drawer + mobile sheet both scroll identically.
+
+**Book-side toggle (Trade Yes / Trade No).** PM lets you flip which side's book
+you view: desktop = the two-column glyph beside the `TRADE YES` column header;
+mobile = a full `Trade Yes / Trade No` text toggle at the top of the section.
+Flipping fetches `side=no` → `clob_get_book` returns the complementary book
+(bids = BUY NO, asks synthesized from BUY YES). Implemented: desktop glyph is now
+a button (`onToggleSide`); mobile `OrderBookPanel` renders the text toggle
+(`showSideToggle`) + refresh + tick chip. `BookTable` is keyed on side so the
+scroll re-centers on the new book.
+
 ## 5. Parity refinements applied to `order-book-drawer.tsx` (this pass)
 
 Backed by §4 hard data:

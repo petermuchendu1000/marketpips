@@ -281,8 +281,8 @@ export function MarketDrawer({
             </button>
             {bookOpen &&
               (isClob ? (
-                <div className="border-t border-hairline px-4 pb-4 pt-1">
-                  <OrderBookPanel marketRef={market.slug} optionId={o.id} side="yes" active={bookOpen} />
+                <div className="border-t border-hairline px-4 pb-4 pt-2">
+                  <OrderBookPanel marketRef={market.slug} optionId={o.id} side="yes" active={bookOpen} showSideToggle />
                 </div>
               ) : (
                 <div className="border-t border-hairline px-4 py-6 text-center text-sm text-text-muted">

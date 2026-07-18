@@ -12,6 +12,7 @@
 // /api/markets/[id]/book (public, cached ~2s), polled while visible.
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { dualPriceLabel, formatCents, type BookLevel, type ClobBook } from '@/lib/clob'
+import { IconRefresh } from '@/components/ui/icons'
 
 const num = (n: number, d = 2) =>
   n.toLocaleString('en-US', { minimumFractionDigits: d, maximumFractionDigits: d })
@@ -63,39 +64,90 @@ export function useClobBook(
   return { book, loading, error, reload }
 }
 
-/** The depth table: asks (red desc) → Last/Spread → bids (green desc). */
+/**
+ * The depth table: asks (red desc) → Last/Spread → bids (green desc).
+ *
+ * PM parity — order-book SCROLL behavior (live-measured 2026-07-18, identical on
+ * desktop and mobile): the full ladder renders inside a fixed **360px** window
+ * (`max-h-[360px] overflow-y-auto`); the column header is **sticky (top:0)** and
+ * stays pinned while the ladder scrolls; the Last/Spread divider is static and
+ * scrolls with the content; on open the window **auto-scrolls to the inside**
+ * (best ask/bid centered on the divider), so you scroll up for deeper asks and
+ * down for deeper bids. Row pitch 36px ≈ 10 rows visible.
+ */
 export function BookTable({
   book,
   loading,
   error,
+  side = 'yes',
+  onToggleSide,
 }: {
   book: ClobBook | null
   loading: boolean
   error: string | null
+  /** Which side's book this is — sets the "Trade Yes/No" header label. */
+  side?: 'yes' | 'no'
+  /** When provided, the header label becomes a button that flips the book side
+      (PM's desktop two-column glyph next to "TRADE YES"). */
+  onToggleSide?: () => void
 }) {
+  const scrollRef = useRef<HTMLDivElement>(null)
+  const dividerRef = useRef<HTMLDivElement>(null)
+  const centeredRef = useRef(false)
+
+  const hasBook = !!book && (book.asks.length > 0 || book.bids.length > 0)
+
+  // Center the divider once, on first load — never on later polls, so we don't
+  // fight the user's manual scroll. (PM opens scrolled to the inside of the book.)
+  useEffect(() => {
+    if (!hasBook || centeredRef.current) return
+    const c = scrollRef.current
+    const d = dividerRef.current
+    if (c && d) {
+      c.scrollTop = Math.max(0, d.offsetTop - c.clientHeight / 2 + d.clientHeight / 2)
+      centeredRef.current = true
+    }
+  }, [hasBook])
+
   if (loading && !book) return <div className="mt-3 h-64 animate-pulse rounded-lg bg-surface-2" />
   if (error) return <p className="py-8 text-center text-sm text-text-muted">{error}</p>
   if (!book) return null
 
   const asksDesc = [...book.asks].reverse() // worst→best so best sits by the spread
-  const hasBook = book.asks.length > 0 || book.bids.length > 0
   if (!hasBook)
     return <p className="py-8 text-center text-sm text-text-muted">No open orders on this book yet.</p>
 
   return (
-    <div className="mt-2">
-      {/* Column header. Column gap tightens on mobile (gap-6) and matches the
-          measured desktop spacing (gap-10) at sm+ so the shared table fits the
-          narrow mobile sheet without breaking desktop parity. */}
-      <div className="flex items-center justify-between px-1 pb-1 text-[10px] font-semibold uppercase tracking-wider text-text-muted">
-        {/* PM shows a "TRADE YES" heading + a small two-column layout glyph. */}
-        <span className="flex items-center gap-1">
-          <span>Trade Yes</span>
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
-            <rect x="3" y="4" width="7" height="16" rx="1" />
-            <rect x="14" y="4" width="7" height="16" rx="1" />
-          </svg>
-        </span>
+    // PM: fixed 360px scroll window over the full ladder (overflow-y auto).
+    <div ref={scrollRef} className="relative mt-2 max-h-[360px] overflow-y-auto">
+      {/* Sticky column header (PM: position:sticky; top:0 inside the scroll box —
+          stays pinned as the ladder scrolls). Column gap tightens on mobile
+          (gap-6) and matches the measured desktop spacing (gap-10) at sm+. */}
+      <div className="sticky top-0 z-10 flex items-center justify-between bg-surface px-1 pb-1 pt-0.5 text-[10px] font-semibold uppercase tracking-wider text-text-muted">
+        {/* PM shows a "TRADE YES/NO" heading + a small two-column layout glyph.
+            When onToggleSide is set the glyph flips the book side (PM desktop). */}
+        {onToggleSide ? (
+          <button
+            type="button"
+            onClick={onToggleSide}
+            aria-label={`Show the ${side === 'yes' ? 'No' : 'Yes'} book`}
+            className="flex items-center gap-1 uppercase transition-colors hover:text-text-primary"
+          >
+            <span>Trade {side === 'yes' ? 'Yes' : 'No'}</span>
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
+              <rect x="3" y="4" width="7" height="16" rx="1" />
+              <rect x="14" y="4" width="7" height="16" rx="1" />
+            </svg>
+          </button>
+        ) : (
+          <span className="flex items-center gap-1">
+            <span>Trade {side === 'yes' ? 'Yes' : 'No'}</span>
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
+              <rect x="3" y="4" width="7" height="16" rx="1" />
+              <rect x="14" y="4" width="7" height="16" rx="1" />
+            </svg>
+          </span>
+        )}
         <div className="flex gap-6 sm:gap-10">
           <span className="w-16 text-right">Price</span>
           <span className="w-20 text-right">Shares</span>
@@ -110,8 +162,11 @@ export function BookTable({
         ))}
       </div>
 
-      {/* Last / Spread divider */}
-      <div className="flex items-center justify-between px-1 py-2 text-xs font-semibold text-text-muted">
+      {/* Last / Spread divider — static (scrolls with the ladder). */}
+      <div
+        ref={dividerRef}
+        className="flex items-center justify-between px-1 py-2 text-xs font-semibold text-text-muted"
+      >
         <span>
           Last:{' '}
           {book.last != null ? `${dualPriceLabel(book.last).percent} ${dualPriceLabel(book.last).cents}` : '—'}
@@ -168,14 +223,56 @@ function BookRow({ level, tone, pill }: { level: BookLevel; tone: 'yes' | 'no'; 
 export function OrderBookPanel({
   marketRef,
   optionId,
-  side = 'yes',
+  side: initialSide = 'yes',
   active = true,
+  showSideToggle = false,
 }: {
   marketRef: string
   optionId: string
   side?: 'yes' | 'no'
   active?: boolean
+  /** Render PM's "Trade Yes / Trade No" text toggle above the book (mobile). */
+  showSideToggle?: boolean
 }) {
-  const { book, loading, error } = useClobBook(marketRef, optionId, side, active)
-  return <BookTable book={book} loading={loading} error={error} />
+  const [side, setSide] = useState<'yes' | 'no'>(initialSide)
+  const { book, loading, error, reload } = useClobBook(marketRef, optionId, side, active)
+  return (
+    <div>
+      {showSideToggle && (
+        // PM mobile: the book section opens with a Trade Yes / Trade No side
+        // toggle (left) + refresh + tick chip (right).
+        <div className="flex items-center justify-between pb-1">
+          <div className="flex items-center gap-4 text-sm font-semibold">
+            {(['yes', 'no'] as const).map((s) => (
+              <button
+                key={s}
+                type="button"
+                onClick={() => setSide(s)}
+                className={`transition-colors duration-150 ${
+                  side === s ? 'text-text-primary' : 'text-text-muted hover:text-[var(--ink-300)]'
+                }`}
+              >
+                Trade {s === 'yes' ? 'Yes' : 'No'}
+              </button>
+            ))}
+          </div>
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              aria-label="Refresh order book"
+              onClick={reload}
+              className="text-text-muted transition-colors hover:text-text-primary"
+            >
+              <IconRefresh size={14} />
+            </button>
+            <span className="rounded border border-hairline px-1.5 py-0.5 text-xs font-medium text-text-muted">
+              0.1¢
+            </span>
+          </div>
+        </div>
+      )}
+      {/* key on side so the scroll re-centers on the new book when toggled. */}
+      <BookTable key={side} book={book} loading={loading} error={error} side={side} />
+    </div>
+  )
 }
