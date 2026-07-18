@@ -124,6 +124,16 @@ kill-switch gates the whole feature.
 - `order-book-drawer.tsx` is the drawer: tab state machine, book polling (4s,
   tab-visible only), lazy Graph history, Resolution CTA. Depth table built from
   the shaped book.
+- `order-book-table.tsx` is the **shared** order-book module: `useClobBook`
+  (fetch + 4s poll while visible), `BookTable` (the depth table), and
+  `OrderBookPanel` (self-contained fetch+table). BOTH the desktop
+  `OrderBookDrawer` (Order Book tab) and the mobile `MarketDrawer` (Order Book
+  section) render it — one rendering, one data path, no drift. The table gaps
+  tighten on mobile (`gap-6 sm:gap-10`) to fit the narrow bottom sheet.
+- `market-drawer.tsx` (mobile bottom sheet, name-tap target) renders
+  `OrderBookPanel` when `pricing_engine==='clob'`, else the honest "depth isn't
+  available" message. Previously this section was a hard-coded placeholder — now
+  wired to the live book.
 - `lib/clob.ts` is the framework-free single source of truth: tick clamp,
   `dualPriceLabel`/`formatCents`/`formatPercent`, `withCumulativeTotals`
   (cumulative TOTAL + `depthPct`), zod schema, error map. Unit-tested

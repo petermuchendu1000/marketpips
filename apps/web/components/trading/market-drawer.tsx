@@ -22,6 +22,7 @@ import { normalizeOutcomes } from '@/lib/markets/outcomes'
 import { buildSeriesColorMap } from '@/lib/markets/series-color'
 import { MarketRules } from '@/components/markets/market-rules'
 import { OutcomesChart } from '@/components/markets/outcomes-chart'
+import { OrderBookPanel } from '@/components/trading/order-book-table'
 import { EntityAvatar } from '@/components/ui/entity-avatar'
 import { createClient } from '@/lib/supabase/client'
 import { IconChevronLeft, IconChevronDown, IconCode, IconBookmark, IconLink, IconInfo } from '@/components/ui/icons'
@@ -51,6 +52,9 @@ export function MarketDrawer({
   // so an option keeps ONE colour everywhere (leader=blue, 2nd=green, …).
   const colorMap = useMemo(() => buildSeriesColorMap(outcomes), [outcomes])
   const o = outcomes.find((x) => x.id === openId) || null
+  // CLOB markets carry a live per-candidate order book; AMM markets do not.
+  // (Market type doesn't declare pricing_engine — same cast as the page.)
+  const isClob = (market as { pricing_engine?: string }).pricing_engine === 'clob'
 
   const close = useCallback(() => {
     setOpenId(null)
@@ -255,9 +259,10 @@ export function MarketDrawer({
             )}
           </div>
 
-          {/* Order Book — collapsible (PM). Live depth is not yet plumbed to the
-              client, so the expanded state shows an honest empty message rather
-              than fabricated bids/asks. */}
+          {/* Order Book — collapsible (PM). On CLOB markets this renders the live
+              depth table (shared with the desktop drawer via OrderBookPanel:
+              asks/Last/Spread/bids, cumulative TOTAL, depth bars). On AMM markets
+              (no order book) it shows an honest empty message. */}
           <div className="mt-4 overflow-hidden rounded-xl border border-hairline">
             <button
               type="button"
@@ -274,11 +279,16 @@ export function MarketDrawer({
                 className={`text-text-muted transition-transform ${bookOpen ? 'rotate-180' : ''}`}
               />
             </button>
-            {bookOpen && (
-              <div className="border-t border-hairline px-4 py-6 text-center text-sm text-text-muted">
-                Order book depth isn’t available for this market yet.
-              </div>
-            )}
+            {bookOpen &&
+              (isClob ? (
+                <div className="border-t border-hairline px-4 pb-4 pt-1">
+                  <OrderBookPanel marketRef={market.slug} optionId={o.id} side="yes" active={bookOpen} />
+                </div>
+              ) : (
+                <div className="border-t border-hairline px-4 py-6 text-center text-sm text-text-muted">
+                  Order book depth isn’t available for this market yet.
+                </div>
+              ))}
           </div>
 
           <MarketRules

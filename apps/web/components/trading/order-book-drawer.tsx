@@ -6,15 +6,14 @@
 // order-book (CLOB) market. Three tabs — Order Book / Graph / Resolution —
 // built 1:1 to the measured ground truth in
 // docs/design/PM-CLOB-DRAWER-MEASURED-2026-07.md:
-//   • Order Book: asks (red, desc) → Last/Spread divider → bids (green, desc),
-//     dual %+¢ price, cumulative TOTAL, left-anchored depth bars, Asks/Bids
-//     pills, TRADE YES heading, Maker Rebate/Rewards/tick chrome. Live from
-//     GET /api/markets/[id]/book (polled). Only renders for pricing_engine=clob.
+//   • Order Book: the shared BookTable (asks red desc → Last/Spread → bids green
+//     desc, dual %+¢, cumulative TOTAL, depth bars, Asks/Bids pills). Fetched +
+//     polled via useClobBook (shared with the mobile MarketDrawer).
 //   • Graph: the candidate's YES-probability history via PriceChart.
 //   • Resolution: Propose-resolution CTA + View-details link (criteria).
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { PriceChart } from '@/components/markets/price-chart'
-import { dualPriceLabel, formatCents, type BookLevel, type ClobBook } from '@/lib/clob'
+import { BookTable, useClobBook } from '@/components/trading/order-book-table'
 import { IconRefresh } from '@/components/ui/icons'
 
 type Tab = 'book' | 'graph' | 'resolution'
@@ -25,9 +24,6 @@ interface PricePoint {
   volume_usd: number | null
   recorded_at: string | null
 }
-
-const num = (n: number, d = 2) =>
-  n.toLocaleString('en-US', { minimumFractionDigits: d, maximumFractionDigits: d })
 
 export function OrderBookDrawer({
   marketRef,
@@ -48,40 +44,10 @@ export function OrderBookDrawer({
   resolvesAt?: string | null
 }) {
   const [tab, setTab] = useState<Tab>('book')
-  const [book, setBook] = useState<ClobBook | null>(null)
-  const [bookErr, setBookErr] = useState<string | null>(null)
-  const [loading, setLoading] = useState(true)
   const [series, setSeries] = useState<PricePoint[] | null>(null)
-  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
-  const loadBook = useCallback(async () => {
-    try {
-      const res = await fetch(
-        `/api/markets/${encodeURIComponent(marketRef)}/book?option=${optionId}&side=${side}`,
-        { cache: 'no-store' },
-      )
-      if (!res.ok) throw new Error(`HTTP ${res.status}`)
-      setBook((await res.json()) as ClobBook)
-      setBookErr(null)
-    } catch (e) {
-      setBookErr('Could not load the order book')
-    } finally {
-      setLoading(false)
-    }
-  }, [marketRef, optionId, side])
-
-  // Poll the book only while its tab is visible (save requests + battery).
-  useEffect(() => {
-    if (tab !== 'book') {
-      if (pollRef.current) clearInterval(pollRef.current)
-      return
-    }
-    loadBook()
-    pollRef.current = setInterval(loadBook, 4000)
-    return () => {
-      if (pollRef.current) clearInterval(pollRef.current)
-    }
-  }, [tab, loadBook])
+  // Poll the book only while the Order Book tab is visible (save requests + battery).
+  const { book, loading, error: bookErr, reload } = useClobBook(marketRef, optionId, side, tab === 'book')
 
   // Lazy-load the candidate's history the first time Graph is opened.
   useEffect(() => {
@@ -132,7 +98,7 @@ export function OrderBookDrawer({
           <button
             type="button"
             aria-label="Refresh order book"
-            onClick={loadBook}
+            onClick={reload}
             className="text-text-muted transition-colors hover:text-text-primary"
           >
             <IconRefresh size={14} />
@@ -143,9 +109,7 @@ export function OrderBookDrawer({
         </div>
       </div>
 
-      {tab === 'book' && (
-        <BookTable book={book} loading={loading} error={bookErr} />
-      )}
+      {tab === 'book' && <BookTable book={book} loading={loading} error={bookErr} />}
 
       {tab === 'graph' && (
         <div className="pt-3">
@@ -176,7 +140,7 @@ export function OrderBookDrawer({
               Propose resolution
             </button>
             <a
-              href={resolvesAt ? '#resolution' : '#resolution'}
+              href="#resolution"
               className="inline-flex items-center gap-0.5 text-sm font-semibold text-pip-text transition-opacity hover:opacity-80"
             >
               View details <span aria-hidden>↗</span>
@@ -189,101 +153,6 @@ export function OrderBookDrawer({
           )}
         </div>
       )}
-    </div>
-  )
-}
-
-/** The depth table: asks (red desc) → Last/Spread → bids (green desc). */
-function BookTable({
-  book,
-  loading,
-  error,
-}: {
-  book: ClobBook | null
-  loading: boolean
-  error: string | null
-}) {
-  if (loading && !book) return <div className="mt-3 h-64 animate-pulse rounded-lg bg-surface-2" />
-  if (error) return <p className="py-8 text-center text-sm text-text-muted">{error}</p>
-  if (!book) return null
-
-  const asksDesc = [...book.asks].reverse() // worst→best so best sits by the spread
-  const hasBook = book.asks.length > 0 || book.bids.length > 0
-  if (!hasBook)
-    return <p className="py-8 text-center text-sm text-text-muted">No open orders on this book yet.</p>
-
-  return (
-    <div className="mt-2">
-      {/* Column header */}
-      <div className="flex items-center justify-between px-1 pb-1 text-[10px] font-semibold uppercase tracking-wider text-text-muted">
-        {/* PM shows a "TRADE YES" heading + a small two-column layout glyph. */}
-        <span className="flex items-center gap-1">
-          <span>Trade Yes</span>
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
-            <rect x="3" y="4" width="7" height="16" rx="1" />
-            <rect x="14" y="4" width="7" height="16" rx="1" />
-          </svg>
-        </span>
-        <div className="flex gap-10">
-          <span className="w-16 text-right">Price</span>
-          <span className="w-20 text-right">Shares</span>
-          <span className="w-24 text-right">Total</span>
-        </div>
-      </div>
-
-      {/* Asks (sell) — red, descending */}
-      <div>
-        {asksDesc.map((l, i) => (
-          <BookRow key={`a${l.price}`} level={l} tone="no" pill={i === asksDesc.length - 1 ? 'Asks' : undefined} />
-        ))}
-      </div>
-
-      {/* Last / Spread divider */}
-      <div className="flex items-center justify-between px-1 py-2 text-xs font-semibold text-text-muted">
-        <span>
-          Last:{' '}
-          {book.last != null ? `${dualPriceLabel(book.last).percent} ${dualPriceLabel(book.last).cents}` : '—'}
-        </span>
-        <span>Spread: {book.spread != null ? formatCents(book.spread) : '—'}</span>
-      </div>
-
-      {/* Bids (buy) — green, descending */}
-      <div>
-        {book.bids.map((l, i) => (
-          <BookRow key={`b${l.price}`} level={l} tone="yes" pill={i === 0 ? 'Bids' : undefined} />
-        ))}
-      </div>
-    </div>
-  )
-}
-
-/** One depth row: left-anchored tint bar (∝ cumulative depth) + dual price + shares + total. */
-function BookRow({ level, tone, pill }: { level: BookLevel; tone: 'yes' | 'no'; pill?: 'Asks' | 'Bids' }) {
-  const price = dualPriceLabel(level.price)
-  const barColor = tone === 'yes' ? 'var(--yes-tint)' : 'var(--no-tint)'
-  const priceColor = tone === 'yes' ? 'text-yes' : 'text-no'
-  const pillBg = tone === 'yes' ? 'bg-yes' : 'bg-no'
-  return (
-    <div className="relative flex h-9 items-center justify-between overflow-hidden px-1">
-      {/* depth bar */}
-      <span
-        aria-hidden
-        className="absolute inset-y-0 left-0"
-        style={{ width: `${Math.max(2, level.depthPct * 100)}%`, backgroundColor: barColor }}
-      />
-      <span className="relative z-[1] flex items-center gap-1.5">
-        {pill && (
-          <span className={`rounded px-1.5 py-0.5 text-[10px] font-medium text-white ${pillBg}`}>{pill}</span>
-        )}
-      </span>
-      <div className="relative z-[1] flex items-center gap-10 tabular-nums">
-        <span className="w-16 text-right text-sm font-semibold">
-          <span className={priceColor}>{price.percent}</span>{' '}
-          <span className="text-text-muted text-xs">{price.cents}</span>
-        </span>
-        <span className="w-20 text-right text-sm text-text-primary">{num(level.size)}</span>
-        <span className="w-24 text-right text-sm text-text-primary">${num(level.totalUsd)}</span>
-      </div>
     </div>
   )
 }
