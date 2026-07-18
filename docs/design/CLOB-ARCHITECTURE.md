@@ -94,9 +94,29 @@ most recent fill; `Spread` = best ask − best bid per book.
   in the viewer's currency, matched in USD-cents internally.
 
 ## 8. Phase plan (commit + CI per slice)
-1. **1a** design doc (this file).
-2. **1b** migration 030: schema, enums, indexes, RLS, `clob_get_book`,
-   `clob_place_order` (buy: direct+mint), `clob_cancel_order`; apply + smoke test.
+1. **1a** ✅ design doc (this file).
+2. **1b** ✅ migration `030_clob_foundation.sql`: `markets.pricing_engine`
+   flag, `clob_action` enum, `clob_orders` + `clob_fills` tables, partial
+   book indexes, RLS (owner-only orders, participant-only fills),
+   `clob_get_book` (SECURITY DEFINER, synthesized asks), buy-side
+   `clob_place_order` (complementary **mint**, price-time priority, partial
+   fills, escrow, atomic wallet+position+transaction+fill+price_history+
+   activity ledger), `clob_cancel_order` (escrow release). Applied to Supabase
+   + validated by a 7-case rolled-back smoke suite (see below).
 3. **2** `/api/orders` CLOB branch + cancel + book endpoints; unit/integration.
 4. **3** UI: Buy-No parity + inline Order Book drawer + limit posts to book.
 5. **1b′** sell/burn matching + expiries (background job) + maker rebates.
+
+### 1b smoke results (2026-07-18, rolled-back txn — no live pollution)
+| # | Case | Result |
+|---|---|---|
+| S1 | mint: BUY NO@45×100 vs BUY YES@60×100 | filled 100 @ **55¢**, wallets −55/−45, YES 100@.55 / NO 100@.45 ✅ |
+| S2 | partial + rest: YES@70×120 vs NO@40×50 | 50 filled @60¢, 70 rest, escrow **$49**; book bids `70×70`, synth NO ask `30×70`, last 55 ✅ |
+| S3 | self-match prevention | own resting YES not crossed → 0 filled, rests ✅ |
+| S4 | market-order remainder dropped | status `cancelled`, 0 filled ✅ |
+| S5 | insufficient funds | raises `P0006` ✅ |
+| S6 | cancel releases escrow | reserved $30 → available, back to $1000 ✅ |
+| S7 | conservation ΣYES == ΣNO minted | invariant holds ✅ |
+
+Error codes: `P0100` sell-not-yet, `P0101` option required, `P0103` not-CLOB,
+`P0006` insufficient funds, `P0110-2` cancel guards.
