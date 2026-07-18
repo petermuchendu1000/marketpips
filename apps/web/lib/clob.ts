@@ -1,0 +1,170 @@
+// lib/clob.ts — CLOB (Central Limit Order Book) shared types + pure helpers.
+//
+// Single source of truth for the order-book domain used by both the API layer
+// (app/api/orders, app/api/markets/[id]/book) and the UI (candidate drawer).
+// Everything here is framework-free and unit-tested (lib/__tests__/clob.test.ts)
+// so the matching-adjacent math (cumulative depth, tick clamping, ¢/% format)
+// can't silently drift from PM's ground truth
+// (docs/design/PM-CLOB-DRAWER-MEASURED-2026-07.md).
+import { z } from 'zod'
+
+// ---------------------------------------------------------------------------
+// Price ticks. PM uses a 0.1¢ tick in [0.1¢, 99.9¢]; we store price_cents as
+// numeric(4,1). YES(p) + NO(100-p) = 100¢ = $1 (complementary tokens).
+// ---------------------------------------------------------------------------
+export const CLOB_TICK = 0.1
+export const CLOB_MIN_CENTS = 0.1
+export const CLOB_MAX_CENTS = 99.9
+
+/** Snap a cents price to the 0.1¢ grid and clamp to the tradable band. */
+export function clampPriceCents(cents: number): number {
+  if (!Number.isFinite(cents)) return CLOB_MIN_CENTS
+  const snapped = Math.round(cents * 10) / 10
+  return Math.min(CLOB_MAX_CENTS, Math.max(CLOB_MIN_CENTS, snapped))
+}
+
+/** Complementary price: the other side of a $1 set. 20¢ YES ⇒ 80¢ NO. */
+export function complementCents(cents: number): number {
+  return Math.round((100 - cents) * 10) / 10
+}
+
+// ---------------------------------------------------------------------------
+// Formatting — PM shows every book price as "19.8%" with a muted "(19.8¢)".
+// Probability % and price ¢ are numerically identical on a $1 contract.
+// ---------------------------------------------------------------------------
+export function formatCents(cents: number): string {
+  // Trim a trailing ".0" so 20.0 → "20¢" (matches PM), keep 19.8 → "19.8¢".
+  const n = Math.round(cents * 10) / 10
+  return `${Number.isInteger(n) ? n : n.toFixed(1)}¢`
+}
+
+export function formatPercent(cents: number): string {
+  const n = Math.round(cents * 10) / 10
+  return `${Number.isInteger(n) ? n : n.toFixed(1)}%`
+}
+
+/** PM's dual label, e.g. { percent: "19.8%", cents: "(19.8¢)" }. */
+export function dualPriceLabel(cents: number): { percent: string; cents: string } {
+  return { percent: formatPercent(cents), cents: `(${formatCents(cents)})` }
+}
+
+// ---------------------------------------------------------------------------
+// Book model. clob_get_book returns raw levels; the UI needs cumulative TOTAL
+// (PM accumulates from the inside price outward) and a depth-bar width ratio.
+// ---------------------------------------------------------------------------
+export interface RawBookLevel {
+  price: number // cents
+  size: number // shares
+}
+export interface BookLevel extends RawBookLevel {
+  totalShares: number // cumulative shares from inside-out
+  totalUsd: number // cumulative notional (Σ price×size) — PM's TOTAL column
+  depthPct: number // 0..1 for the background depth bar
+}
+export interface RawClobBook {
+  market_id: string
+  market_option_id: string | null
+  outcome_side: 'yes' | 'no'
+  bids: RawBookLevel[]
+  asks: RawBookLevel[]
+  last: number | null
+  best_bid: number | null
+  best_ask: number | null
+  spread: number | null
+}
+export interface ClobBook extends Omit<RawClobBook, 'bids' | 'asks'> {
+  bids: BookLevel[]
+  asks: BookLevel[]
+}
+
+/**
+ * Accumulate one side of the book from the inside price outward, mirroring PM's
+ * TOTAL column (cumulative notional) and computing each level's depth-bar ratio
+ * against the deepest cumulative notional on that side.
+ *
+ * @param levels ordered best→worst (bids desc, asks asc — as clob_get_book emits)
+ */
+export function withCumulativeTotals(levels: RawBookLevel[]): BookLevel[] {
+  let cumShares = 0
+  let cumUsd = 0
+  const rows = levels.map((l) => {
+    cumShares += l.size
+    cumUsd += (l.price / 100) * l.size
+    return { ...l, totalShares: cumShares, totalUsd: cumUsd, depthPct: 0 }
+  })
+  const maxUsd = rows.reduce((m, r) => Math.max(m, r.totalUsd), 0)
+  if (maxUsd > 0) for (const r of rows) r.depthPct = r.totalUsd / maxUsd
+  return rows
+}
+
+/** Shape a raw RPC book into the UI model (cumulative totals both sides). */
+export function shapeBook(raw: RawClobBook): ClobBook {
+  return {
+    ...raw,
+    bids: withCumulativeTotals(raw.bids ?? []),
+    asks: withCumulativeTotals(raw.asks ?? []),
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Request validation. CLOB orders are share-denominated (limit) or may be
+// dollar-denominated for market buys (the API converts to size via best ask).
+// ---------------------------------------------------------------------------
+export const CURRENCIES = ['KES', 'UGX', 'TZS', 'RWF', 'ZMW', 'ETB', 'BIF', 'USD'] as const
+
+export const clobOrderSchema = z
+  .object({
+    engine: z.literal('clob'),
+    market_id: z.string().uuid(),
+    market_option_id: z.string().uuid(), // phase 1b: per-candidate book required
+    outcome_side: z.enum(['yes', 'no']),
+    action: z.enum(['buy', 'sell']).default('buy'),
+    order_type: z.enum(['market', 'limit']),
+    price_cents: z.number().min(CLOB_MIN_CENTS).max(CLOB_MAX_CENTS).optional(),
+    size: z.number().positive().optional(), // shares
+    amount_local: z.number().positive().optional(), // $ for market buys
+    currency: z.enum(CURRENCIES),
+    client_order_id: z.string().max(64).optional(),
+    expires_at: z.string().datetime().optional(),
+  })
+  .refine((d) => d.order_type !== 'limit' || d.price_cents != null, {
+    message: 'price_cents is required for limit orders',
+    path: ['price_cents'],
+  })
+  .refine((d) => d.order_type !== 'limit' || d.size != null, {
+    message: 'size (shares) is required for limit orders',
+    path: ['size'],
+  })
+  .refine((d) => d.order_type !== 'market' || d.size != null || d.amount_local != null, {
+    message: 'market orders need size or amount_local',
+    path: ['size'],
+  })
+
+export type ClobOrderInput = z.infer<typeof clobOrderSchema>
+
+// ---------------------------------------------------------------------------
+// SQLSTATE → HTTP mapping for clob_place_order / clob_cancel_order. Single
+// source of truth so the route stays declarative (mirrors BET_ERRORS).
+// ---------------------------------------------------------------------------
+export const CLOB_ERRORS: Record<string, { status: number; error: string }> = {
+  P0001: { status: 404, error: 'Market not found or not active' },
+  P0002: { status: 409, error: 'Market is closed for betting' },
+  P0003: { status: 400, error: 'Unsupported currency' },
+  P0005: { status: 400, error: 'Wallet not found for this currency' },
+  P0006: { status: 402, error: 'Insufficient balance' },
+  P0007: { status: 400, error: 'Selected option was not found for this market' },
+  P0100: { status: 409, error: 'Sell orders are not yet available on this market' },
+  P0101: { status: 400, error: 'A candidate (market_option_id) is required' },
+  P0102: { status: 400, error: 'Order size must be greater than zero' },
+  P0103: { status: 409, error: 'This market is not an order-book market' },
+  P0104: { status: 400, error: 'A limit price is required for limit orders' },
+  P0110: { status: 404, error: 'Order not found' },
+  P0111: { status: 403, error: 'You can only cancel your own orders' },
+  P0112: { status: 409, error: 'Order is no longer cancellable' },
+}
+
+/** Find the matching CLOB error for a Postgres error message, if any. */
+export function clobErrorFor(message: string): { status: number; error: string } | null {
+  const code = Object.keys(CLOB_ERRORS).find((c) => message.includes(c))
+  return code ? CLOB_ERRORS[code] : null
+}

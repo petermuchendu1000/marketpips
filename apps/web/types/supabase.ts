@@ -687,6 +687,7 @@ export type Database = {
           resolver_id: string | null
           resolution_source: string | null
           resolution_criteria: string
+          pricing_engine: string
           resolved_outcome: Database["public"]["Enums"]["order_side"] | null
           resolution_notes: string | null
           yes_price: number | null
@@ -2402,6 +2403,34 @@ export type Database = {
           p_amount_local: number
           p_currency: Database["public"]["Enums"]["currency_code"]
           p_client_order_id?: string | null
+        }
+        Returns: Json
+      }
+      clob_place_order: {
+        Args: {
+          p_user_id: string
+          p_market_id: string
+          p_market_option_id: string
+          p_outcome_side: Database["public"]["Enums"]["order_side"]
+          p_action: "buy" | "sell"
+          p_order_type: Database["public"]["Enums"]["order_type"]
+          p_price_cents: number | null
+          p_size: number
+          p_currency: Database["public"]["Enums"]["currency_code"]
+          p_client_order_id?: string | null
+          p_expires_at?: string | null
+        }
+        Returns: Json
+      }
+      clob_cancel_order: {
+        Args: { p_order_id: string; p_user_id: string }
+        Returns: Json
+      }
+      clob_get_book: {
+        Args: {
+          p_market_id: string
+          p_market_option_id: string
+          p_outcome_side: Database["public"]["Enums"]["order_side"]
         }
         Returns: Json
       }

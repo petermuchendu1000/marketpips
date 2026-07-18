@@ -103,7 +103,13 @@ most recent fill; `Spread` = best ask − best bid per book.
    fills, escrow, atomic wallet+position+transaction+fill+price_history+
    activity ledger), `clob_cancel_order` (escrow release). Applied to Supabase
    + validated by a 7-case rolled-back smoke suite (see below).
-3. **2** `/api/orders` CLOB branch + cancel + book endpoints; unit/integration.
+3. **2** ✅ API layer: `flags.clob` kill-switch; `POST /api/orders` CLOB branch
+   (`engine:'clob'` → `clob_place_order`, market-buy $→shares via best ask,
+   authoritative `pricing_engine` check, SQLSTATE→HTTP map); `POST
+   /api/orders/cancel` → `clob_cancel_order`; `GET /api/markets/[id]/book`
+   (public, cached 2s, cumulative TOTAL + depth ratios). Shared `lib/clob.ts`
+   (tick clamp, ¢/% format, book shaping, zod schema, error map) with 18 vitest
+   units. tsc + lint + tests green.
 4. **3** UI: Buy-No parity + inline Order Book drawer + limit posts to book.
 5. **1b′** sell/burn matching + expiries (background job) + maker rebates.
 
