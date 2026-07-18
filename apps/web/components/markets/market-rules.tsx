@@ -76,7 +76,7 @@ export function MarketRules({
     { key: 'context', label: 'Market Context', icon: <IconInfo size={13} /> },
   ]
   return (
-    <div className="card p-4">
+    <div className="p-4 max-lg:px-0">
       <div
         role="tablist"
         aria-label="Market resolution details"

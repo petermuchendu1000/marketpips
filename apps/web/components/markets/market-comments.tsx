@@ -176,7 +176,7 @@ export function MarketComments({ marketId, options, resolutionType }: MarketComm
   ]
 
   return (
-    <div className="card p-4">
+    <div className="p-4 max-lg:px-0">
       {/* Tab bar — PM parity: color-only active state (no underline bar, no
           icons), 16px semibold labels, gap-4, horizontally scrollable. Active =
           primary ink, inactive = muted grey. */}

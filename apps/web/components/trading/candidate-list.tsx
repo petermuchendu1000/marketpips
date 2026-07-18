@@ -160,7 +160,7 @@ export function CandidateList({
   const cents = (p: number) => `${(p * 100).toFixed(1)}\u00A2`
 
   return (
-    <div className="card overflow-hidden p-0">
+    <div className="overflow-hidden">
       {/* Header — count + sort + optional search */}
       <div className="flex items-center justify-between gap-3 border-b border-hairline px-4 py-3">
         <h2 className="font-display text-sm text-text-primary">
@@ -279,7 +279,7 @@ export function CandidateList({
                   moveSelection(-1)
                 }
               }}
-              className={`group relative flex cursor-pointer flex-col gap-4 px-4 py-4 ${isLoser ? 'opacity-55' : ''}`}
+              className={`group relative flex cursor-pointer flex-col gap-3 px-4 py-4 lg:flex-row lg:items-center lg:gap-4 ${isLoser ? 'opacity-55' : ''}`}
             >
               {/* Press-feedback highlight — group-active only, matching PM. */}
               <span
@@ -287,45 +287,44 @@ export function CandidateList({
                 className="pointer-events-none absolute inset-0 transition-colors duration-200 group-active:bg-surface-2"
               />
 
-              {/* Top row: avatar · (name + volume) · big percentage */}
-              <div className="relative z-[1] flex w-full gap-3">
+              {/* Identity + price — one row on mobile, grows to fill on desktop
+                  so the buy pills sit inline on the right (PM single-line row). */}
+              <div className="relative z-[1] flex min-w-0 flex-1 items-center gap-3">
                 <EntityAvatar
                   name={o.label}
                   imageUrl={o.imageUrl}
                   size={40}
                   shape={kind === 'person' ? 'circle' : 'squircle'}
                 />
-                <div className="flex w-full min-w-0 justify-between">
-                  <div className="flex w-full min-w-0 flex-col gap-1.5">
-                    <p className="truncate pr-3 text-base font-semibold leading-normal text-text-primary">
-                      {o.label}
-                    </p>
-                    {o.volumeUsd > 0 && (
-                      <span className="whitespace-nowrap text-xs font-normal text-text-muted">
-                        ${Math.round(o.volumeUsd).toLocaleString('en-US')} Vol.
-                      </span>
-                    )}
-                  </div>
-                  <div className="flex flex-none items-center pl-2">
-                    <span
-                      className="text-[28px] font-semibold leading-none tabular-nums text-text-primary"
-                      aria-label={pct < 1 ? 'less than 1 percent' : pct > 99 ? 'greater than 99 percent' : `${pct} percent`}
-                    >
-                      {pctLabel}
+                <div className="flex min-w-0 flex-1 flex-col gap-1.5">
+                  <p className="truncate pr-3 text-base font-semibold leading-normal text-text-primary">
+                    {o.label}
+                  </p>
+                  {o.volumeUsd > 0 && (
+                    <span className="whitespace-nowrap text-xs font-normal text-text-muted">
+                      ${Math.round(o.volumeUsd).toLocaleString('en-US')} Vol.
                     </span>
-                  </div>
+                  )}
+                </div>
+                <div className="flex flex-none items-center pl-2">
+                  <span
+                    className="text-[28px] font-semibold leading-none tabular-nums text-text-primary"
+                    aria-label={pct < 1 ? 'less than 1 percent' : pct > 99 ? 'greater than 99 percent' : `${pct} percent`}
+                  >
+                    {pctLabel}
+                  </span>
                 </div>
               </div>
 
-              {/* Bottom row: full-width Buy Yes / Buy No split (PM), or a
-                  resolution badge once the market has closed. */}
+              {/* Buy Yes / Buy No — inline fixed-width on desktop, full-width
+                  split on mobile. Matches PM's single-line row (buttons 136px). */}
               {isOpen ? (
-                <div className="relative z-[1] flex gap-3">
+                <div className="relative z-[1] flex flex-none gap-2">
                   <button
                     type="button"
                     onClick={(e) => { e.stopPropagation(); choose(o, true, 'yes') }}
                     aria-label={`Buy Yes on ${o.label} at ${yesCents}`}
-                    className={`pill-side pill-yes flex-1 ${active && selectedSide === 'yes' ? 'armed' : ''}`}
+                    className={`pill-side pill-yes flex-1 lg:w-[136px] lg:flex-none ${active && selectedSide === 'yes' ? 'armed' : ''}`}
                   >
                     Buy Yes {yesCents}
                   </button>
@@ -334,14 +333,14 @@ export function CandidateList({
                       type="button"
                       onClick={(e) => { e.stopPropagation(); choose(o, true, 'no') }}
                       aria-label={`Buy No on ${o.label} at ${noCents}`}
-                      className={`pill-side pill-no flex-1 ${active && selectedSide === 'no' ? 'armed' : ''}`}
+                      className={`pill-side pill-no flex-1 lg:w-[136px] lg:flex-none ${active && selectedSide === 'no' ? 'armed' : ''}`}
                     >
                       Buy No {noCents}
                     </button>
                   ) : null}
                 </div>
               ) : (
-                <div className="relative z-[1] flex justify-end">
+                <div className="relative z-[1] flex flex-none justify-end">
                   <span className="rounded-pill bg-surface-2 px-3 py-1.5 text-xs font-semibold text-text-muted">
                     {isWinner ? 'Won' : isLoser ? 'Lost' : 'Closed'}
                   </span>

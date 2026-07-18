@@ -251,10 +251,10 @@ export default async function MarketPage({
         <div className="space-y-6 lg:col-span-2">
           <MarketHeader market={market} outcomes={outcomes} isMulti={isMulti} />
 
-          {/* PM parity: the probability chart is UNBOUNDED (full-bleed) on
-              mobile — no card border/box around the plot, it sits directly on
-              the page like Polymarket. Desktop keeps the subtle card frame. */}
-          <div className="card p-4 max-lg:rounded-none max-lg:border-0 max-lg:bg-transparent max-lg:p-0 max-lg:shadow-none">
+          {/* PM parity: the probability chart is borderless on BOTH mobile and
+              desktop — no card frame/box around the plot; it sits directly on the
+              page like Polymarket (verified live: all detail sections borderless). */}
+          <div className="p-4 max-lg:p-0">
             {isUpDown && btcReferencePrice > 0 ? (
               <>
                 {/* PM parity: no heading above the plot — the legend conveys it. */}
@@ -369,13 +369,14 @@ export default async function MarketPage({
 
             {/* Real-time position & P&L (only renders when the user holds one) */}
             <PositionSummary market={market} options={options} />
-          </div>
 
-          {/* Related markets rail — PM shows related events directly under the
-              ticket in the right column (NOT a contract-specs card). The richer
-              contract-specs grid lives only in the mobile column under Rules
-              (the <ContractSpecs className="lg:hidden" /> above). */}
-          <RelatedMarkets marketId={market.id} category={market.category} />
+            {/* Related markets rail — PM shows related events directly under the
+                ticket in the right column (NOT a contract-specs card). Kept INSIDE
+                the sticky wrapper so the rail pins as one unit; a sticky sibling
+                followed by a static sibling would overlap on scroll. The richer
+                contract-specs grid lives only in the mobile column under Rules. */}
+            <RelatedMarkets marketId={market.id} category={market.category} />
+          </div>
         </div>
       </div>
 

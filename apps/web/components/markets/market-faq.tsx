@@ -38,7 +38,7 @@ function FaqRow({ item, defaultOpen }: { item: FaqItem; defaultOpen?: boolean })
 export function MarketFaq({ items }: { items: FaqItem[] }) {
   if (!items.length) return null
   return (
-    <div className="card p-4">
+    <div className="p-4 max-lg:px-0">
       {/* PM: `text-[16px] font-semibold text-text-primary mb-2`, Title Case. */}
       <h2 className="mb-2 text-[16px] font-semibold text-text-primary">Frequently Asked Questions</h2>
       <div>
