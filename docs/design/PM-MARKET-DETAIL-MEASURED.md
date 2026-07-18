@@ -97,3 +97,38 @@ PM's desktop rail.** Our fix: removed the sidebar Contract-specs card and moved
 | Title | **14px / 500**, `rgb(24,24,27)` `#18181B`, 2-line clamp |
 | Price | **18px / 500**, `rgb(24,24,27)`, right-aligned, shown in **¢** (`41¢`, `20¢`, `59¢`) — ours showed `%` → fixed to `¢` |
 | Sub-entity | **12px / 400**, `rgb(119,128,141)` muted, right-aligned under price (leading outcome, e.g. "J.D. Vance") |
+
+
+---
+
+## Multi-outcome option board + section boxing — re-captured 2026-07-18
+Source: live `event/presidential-election-winner-2028`, desktop 1440×1024 DPR2.
+Harness: `tools/pm-parity/capture_board.py`. Screenshots `b01-board.png`,
+`b02-after-name-click.png`.
+
+### Option row = ONE line on desktop (h≈48px, borderless, row-divider only)
+`[avatar(40, circle for person)] [name 16px/600 #18181B + "$… Vol." 13px/490 #77808D (flex-1)] [price 28px/600 #0E0F11] [Δ chip 12px/600] [Buy Yes 136×48] [Buy No 136×48]`
+| Element | Measured |
+|---|---|
+| Row | `flex flex-row justify-between`, ~48px tall, no border/bg (list `divide-y`) |
+| Name | 16px/600 `rgb(24,24,27)`; Vol 13px/490 `rgb(119,128,141)` |
+| Price | **28px/600** `rgb(14,15,17)`, shown in **¢** (`20¢`) — ours shows `%` (follow-up: unify ¢ across board+chart+card) |
+| Δ chip | `▲8%` green `rgb(66,199,114)` / `▼7%` red `rgb(231,93,93)`, 12px/600 (needs 24h change data — not yet wired) |
+| Buy Yes | 136×48, radius 7.2px, 14px/600. Armed = solid `#30A159`/white; idle = tint `rgba(48,161,89,.15)`/`#30A159` |
+| Buy No | 136×48, tint `rgba(226,57,57,.09)`/`#E23939` — **PM shows Buy No on pick-one too** (per-candidate CLOB). Our LMSR pick-one only supports Yes → needs independent order books (Phase C) |
+
+Our fix: rows are `flex-col … lg:flex-row lg:items-center` with pills `lg:w-[136px]`.
+
+### Click a candidate name (e.g. JD Vance) — inline, no navigation
+URL does NOT change. PM (a) **arms the right ticket** (`JD Vance · Yes`, Yes/No
+prices, Market dropdown, $0, Trade) and (b) **expands an inline drawer** under
+that row with **Order Book / Graph / Resolution** tabs (order-book table:
+TRADE YES · PRICE/SHARES/TOTAL · Asks/Bids · Last · Spread). We arm the ticket
+today; the inline order-book drawer needs a CLOB/order-book data model.
+
+### Section boxing — PM is BORDERLESS everywhere
+Audited every `h1/h2/h3` container: **0 framed**. Rules, Market Context,
+Comments, Top Holders, Positions, Activity, FAQ, the chart, and the option board
+are all borderless (whitespace + hairline separators, no card frames). The Buy
+ticket (right rail) keeps its subtle frame. Our fix: removed `.card` frames from
+the board, Rules, Comments, FAQ and the chart.
