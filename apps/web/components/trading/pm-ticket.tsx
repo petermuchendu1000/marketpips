@@ -255,9 +255,12 @@ export function PmTicket({
   }, [preferredCurrency, rates])
 
   // Seed a small default stake so the payout preview shows on first render.
+  // The PM mobile sheet (variant=sheet) starts EMPTY — showing the muted "$0"
+  // placeholder — so we skip the seed there to match Polymarket 1:1.
   useEffect(() => {
+    if (isSheet) return
     if (!touched && !amount && isOpen && chips.length > 0) setAmount(String(chips[0]))
-  }, [touched, amount, isOpen, chips])
+  }, [touched, amount, isOpen, chips, isSheet])
 
   // ---- Auth round-trip continuity (shared snapshot with the pro panel) -------
   const restoredRef = useRef(false)
@@ -592,7 +595,7 @@ export function PmTicket({
               placeholder={`${sym}0`}
               size={Math.max(1, amount.length || 1)}
               className="min-w-0 bg-transparent text-center text-[56px] font-semibold leading-none tracking-[-1.4px] tabular-nums text-text-primary caret-pip-500 outline-none placeholder:text-ink-300"
-              style={{ width: amount ? `${Math.max(1, amount.length)}ch` : '3ch' }}
+              style={{ width: amount ? `${Math.max(1, amount.length)}ch` : `${`${sym}0`.length}ch` }}
             />
           </div>
         </div>
@@ -629,6 +632,22 @@ export function PmTicket({
             </div>
           </div>
         )}
+
+        {/* Payout preview — reserved slot (present even when empty so the Trade
+            button never shifts), matching PM: "To win $X" (tinted) + avg ¢. */}
+        <div className="flex min-h-[40px] flex-col items-center justify-center gap-0.5">
+          {preview && amountNum > 0 && (
+            <>
+              <div className="flex items-center gap-1.5">
+                <span className="text-base font-medium text-text-secondary">To win</span>
+                <span className={`text-[18px] font-semibold tabular-nums ${outcomeTone}`}>
+                  {formatCurrency(payoutLocal, preferredCurrency)}
+                </span>
+              </div>
+              <span className="text-xs font-medium tabular-nums text-text-muted">{cents(previewAvgPrice)}</span>
+            </>
+          )}
+        </div>
 
         {/* 5. Quick-add chips (centered) */}
         <div className="flex items-center justify-center gap-1">
