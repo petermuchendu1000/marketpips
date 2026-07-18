@@ -65,9 +65,23 @@ multi-outcome market page. It is a Radix `role="dialog"` bottom sheet.
 | Button | **full width** (342), h**44**, `bg rgb(20,82,240)` (PM blue #1452F0), radius **9.2px** |
 | Label | "Trade", white `rgb(255,255,255)`, **16px / 600**, centered |
 
-## 7. Order-type popover (settings icon → Market / Limit)
-- Small white rounded card anchored under the settings icon (top-right).
-- Two stacked rows: **Market**, **Limit** (default Market). See reference image 3.
+## 7. Typed-amount state (payout preview)
+When the amount is > 0 the amount turns dark (`rgb(14,15,17)`) and a payout block
+appears in a **reserved ~40px slot between the toggle and the chips** (present
+even when empty so the Trade button never shifts):
+| Element | Measured |
+|---|---|
+| "To win" label | `rgb(72,78,86)` (ink-700), **16px / 500** |
+| Payout value | outcome-tinted (`rgb(66,199,114)` yes / `rgb(226,57,57)` no), **18px / 600**, `tabular-nums` |
+| Avg-price line | e.g. `60.4¢`, `rgb(119,128,141)`, **12px / 500**, centered on its own line below |
+
+## 8. Order-type popover (settings icon → Market / Limit)
+Shown on **all** markets (binary *and* multi-outcome). Opens below the sliders icon, top-right.
+| Element | Measured |
+|---|---|
+| Card | white, rounded (~`rounded-xl`), 1px border `rgb(230,232,234)`, drop shadow, ~**120px** wide, ~4–6px inner padding |
+| Item | **Market** / **Limit** stacked, each **32px** tall, `rgb(14,15,17)`, **14px / 500**, padding **6px / 12px**; selected row gets a subtle `surface-2` fill |
+
 
 ## Token mapping → repo
 | PM value | Repo token |

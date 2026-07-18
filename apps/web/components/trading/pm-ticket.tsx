@@ -507,8 +507,8 @@ export function PmTicket({
                 <circle cx="7" cy="12.75" r="2" fill="var(--surface)" />
               </svg>
             </button>
-            {typeMenu && !isMulti && (
-              <div className="absolute right-0 top-full z-30 mt-2 w-32 overflow-hidden rounded-xl border border-hairline bg-surface py-1 shadow-lg" role="listbox">
+            {typeMenu && (
+              <div className="absolute right-0 top-full z-30 mt-2 w-[124px] rounded-xl border border-hairline bg-surface p-1.5 shadow-lg" role="listbox">
                 {(['market', 'limit'] as OrderType[]).map((t) => (
                   <button
                     key={t}
@@ -519,8 +519,8 @@ export function PmTicket({
                       setOrderType(t)
                       setTypeMenu(false)
                     }}
-                    className={`block w-full px-4 py-2 text-left text-sm capitalize transition-colors hover:bg-surface-2 ${
-                      orderType === t ? 'font-semibold text-text-primary' : 'text-text-secondary'
+                    className={`block w-full rounded-lg px-3 py-1.5 text-left text-sm font-medium capitalize transition-colors ${
+                      orderType === t ? 'bg-[color:var(--surface-2)] text-text-primary' : 'text-text-primary hover:bg-[color:var(--surface-2)]'
                     }`}
                   >
                     {t}
