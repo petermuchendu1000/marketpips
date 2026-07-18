@@ -38,7 +38,7 @@ import { serializePendingBet, parsePendingBet, PENDING_BET_KEY } from '@/lib/pen
 import { normalizeOutcomes, isMultiOutcome, type Outcome } from '@/lib/markets/outcomes'
 import { formatCurrency, usdToLocal } from '@/lib/currency'
 import { CURRENCIES } from '@/types'
-import type { Market, MarketOption } from '@/types'
+import type { CurrencyCode, Market, MarketOption } from '@/types'
 import { EntityAvatar } from '@/components/ui/entity-avatar'
 import { IconCheck, IconChevronDown, IconWallet } from '@/components/ui/icons'
 
@@ -81,6 +81,172 @@ const CLOSED_COPY: Partial<Record<Market['status'], { label: string; body: strin
   cancelled: { label: 'Cancelled', body: 'This market was cancelled and stakes were refunded.' },
 }
 
+// ---- Mobile Buy sheet · LIMIT order body (Polymarket 1:1) -------------------
+// Measured ground truth §9: docs/design/PM-BUY-SHEET-MOBILE-MEASURED-2026-07.md
+// Layout replaces the market body: Limit-price stepper, Shares input + shares
+// quick-adds, "N matching" pill, then Expires / Total / To win rows.
+function PmLimitBody({
+  limitCents,
+  setLimitCents,
+  shares,
+  setShares,
+  currentCents,
+  preferredCurrency,
+  onError,
+}: {
+  limitCents: string
+  setLimitCents: (v: string) => void
+  shares: string
+  setShares: (v: string) => void
+  currentCents: number
+  preferredCurrency: CurrencyCode
+  onError: () => void
+}) {
+  // Seed the limit price with the live market price on first entry (PM default).
+  useEffect(() => {
+    if (!limitCents && currentCents > 0) setLimitCents(String(currentCents))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  const clampCents = (n: number) => Math.min(99.9, Math.max(0.1, Math.round(n * 10) / 10))
+  const centsVal = parseFloat(limitCents) || 0
+  const sharesNum = Math.max(0, parseInt(shares || '0', 10) || 0)
+  const step = (delta: number) => {
+    setLimitCents(String(clampCents((parseFloat(limitCents) || currentCents || 0) + delta)))
+    onError()
+  }
+  const bump = (delta: number) => {
+    setShares(String(Math.max(0, sharesNum + delta)))
+    onError()
+  }
+  // 1 share pays 1 currency unit if it wins; cost = shares × price(fraction).
+  const totalLocal = sharesNum * (centsVal / 100)
+  const toWinLocal = sharesNum * 1
+
+  const shareChip =
+    'flex h-[30px] items-center justify-center rounded-[9px] border px-2.5 text-xs font-semibold tracking-[-0.1px] transition-colors'
+
+  return (
+    <div className="flex flex-col gap-4 pt-1">
+      {/* Limit price */}
+      <div className="flex items-center justify-between">
+        <span className="text-base font-medium text-text-primary">Limit price</span>
+        <div className="flex h-10 w-[150px] items-center justify-between rounded-[9px] border border-hairline px-2">
+          <button
+            type="button"
+            aria-label="Decrease limit price"
+            onClick={() => step(-0.1)}
+            className="flex h-7 w-7 items-center justify-center rounded-md text-text-primary transition-colors hover:bg-[color:var(--surface-2)]"
+          >
+            −
+          </button>
+          <div className="flex items-baseline">
+            <input
+              inputMode="decimal"
+              aria-label="Limit price in cents"
+              value={limitCents}
+              onChange={(e) => { setLimitCents(e.target.value.replace(/[^0-9.]/g, '').slice(0, 4)); onError() }}
+              placeholder="0.0"
+              size={4}
+              className="w-[42px] bg-transparent text-center text-[18px] font-semibold tabular-nums text-text-primary outline-none placeholder:text-ink-300"
+            />
+            <span className="text-[18px] font-semibold text-text-primary">¢</span>
+          </div>
+          <button
+            type="button"
+            aria-label="Increase limit price"
+            onClick={() => step(0.1)}
+            className="flex h-7 w-7 items-center justify-center rounded-md text-text-primary transition-colors hover:bg-[color:var(--surface-2)]"
+          >
+            +
+          </button>
+        </div>
+      </div>
+
+      <div className="h-px w-full bg-hairline" />
+
+      {/* Shares */}
+      <div className="flex items-center justify-between">
+        <span className="text-base font-medium text-text-primary">Shares</span>
+        <div className="flex h-10 w-[150px] items-center rounded-[9px] border border-hairline px-3">
+          <input
+            inputMode="numeric"
+            aria-label="Number of shares"
+            value={shares}
+            onChange={(e) => { setShares(e.target.value.replace(/[^0-9]/g, '')); onError() }}
+            placeholder="0"
+            className="w-full bg-transparent text-right text-[18px] font-semibold tabular-nums text-text-primary outline-none placeholder:text-ink-300"
+          />
+        </div>
+      </div>
+
+      {/* Shares quick-adds (right-aligned) — last (+200) is accented per PM */}
+      <div className="flex items-center justify-end gap-1">
+        {[-100, -10, 10, 100, 200].map((d, i) => {
+          const accent = i === 4
+          return (
+            <button
+              key={d}
+              type="button"
+              onClick={() => bump(d)}
+              className={`${shareChip} ${
+                accent
+                  ? 'border-pip-500 text-pip-500 hover:bg-pip-100'
+                  : 'border-hairline text-text-muted hover:bg-[color:var(--surface-2)]'
+              }`}
+            >
+              {d > 0 ? `+${d}` : d}
+            </button>
+          )
+        })}
+      </div>
+
+      {/* Matching indicator */}
+      <div className="flex min-h-[16px] justify-end">
+        {sharesNum > 0 && (
+          <span className="inline-flex items-center gap-1 rounded-full bg-[color:var(--yes-tint)] px-2 py-0.5 text-xs font-semibold text-[#42C772]">
+            <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.4" aria-hidden>
+              <circle cx="6" cy="6" r="5" />
+              <line x1="6" y1="5.5" x2="6" y2="8.5" />
+              <circle cx="6" cy="3.6" r="0.6" fill="currentColor" stroke="none" />
+            </svg>
+            {sharesNum.toFixed(2)} matching
+          </span>
+        )}
+      </div>
+
+      <div className="h-px w-full bg-hairline" />
+
+      {/* Expires */}
+      <div className="flex items-center justify-between">
+        <span className="text-sm font-medium text-text-muted">Expires</span>
+        <button type="button" className="flex items-center gap-1 text-sm font-medium text-ink-300 transition-colors hover:text-text-secondary">
+          Never
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+            <path d="M3.5 5.25 7 8.75l3.5-3.5" />
+          </svg>
+        </button>
+      </div>
+
+      {/* Total */}
+      <div className="flex items-center justify-between">
+        <span className="text-base font-medium text-text-primary">Total</span>
+        <span className="text-[18px] font-medium tabular-nums text-[#1452F0]">
+          {formatCurrency(totalLocal, preferredCurrency)}
+        </span>
+      </div>
+
+      {/* To win */}
+      <div className="flex items-center justify-between">
+        <span className="text-base font-medium text-text-primary">To win</span>
+        <span className="text-[24px] font-medium tabular-nums text-[#30A159]">
+          {formatCurrency(toWinLocal, preferredCurrency)}
+        </span>
+      </div>
+    </div>
+  )
+}
+
 export function PmTicket({
   market,
   options,
@@ -111,6 +277,7 @@ export function PmTicket({
   )
   const [amount, setAmount] = useState(initialAmount ?? '')
   const [limitCents, setLimitCents] = useState('')
+  const [shares, setShares] = useState('')
   const [touched, setTouched] = useState(!!initialAmount)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -542,41 +709,52 @@ export function PmTicket({
           />
           <div className="min-w-0 flex-1">
             <p className="truncate text-sm font-medium text-text-muted">{market.title}</p>
-            <div className="flex items-center text-base font-semibold leading-6">
+            <div className="flex items-center gap-1.5 text-base font-semibold leading-6">
               {isMulti ? (
-                <>
+                <span className="flex min-w-0 items-center">
                   <span className="truncate text-text-primary">{selectedOutcome?.label}</span>
                   {showToggle && (
                     <>
                       <span className="mx-1.5 flex-none text-ink-300">·</span>
-                      <span className={`flex-none ${side === 'yes' ? 'text-yes' : 'text-no'}`}>
+                      <span className={`flex-none ${side === 'yes' ? 'text-[#42C772]' : 'text-[#E23939]'}`}>
                         {side === 'yes' ? 'Yes' : 'No'}
                       </span>
                     </>
                   )}
-                </>
+                </span>
               ) : (
-                <span className={side === 'yes' ? 'text-yes' : 'text-no'}>{side === 'yes' ? 'Yes' : 'No'}</span>
+                <span className={side === 'yes' ? 'text-[#42C772]' : 'text-[#E23939]'}>{side === 'yes' ? 'Yes' : 'No'}</span>
+              )}
+              {/* Limit mode: side-swap affordance (PM shows a ⇄ icon after the side) */}
+              {orderType === 'limit' && showToggle && (
+                <button
+                  type="button"
+                  aria-label={`Switch to ${side === 'yes' ? noLabel : yesLabel}`}
+                  onClick={() => { setSide(side === 'yes' ? 'no' : 'yes'); setError('') }}
+                  className="flex-none text-text-muted transition-colors hover:text-text-primary"
+                >
+                  <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                    <path d="M3 6.5h9.5M10.5 4l2.5 2.5-2.5 2.5" />
+                    <path d="M15 11.5H5.5M7.5 9 5 11.5 7.5 14" />
+                  </svg>
+                </button>
               )}
             </div>
           </div>
         </div>
 
-        {/* Limit price row (binary limit only) */}
-        {!isMulti && orderType === 'limit' && (
-          <div className="flex items-center justify-between rounded-md border border-hairline px-3 py-2">
-            <label htmlFor="pm-sheet-limit" className="text-sm text-text-secondary">Limit price</label>
-            <div className="flex items-center gap-2">
-              <button type="button" aria-label="Decrease limit price" onClick={() => setLimitCents(String(clampLimitCents((parseFloat(limitCents) || 0) - 1)))} className="flex h-6 w-6 items-center justify-center rounded-full border border-hairline text-text-secondary transition-colors hover:border-pip-400 hover:text-pip-500">−</button>
-              <div className="flex items-center gap-0.5">
-                <input id="pm-sheet-limit" inputMode="numeric" value={limitCents} onChange={(e) => setLimitCents(e.target.value.replace(/[^0-9]/g, '').slice(0, 2))} placeholder="50" className="w-8 bg-transparent text-right text-sm font-semibold tabular-nums text-text-primary outline-none" />
-                <span className="text-sm text-text-muted">¢</span>
-              </div>
-              <button type="button" aria-label="Increase limit price" onClick={() => setLimitCents(String(clampLimitCents((parseFloat(limitCents) || 0) + 1)))} className="flex h-6 w-6 items-center justify-center rounded-full border border-hairline text-text-secondary transition-colors hover:border-pip-400 hover:text-pip-500">+</button>
-            </div>
-          </div>
-        )}
-
+        {orderType === 'limit' ? (
+          <PmLimitBody
+            limitCents={limitCents}
+            setLimitCents={setLimitCents}
+            shares={shares}
+            setShares={setShares}
+            currentCents={Math.round(currentPrice * 100 * 10) / 10}
+            preferredCurrency={preferredCurrency}
+            onError={() => setError('')}
+          />
+        ) : (
+        <>
         {/* 3. Oversized centered amount ($0 muted placeholder → typed dark) */}
         <div className="flex items-center justify-center pb-1 pt-6">
           <div className="inline-flex items-center">
@@ -639,8 +817,8 @@ export function PmTicket({
           {preview && amountNum > 0 && (
             <>
               <div className="flex items-center gap-1.5">
-                <span className="text-base font-medium text-text-secondary">To win</span>
-                <span className={`text-[18px] font-semibold tabular-nums ${outcomeTone}`}>
+                <span className="text-base font-medium text-[#484E56]">To win</span>
+                <span className={`text-[18px] font-semibold tabular-nums ${side === 'yes' ? 'text-[#42C772]' : 'text-[#E23939]'}`}>
                   {formatCurrency(payoutLocal, preferredCurrency)}
                 </span>
               </div>
@@ -662,6 +840,8 @@ export function PmTicket({
             </button>
           ))}
         </div>
+        </>
+        )}
 
         {error && <p className="-mt-2 text-center text-sm font-medium text-no">{error}</p>}
 
@@ -670,8 +850,13 @@ export function PmTicket({
           type="button"
           onClick={handleTrade}
           disabled={!!user && !canSubmit}
-          className="h-11 w-full rounded-[9px] text-base font-semibold text-white transition-opacity hover:opacity-95 disabled:opacity-50"
-          style={{ background: 'var(--pip-500)' }}
+          className="h-11 w-full rounded-[9px] text-base font-semibold text-white hover:opacity-95 active:scale-[0.99] disabled:opacity-50"
+          style={{
+            background: 'var(--pip-500)',
+            // PM easing: transform 0.12s cubic-bezier(.4,0,.2,1); paint props 0.1s ease-in-out
+            transition:
+              'transform 0.12s cubic-bezier(0.4,0,0.2,1), box-shadow 0.1s ease-in-out, opacity 0.1s ease-in-out, background-color 0.1s ease-in-out, color 0.1s ease-in-out',
+          }}
         >
           {loading ? 'Placing…' : tradeLabel}
         </button>
