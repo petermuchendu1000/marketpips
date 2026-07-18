@@ -16,6 +16,7 @@
 // (see docs/design/POLYMARKET-KALSHI-PARITY.md).
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { EntityAvatar } from '@/components/ui/entity-avatar'
+import { OrderBookDrawer } from '@/components/trading/order-book-drawer'
 import { normalizeOutcomes, type Outcome } from '@/lib/markets/outcomes'
 import type { Market, MarketOption } from '@/types'
 import {
@@ -51,11 +52,14 @@ export function CandidateList({
   market,
   options,
   independent = false,
+  clob = false,
 }: {
   market: Market
   options?: MarketOption[]
   /** Phase C: render each candidate as its own Yes/No line (Polymarket/Kalshi). */
   independent?: boolean
+  /** CLOB markets: per-candidate Buy Yes/Buy No + inline Order Book drawer. */
+  clob?: boolean
 }) {
   const outcomes = useMemo(() => normalizeOutcomes(market, options), [market, options])
   const kindById = useMemo(() => {
@@ -76,6 +80,8 @@ export function CandidateList({
   const [sortMenu, setSortMenu] = useState(false)
   const [query, setQuery] = useState('')
   const [selected, setSelected] = useState<string>('')
+  // Accordion: which candidate's inline drawer is open (CLOB markets only).
+  const [expandedId, setExpandedId] = useState<string>('')
   // Which Yes/No side of the selected row is armed (independent markets only) —
   // drives the soft pill highlight so the board mirrors the loaded ticket side.
   const [selectedSide, setSelectedSide] = useState<'yes' | 'no'>('yes')
@@ -135,6 +141,13 @@ export function CandidateList({
   // pills bypass this and go straight to the Trade drawer.
   const openMarketView = (o: Outcome) => {
     setSelected(o.id)
+    // CLOB parity: clicking a candidate row toggles its inline Order Book drawer
+    // in place (accordion, one open) AND arms the ticket — it does not navigate.
+    if (clob) {
+      setExpandedId((cur) => (cur === o.id ? '' : o.id))
+      choose(o, false)
+      return
+    }
     if (typeof window !== 'undefined' && window.matchMedia('(max-width: 1023.98px)').matches) {
       window.dispatchEvent(
         new CustomEvent('marketpips:open-market', {
@@ -257,8 +270,8 @@ export function CandidateList({
             // [Buy Yes | Buy No] split — with only a group-active press highlight
             // (no persistent selected-row tint, no left accent bar). gap-4 py-4,
             // full-width border between rows via the list's divide-y.
+            <div key={o.id}>
             <div
-              key={o.id}
               role="radio"
               aria-checked={active}
               tabIndex={active ? 0 : -1}
@@ -328,7 +341,7 @@ export function CandidateList({
                   >
                     Buy Yes {yesCents}
                   </button>
-                  {independent ? (
+                  {independent || clob ? (
                     <button
                       type="button"
                       onClick={(e) => { e.stopPropagation(); choose(o, true, 'no') }}
@@ -345,6 +358,18 @@ export function CandidateList({
                     {isWinner ? 'Won' : isLoser ? 'Lost' : 'Closed'}
                   </span>
                 </div>
+              )}
+              </div>
+              {clob && expandedId === o.id && (
+                <OrderBookDrawer
+                  marketRef={market.slug}
+                  optionId={o.id}
+                  side={selectedSide}
+                  currentYes={o.yesPrice ?? o.price}
+                  volumeUsd={o.volumeUsd}
+                  resolutionCriteria={market.resolution_criteria}
+                  resolvesAt={market.resolves_at ?? market.closes_at}
+                />
               )}
             </div>
           )

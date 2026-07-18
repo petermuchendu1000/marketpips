@@ -110,7 +110,14 @@ most recent fill; `Spread` = best ask − best bid per book.
    (public, cached 2s, cumulative TOTAL + depth ratios). Shared `lib/clob.ts`
    (tick clamp, ¢/% format, book shaping, zod schema, error map) with 18 vitest
    units. tsc + lint + tests green.
-4. **3** UI: Buy-No parity + inline Order Book drawer + limit posts to book.
+4. **3** ✅ UI: `OrderBookDrawer` — inline accordion under a clicked candidate
+   (PM parity): tabs Order Book / Graph / Resolution, live depth table (asks red
+   desc → Last/Spread → bids green desc, dual %+¢, cumulative TOTAL, left depth
+   bars, Asks/Bids pills, Maker Rebate/Rewards/tick chrome), polled 4s; Graph =
+   candidate YES-history via PriceChart (+`option` param on price-history);
+   Resolution = Propose/criteria. Wired into `candidate-list.tsx` behind the
+   `clob` prop (page gates on `pricing_engine='clob'` + `flags.clob`); Buy-No
+   enabled per candidate. tsc + lint + 645 unit tests green.
 5. **1b′** sell/burn matching + expiries (background job) + maker rebates.
 
 ### 1b smoke results (2026-07-18, rolled-back txn — no live pollution)

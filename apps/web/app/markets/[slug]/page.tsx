@@ -183,6 +183,13 @@ export default async function MarketPage({
     isIndependentOptions(market, options) &&
     (await isFeatureEnabled(supabase, 'flags.independent_options'))
 
+  // CLOB (order-book) markets: per-candidate Buy Yes/Buy No + inline Order Book
+  // drawer. Gated by the stored engine ('clob') AND flags.clob (deploy ≠ release).
+  const clob =
+    isMulti &&
+    (market as { pricing_engine?: string }).pricing_engine === 'clob' &&
+    (await isFeatureEnabled(supabase, 'flags.clob'))
+
   // Beginner-first "Guided 2-Step" checkout (Option B), dark-launched behind a
   // flag so deploy ≠ release. When on, it replaces the pro ticket on the market
   // page + mobile sheet; same LMSR economics, first-timer-friendly UX.
@@ -289,7 +296,7 @@ export default async function MarketPage({
           {/* Options / outcome board — PM renders the outcome rows AFTER the
               graph (graph first, options second). Verified live at 390px:
               chart footer ~634px, first outcome row ~687px. */}
-          {isMulti && <CandidateList market={market} options={options} independent={independent} />}
+          {isMulti && <CandidateList market={market} options={options} independent={independent} clob={clob} />}
 
           {/* Settlement / resolution — Rules / Market context tabs (main column
               for exact left-rail ordering: header → chart → rules → community). */}
