@@ -61,6 +61,15 @@ interface PmTicketProps {
    * window that has already ended until the next page refresh.
    */
   closesAt?: string
+  /**
+   * Rendering surface. `panel` (default) is the desktop sidebar ticket. `sheet`
+   * renders the Polymarket mobile bottom-sheet layout — measured 1:1 against
+   * live PM (`docs/design/PM-BUY-SHEET-MOBILE-MEASURED-2026-07.md`): "Buy" pill
+   * + sliders icon, muted market sublabel + tinted outcome, oversized centered
+   * $-amount input, sliding Yes/No segmented toggle, quick-add chips and the
+   * blue Trade button. Both variants share ONE set of state + pricing + submit.
+   */
+  variant?: 'panel' | 'sheet'
 }
 
 const CLOSED_COPY: Partial<Record<Market['status'], { label: string; body: string }>> = {
@@ -80,7 +89,9 @@ export function PmTicket({
   initialAmount,
   independent = false,
   closesAt,
+  variant = 'panel',
 }: PmTicketProps) {
+  const isSheet = variant === 'sheet'
   const { user } = useAuth()
   const { wallets, preferredCurrency, refreshWallets, isLoading: walletsLoading } = useWallets()
   const { rates } = useRates()
@@ -120,6 +131,19 @@ export function PmTicket({
   const wallet = wallets.find((w) => w.currency === preferredCurrency)
   const balance = wallet?.available_balance ?? 0
   const currencyInfo = CURRENCIES[preferredCurrency]
+
+  // Sheet variant: the Yes/No segmented toggle thumb hugs the ACTIVE label and
+  // slides between them (measured PM behaviour). We measure the active button's
+  // offset/width so the white thumb tracks variable label widths exactly.
+  const toggleTrackRef = useRef<HTMLDivElement>(null)
+  const yesToggleRef = useRef<HTMLButtonElement>(null)
+  const noToggleRef = useRef<HTMLButtonElement>(null)
+  const [thumb, setThumb] = useState<{ left: number; width: number } | null>(null)
+  useEffect(() => {
+    if (!isSheet) return
+    const el = side === 'yes' ? yesToggleRef.current : noToggleRef.current
+    if (el) setThumb({ left: el.offsetLeft, width: el.offsetWidth })
+  }, [isSheet, side, action])
 
   // Client-side window-close detection (no refresh). `nowMs` starts null so the
   // server render and first client render agree (no hydration mismatch); a 1s
@@ -447,6 +471,205 @@ export function PmTicket({
   // Polymarket's action button reads simply "Trade" (the To-win figure lives in
   // the preview summary just above it).
   const tradeLabel = !user ? 'Log in to trade' : 'Trade'
+
+  // ---- Mobile Buy sheet (Polymarket 1:1) ------------------------------------
+  // Measured ground truth: docs/design/PM-BUY-SHEET-MOBILE-MEASURED-2026-07.md
+  if (isSheet) {
+    const showToggle = !isMulti || indepMulti
+    const sym = currencyInfo?.symbol ?? '$'
+    const chipLabel = (c: number) =>
+      `+${sym}${c >= 1000 ? `${(c / 1000).toFixed(c % 1000 ? 1 : 0)}k` : c}`
+    return (
+      <div className="flex flex-col gap-5 px-6 pb-2 pt-1 font-sans">
+        {/* 1. Header: Buy pill + order-type (sliders) */}
+        <div className="flex items-center justify-between">
+          <span className="inline-flex h-8 items-center rounded-full bg-[color:var(--surface-2)] px-4 text-sm font-semibold text-text-primary">
+            Buy
+          </span>
+          <div className="relative">
+            <button
+              type="button"
+              aria-label="Order type settings"
+              aria-haspopup="listbox"
+              aria-expanded={typeMenu}
+              onClick={() => setTypeMenu((v) => !v)}
+              className="flex h-8 w-8 items-center justify-center rounded-[7px] text-text-primary transition-colors hover:bg-[color:var(--surface-2)]"
+            >
+              <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                <line x1="1.75" y1="5.25" x2="8.75" y2="5.25" />
+                <line x1="13.25" y1="5.25" x2="16.25" y2="5.25" />
+                <circle cx="10.75" cy="5.25" r="2" fill="var(--surface)" />
+                <line x1="1.75" y1="12.75" x2="4.75" y2="12.75" />
+                <line x1="9.25" y1="12.75" x2="16.25" y2="12.75" />
+                <circle cx="7" cy="12.75" r="2" fill="var(--surface)" />
+              </svg>
+            </button>
+            {typeMenu && !isMulti && (
+              <div className="absolute right-0 top-full z-30 mt-2 w-32 overflow-hidden rounded-xl border border-hairline bg-surface py-1 shadow-lg" role="listbox">
+                {(['market', 'limit'] as OrderType[]).map((t) => (
+                  <button
+                    key={t}
+                    type="button"
+                    role="option"
+                    aria-selected={orderType === t}
+                    onClick={() => {
+                      setOrderType(t)
+                      setTypeMenu(false)
+                    }}
+                    className={`block w-full px-4 py-2 text-left text-sm capitalize transition-colors hover:bg-surface-2 ${
+                      orderType === t ? 'font-semibold text-text-primary' : 'text-text-secondary'
+                    }`}
+                  >
+                    {t}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* 2. Identity: entity avatar + muted market title + tinted outcome */}
+        <div className="flex items-center gap-3">
+          <EntityAvatar
+            name={selectedOutcome?.label ?? market.title}
+            imageUrl={(isMulti ? selectedOutcome?.imageUrl : null) ?? market.cover_image_url}
+            size={42}
+            shape="squircle"
+            radius={7}
+          />
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-sm font-medium text-text-muted">{market.title}</p>
+            <div className="flex items-center text-base font-semibold leading-6">
+              {isMulti ? (
+                <>
+                  <span className="truncate text-text-primary">{selectedOutcome?.label}</span>
+                  {showToggle && (
+                    <>
+                      <span className="mx-1.5 flex-none text-ink-300">·</span>
+                      <span className={`flex-none ${side === 'yes' ? 'text-yes' : 'text-no'}`}>
+                        {side === 'yes' ? 'Yes' : 'No'}
+                      </span>
+                    </>
+                  )}
+                </>
+              ) : (
+                <span className={side === 'yes' ? 'text-yes' : 'text-no'}>{side === 'yes' ? 'Yes' : 'No'}</span>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Limit price row (binary limit only) */}
+        {!isMulti && orderType === 'limit' && (
+          <div className="flex items-center justify-between rounded-md border border-hairline px-3 py-2">
+            <label htmlFor="pm-sheet-limit" className="text-sm text-text-secondary">Limit price</label>
+            <div className="flex items-center gap-2">
+              <button type="button" aria-label="Decrease limit price" onClick={() => setLimitCents(String(clampLimitCents((parseFloat(limitCents) || 0) - 1)))} className="flex h-6 w-6 items-center justify-center rounded-full border border-hairline text-text-secondary transition-colors hover:border-pip-400 hover:text-pip-500">−</button>
+              <div className="flex items-center gap-0.5">
+                <input id="pm-sheet-limit" inputMode="numeric" value={limitCents} onChange={(e) => setLimitCents(e.target.value.replace(/[^0-9]/g, '').slice(0, 2))} placeholder="50" className="w-8 bg-transparent text-right text-sm font-semibold tabular-nums text-text-primary outline-none" />
+                <span className="text-sm text-text-muted">¢</span>
+              </div>
+              <button type="button" aria-label="Increase limit price" onClick={() => setLimitCents(String(clampLimitCents((parseFloat(limitCents) || 0) + 1)))} className="flex h-6 w-6 items-center justify-center rounded-full border border-hairline text-text-secondary transition-colors hover:border-pip-400 hover:text-pip-500">+</button>
+            </div>
+          </div>
+        )}
+
+        {/* 3. Oversized centered amount ($0 muted placeholder → typed dark) */}
+        <div className="flex items-center justify-center pb-1 pt-6">
+          <div className="inline-flex items-center">
+            {amount && (
+              <span className="text-[56px] font-semibold leading-none tracking-[-1.4px] text-text-primary">{sym}</span>
+            )}
+            <input
+              aria-label="Trade amount"
+              inputMode="decimal"
+              value={amount}
+              onChange={(e) => {
+                setTouched(true)
+                setAmount(e.target.value.replace(/[^0-9.]/g, ''))
+                setError('')
+              }}
+              placeholder={`${sym}0`}
+              size={Math.max(1, amount.length || 1)}
+              className="min-w-0 bg-transparent text-center text-[56px] font-semibold leading-none tracking-[-1.4px] tabular-nums text-text-primary caret-pip-500 outline-none placeholder:text-ink-300"
+              style={{ width: amount ? `${Math.max(1, amount.length)}ch` : '3ch' }}
+            />
+          </div>
+        </div>
+
+        {/* 4. Sliding Yes/No segmented toggle (hugs active label) */}
+        {showToggle && (
+          <div className="flex justify-center">
+            <div ref={toggleTrackRef} className="relative flex w-max items-center rounded-full bg-[color:var(--surface-2)] p-1">
+              {thumb && (
+                <span
+                  aria-hidden
+                  className="absolute bottom-1 top-1 rounded-full bg-[color:var(--surface)] shadow-sm transition-all duration-200 ease-out"
+                  style={{ left: thumb.left, width: thumb.width }}
+                />
+              )}
+              <button
+                ref={yesToggleRef}
+                type="button"
+                onClick={() => { setSide('yes'); setError('') }}
+                aria-pressed={side === 'yes'}
+                className={`relative z-10 rounded-full px-4 py-1.5 text-sm font-medium transition-colors ${side === 'yes' ? 'text-text-primary' : 'text-ink-300'}`}
+              >
+                {yesLabel}
+              </button>
+              <button
+                ref={noToggleRef}
+                type="button"
+                onClick={() => { setSide('no'); setError('') }}
+                aria-pressed={side === 'no'}
+                className={`relative z-10 rounded-full px-4 py-1.5 text-sm font-medium transition-colors ${side === 'no' ? 'text-text-primary' : 'text-ink-300'}`}
+              >
+                {noLabel}
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* 5. Quick-add chips (centered) */}
+        <div className="flex items-center justify-center gap-1">
+          {chips.map((c) => (
+            <button
+              key={c}
+              type="button"
+              onClick={() => { setTouched(true); setAmount(String((parseFloat(amount) || 0) + c)); setError('') }}
+              className="rounded-[9px] border border-hairline px-2.5 py-[7px] text-xs font-semibold tracking-[-0.1px] text-text-muted transition-colors hover:bg-[color:var(--surface-2)] active:bg-[color:var(--surface-2)]"
+            >
+              {chipLabel(c)}
+            </button>
+          ))}
+        </div>
+
+        {error && <p className="-mt-2 text-center text-sm font-medium text-no">{error}</p>}
+
+        {/* 6. Trade button */}
+        <button
+          type="button"
+          onClick={handleTrade}
+          disabled={!!user && !canSubmit}
+          className="h-11 w-full rounded-[9px] text-base font-semibold text-white transition-opacity hover:opacity-95 disabled:opacity-50"
+          style={{ background: 'var(--pip-500)' }}
+        >
+          {loading ? 'Placing…' : tradeLabel}
+        </button>
+
+        {user && (
+          <div className="-mt-2 flex items-center justify-between text-xs text-text-muted">
+            <span className="inline-flex items-center gap-1">
+              <IconWallet size={13} /> {formatCurrency(balance, preferredCurrency)} available
+            </span>
+            <button type="button" onClick={() => window.dispatchEvent(new CustomEvent('marketpips:open-deposit'))} className="font-semibold text-pip-500 hover:underline">
+              Add funds
+            </button>
+          </div>
+        )}
+      </div>
+    )
+  }
 
   return (
     <div className="card overflow-hidden">

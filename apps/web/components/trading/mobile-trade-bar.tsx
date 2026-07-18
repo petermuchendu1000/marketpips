@@ -224,7 +224,7 @@ export function MobileTradeBar({
       {open && (
         <div className="lg:hidden">
           <div
-            className="fixed inset-0 z-50 bg-black/50 animate-fade-in"
+            className="fixed inset-0 z-50 bg-black/40 animate-fade-in"
             onClick={close}
             aria-hidden
           />
@@ -238,12 +238,18 @@ export function MobileTradeBar({
             style={dragY > 0 ? { transform: `translateY(${dragY}px)` } : undefined}
           >
             <div
-              className="mx-auto flex max-h-[88vh] flex-col overflow-hidden rounded-t-2xl border-t border-hairline bg-[color:var(--surface-1)]"
+              className={`mx-auto flex max-h-[88vh] flex-col overflow-hidden bg-[color:var(--surface)] ${
+                pmTicket ? 'rounded-t-3xl' : 'rounded-t-2xl border-t border-hairline'
+              }`}
               style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
             >
-              {/* Header + grab handle (swipe or tap to dismiss) */}
+              {/* Grab handle (swipe or tap to dismiss). PM's mobile Buy sheet has
+                  NO title/X-close chrome — the drag handle + backdrop tap are the
+                  only dismiss affordances, and the PM ticket renders its own
+                  header (Buy pill + sliders). Guided/pro panels keep the titled
+                  header with an explicit close control. */}
               <div
-                className="flex-none px-4 pb-3 pt-2.5"
+                className={pmTicket ? 'flex-none pb-1 pt-2.5' : 'flex-none px-4 pb-3 pt-2.5'}
                 onTouchStart={onTouchStart}
                 onTouchMove={onTouchMove}
                 onTouchEnd={onTouchEnd}
@@ -252,35 +258,27 @@ export function MobileTradeBar({
                   type="button"
                   onClick={close}
                   aria-label="Close"
-                  className="mx-auto mb-2.5 block h-1 w-10 rounded-full bg-[color:var(--hairline-strong)]"
+                  className="mx-auto block h-[5px] w-[60px] rounded-full bg-[color:var(--surface-2)]"
                 />
-                <div className="flex items-center justify-between gap-3">
-                  {/* The PM ticket renders its own market-identity header (avatar
-                      + title + selected outcome), so we DON'T repeat the title
-                      here when it's active — that duplicate header was the
-                      redundancy. The guided/pro panels have no header of their
-                      own, so they keep this title. Either way the sheet is still
-                      labelled for assistive tech via aria-label on the dialog. */}
-                  {pmTicket ? (
-                    <span className="min-w-0 flex-1" aria-hidden />
-                  ) : (
+                {!pmTicket && (
+                  <div className="mt-2.5 flex items-center justify-between gap-3">
                     <h2 className="min-w-0 flex-1 truncate font-display text-sm text-text-primary">
                       {market.title}
                     </h2>
-                  )}
-                  <button
-                    type="button"
-                    onClick={close}
-                    aria-label="Close order ticket"
-                    className="flex-none rounded-sm p-1 text-text-muted transition-colors hover:text-text-primary"
-                  >
-                    <IconX size={18} />
-                  </button>
-                </div>
+                    <button
+                      type="button"
+                      onClick={close}
+                      aria-label="Close order ticket"
+                      className="flex-none rounded-sm p-1 text-text-muted transition-colors hover:text-text-primary"
+                    >
+                      <IconX size={18} />
+                    </button>
+                  </div>
+                )}
               </div>
 
               {/* The single source-of-truth order ticket (PM ticket / guided / pro). */}
-              <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-4">
+              <div className={`min-h-0 flex-1 overflow-y-auto ${pmTicket ? 'pb-5' : 'px-4 pb-4'}`}>
                 {pmTicket ? (
                   <PmTicket
                     market={market}
@@ -290,6 +288,7 @@ export function MobileTradeBar({
                     initialAmount={resumedAmount}
                     independent={independent}
                     closesAt={closesAt}
+                    variant="sheet"
                   />
                 ) : guided ? (
                   <GuidedBetFlow
