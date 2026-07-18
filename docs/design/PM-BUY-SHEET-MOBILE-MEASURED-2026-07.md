@@ -83,6 +83,47 @@ Shown on **all** markets (binary *and* multi-outcome). Opens below the sliders i
 | Item | **Market** / **Limit** stacked, each **32px** tall, `rgb(14,15,17)`, **14px / 500**, padding **6px / 12px**; selected row gets a subtle `surface-2` fill |
 
 
+## 9. LIMIT-order layout (full body — re-captured 2026-07-18)
+Selecting **Limit** in the order-type popover replaces the entire sheet body.
+There is **no oversized $ amount** and **no Yes/No pill** in limit mode; the side
+lives in the identity row with a **swap icon** appended. Captured live (390×844).
+Screenshot: `07-limit-layout.png`.
+
+| Element | Measured (computed / geometry) |
+|---|---|
+| Identity side | `Spain · Yes` then a **swap ⇄ icon** (side switch), ~18px, after the side word |
+| **Limit price** label | left, **16px / 500**, `rgb(14,15,17)` |
+| Limit-price stepper | right-aligned box **150×40**, radius **9.2px**, border **1px** `rgb(230,232,234)`. Layout `[ − | value¢ | + ]` |
+| Stepper − / + | icon buttons at box ends, `rgb(14,15,17)` |
+| Limit-price input | **center**, **18px / 600**, placeholder **"0.0¢"**; value shows e.g. `59.2` with a **¢** suffix (18px/600) |
+| Divider | full-width **1px** `rgb(230,232,234)` hairline between price and shares |
+| **Shares** label | left, **16px / 500**, `rgb(14,15,17)` |
+| Shares input | right-aligned box **150×40**, radius **9.2px**, border 1px; input **right-aligned**, **18px / 600**, placeholder **"0"** |
+| Shares quick-adds | `−100  −10  +10  +100  +200`, **right-aligned** row. Same chip shell as $ chips (h30, radius 9.2, border 1px, **12px / 600**, ls −0.1px, `rgb(119,128,141)`). Last chip **+200** is **accent** (pip-blue text + border) |
+| "matching" pill | e.g. **"217.00 matching"**, **12px / 600**, green `rgb(66,199,114)`, light-green tint bg pill, leading **ⓘ** info icon; right-aligned under chips |
+| Divider | 1px hairline before the totals block |
+| **Expires** row | label `rgb(119,128,141)` **14px / 500** left; value **"Never ⌄"** `rgb(174,180,188)` 14px/500 + chevron, right |
+| **Total** row | label `rgb(14,15,17)` **16px / 500** left; value **18px / 500** blue `rgb(20,82,240)` right |
+| **To win** row | label `rgb(14,15,17)` **16px / 500** left; value **24px / 500** green `rgb(48,161,89)` right |
+| Trade button | identical to market mode |
+
+Client math: `total = shares × (limitCents/100)`, `toWin = shares × $1`.
+
+## 10. Micro-interaction easing (hard data, re-verified 2026-07-18)
+| Target | transition (computed) |
+|---|---|
+| Buy pill / toggle labels / chips | `color,background-color,border-color… 0.15s cubic-bezier(.4,0,.2,1)` (== Tailwind `transition-colors`) |
+| Toggle **thumb** slide | **`0.2s cubic-bezier(0,0,0.2,1)`** (== Tailwind `duration-200 ease-out`) |
+| Trade button | **`transform 0.12s cubic-bezier(.4,0,.2,1)`**, `box-shadow/opacity/background-color/color 0.1s ease-in-out` (press-scale on transform) |
+| Settings icon / chips (extended) | full `all-properties 0.15s cubic-bezier(.4,0,.2,1)` set |
+
+## Payout-green nuance (two distinct greens)
+| Context | Color |
+|---|---|
+| Side label "Yes" + **market** "To win" value | `rgb(66,199,114)` `#42C772` (bright) |
+| **Limit** "To win" value | `rgb(48,161,89)` `#30A159` (== repo `--yes`) |
+| No side / "To win" (no) | `rgb(226,57,57)` `#E23939` (== repo `--no`) |
+
 ## Token mapping → repo
 | PM value | Repo token |
 |---|---|
