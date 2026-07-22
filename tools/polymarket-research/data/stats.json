@@ -1,0 +1,342 @@
+{
+  "manifest": {
+    "collector": "marketpips/tools/polymarket-research/collect.py",
+    "started_utc": "2026-07-22T14:42:27.405004+00:00",
+    "finished_utc": "2026-07-22T14:47:14.729761+00:00",
+    "endpoints": {
+      "gamma": "https://gamma-api.polymarket.com",
+      "clob": "https://clob.polymarket.com",
+      "data": "https://data-api.polymarket.com"
+    },
+    "counts": {
+      "markets": 600,
+      "events": 200,
+      "books": 140
+    },
+    "params": {
+      "markets": 600,
+      "events": 200,
+      "books": 140,
+      "outdir": "data"
+    },
+    "note": "All endpoints public; no auth used. Snapshots are point-in-time."
+  },
+  "universe": {
+    "n_markets": 600,
+    "negRisk_count": 301,
+    "negRisk_pct": 50.17,
+    "volume24hr": {
+      "n": 600,
+      "min": 11000.0,
+      "p25": 15702.376772500002,
+      "median": 25683.407349999994,
+      "mean": 87682.90679399666,
+      "p75": 65193.09880275,
+      "p95": 286159.69077729987,
+      "max": 8410845.176004987,
+      "sum": 52609744.076398
+    },
+    "volume_total": {
+      "n": 600,
+      "min": 11195.095,
+      "p25": 28989.320332000032,
+      "median": 148667.537086,
+      "mean": 2273925.43842616,
+      "p75": 891717.2945370006,
+      "p95": 13548846.019184774,
+      "max": 52292580.131060235,
+      "sum": 1364355263.055696
+    },
+    "liquidity": {
+      "n": 600,
+      "min": 414.5935,
+      "p25": 23992.0127325,
+      "median": 68022.4468,
+      "mean": 173509.12820273332,
+      "p75": 187740.04987500003,
+      "p95": 538444.2981174984,
+      "max": 3345439.39315,
+      "sum": 104105476.92164
+    },
+    "gamma_spread": {
+      "n": 600,
+      "min": 0.001,
+      "p25": 0.001,
+      "median": 0.002,
+      "mean": 0.007883333333333334,
+      "p75": 0.01,
+      "p95": 0.03,
+      "max": 0.29,
+      "sum": 4.73
+    },
+    "min_order_size": {
+      "n": 600,
+      "min": 5.0,
+      "p25": 5.0,
+      "median": 5.0,
+      "mean": 5.0,
+      "p75": 5.0,
+      "p95": 5.0,
+      "max": 5.0,
+      "sum": 3000.0
+    },
+    "tick_size_hist": {
+      "0.001": 388,
+      "0.01": 212
+    },
+    "yes_price": {
+      "n": 600,
+      "min": 0.0005,
+      "p25": 0.0035,
+      "median": 0.085,
+      "mean": 0.25291500000000006,
+      "p75": 0.42625,
+      "p95": 0.9995,
+      "max": 0.9995,
+      "sum": 151.74900000000002
+    },
+    "yes_price_hist": [
+      278,
+      36,
+      36,
+      22,
+      15,
+      20,
+      10,
+      20,
+      18,
+      17,
+      15,
+      16,
+      10,
+      6,
+      6,
+      4,
+      6,
+      7,
+      7,
+      51
+    ],
+    "dual_leg_sum": {
+      "n": 600,
+      "min": 1.0,
+      "p25": 1.0,
+      "median": 1.0,
+      "mean": 1.0,
+      "p75": 1.0,
+      "p95": 1.0,
+      "max": 1.0,
+      "sum": 600.0
+    },
+    "dual_leg_within_1pct": 100.0
+  },
+  "microstructure": {
+    "n_books": 140,
+    "n_token_books": 218,
+    "spread_abs": {
+      "n": 218,
+      "min": 0.000999999999999994,
+      "p25": 0.0010000000000000009,
+      "median": 0.0020000000000000018,
+      "mean": 0.005743119266055045,
+      "p75": 0.010000000000000009,
+      "p95": 0.014049999999999846,
+      "max": 0.040000000000000036,
+      "sum": 1.2519999999999998
+    },
+    "spread_bps_of_mid": {
+      "n": 218,
+      "min": 10.01502253380071,
+      "p25": 26.736346547152465,
+      "median": 175.45209696036858,
+      "mean": 993.602682252448,
+      "p75": 708.1280788177326,
+      "p95": 6666.666666666666,
+      "max": 10399.999999999998,
+      "sum": 216605.38473103364
+    },
+    "book_levels_per_token": {
+      "n": 218,
+      "min": 37.0,
+      "p25": 74.0,
+      "median": 93.0,
+      "mean": 108.0229357798165,
+      "p75": 123.0,
+      "p95": 221.0,
+      "max": 353.0,
+      "sum": 23549.0
+    },
+    "book_imbalance": {
+      "n": 218,
+      "min": -0.9524130413580514,
+      "p25": -0.4101329695321454,
+      "median": 0.0,
+      "mean": -0.00023984041417907134,
+      "p75": 0.4101329695321454,
+      "p95": 0.7927905282969697,
+      "max": 0.9524130413580514,
+      "sum": -0.052285210291037554
+    },
+    "notional_depth_within_5c_usd": {
+      "n": 218,
+      "min": 97.81542,
+      "p25": 7637.014075000001,
+      "median": 38812.51028999999,
+      "mean": 726847.0714586697,
+      "p75": 189520.2832575,
+      "p95": 5918575.781195493,
+      "max": 11103707.68155,
+      "sum": 158452661.57799
+    },
+    "dual_leg_mid_sum": {
+      "n": 109,
+      "min": 0.99,
+      "p25": 1.0,
+      "median": 1.0,
+      "mean": 1.0002293577981651,
+      "p75": 1.0,
+      "p95": 1.0,
+      "max": 1.025,
+      "sum": 109.025
+    },
+    "dual_leg_mid_within_1pct": 97.25,
+    "top_liquid_sample": [
+      {
+        "question": "Will Trump be in the WC Champions Photo?",
+        "spread": 0.001,
+        "mid": 0.9985,
+        "depth5c_usd": 7730649.0,
+        "vol24": 8410845.176004987
+      },
+      {
+        "question": "Counter-Strike: Team Falcons vs 100 Thieves (BO3) - BLAST Bounty Qualifier",
+        "spread": 0.01,
+        "mid": 0.855,
+        "depth5c_usd": 684427.0,
+        "vol24": 100886.79569799996
+      },
+      {
+        "question": "Athletics vs. Arizona Diamondbacks",
+        "spread": 0.01,
+        "mid": 0.455,
+        "depth5c_usd": 319979.0,
+        "vol24": 120562.70249300002
+      },
+      {
+        "question": "Will Lamine Yamal win the 2026 Ballon d'Or?",
+        "spread": 0.001,
+        "mid": 0.2685,
+        "depth5c_usd": 313737.0,
+        "vol24": 114290.590417
+      },
+      {
+        "question": "Will there be no change in Fed interest rates after the July 2026 meeting?",
+        "spread": 0.001,
+        "mid": 0.7505,
+        "depth5c_usd": 275180.0,
+        "vol24": 1914216.0756609973
+      },
+      {
+        "question": "Pittsburgh Pirates vs. New York Yankees",
+        "spread": 0.01,
+        "mid": 0.365,
+        "depth5c_usd": 263083.0,
+        "vol24": 119670.43799599998
+      },
+      {
+        "question": "Will Harry Kane win the 2026 Ballon d'Or?",
+        "spread": 0.001,
+        "mid": 0.4055,
+        "depth5c_usd": 255399.0,
+        "vol24": 113583.78080300002
+      },
+      {
+        "question": "Will the U.S. invade Iran before 2027?",
+        "spread": 0.01,
+        "mid": 0.285,
+        "depth5c_usd": 232498.0,
+        "vol24": 268667.294762
+      },
+      {
+        "question": "Strait of Hormuz traffic returns to normal by December 31?",
+        "spread": 0.01,
+        "mid": 0.525,
+        "depth5c_usd": 199771.0,
+        "vol24": 111536.029344
+      },
+      {
+        "question": "Will the Iranian regime fall before 2027?",
+        "spread": 0.01,
+        "mid": 0.105,
+        "depth5c_usd": 189943.0,
+        "vol24": 70053.349113
+      },
+      {
+        "question": "Generali Open: Alex Molcan vs Daniel Altmaier",
+        "spread": 0.01,
+        "mid": 0.685,
+        "depth5c_usd": 168877.0,
+        "vol24": 152984.8748330001
+      },
+      {
+        "question": "Strait of Hormuz traffic returns to normal by August 31?",
+        "spread": 0.01,
+        "mid": 0.135,
+        "depth5c_usd": 149915.0,
+        "vol24": 247039.48752699993
+      },
+      {
+        "question": "Will PFK Levski Sofia win on 2026-07-22?",
+        "spread": 0.01,
+        "mid": 0.455,
+        "depth5c_usd": 146907.0,
+        "vol24": 95866.62107900002
+      },
+      {
+        "question": "Will Gavin Newsom win the 2028 US Presidential Election?",
+        "spread": 0.001,
+        "mid": 0.1305,
+        "depth5c_usd": 121641.0,
+        "vol24": 70800.06464499999
+      },
+      {
+        "question": "Baltimore Orioles vs. Boston Red Sox",
+        "spread": 0.01,
+        "mid": 0.425,
+        "depth5c_usd": 109642.0,
+        "vol24": 709035.4822849998
+      }
+    ]
+  },
+  "volatility": {
+    "intraday_step_stdev": {
+      "n": 140,
+      "min": 0.0,
+      "p25": 0.00032747972576966544,
+      "median": 0.003693637354019577,
+      "mean": 0.011327566671134773,
+      "p75": 0.018352262091794736,
+      "p95": 0.04281816359681289,
+      "max": 0.07381609360681428,
+      "sum": 1.5858593339588682
+    },
+    "intraday_range": {
+      "n": 140,
+      "min": 0.0,
+      "p25": 0.0035,
+      "median": 0.057499999999999996,
+      "mean": 0.16729285714285713,
+      "p75": 0.28112499999999996,
+      "p95": 0.6162749999999995,
+      "max": 0.9720000000000001,
+      "sum": 23.421
+    },
+    "n_series": 140
+  },
+  "charts": [
+    "prob_distribution.png",
+    "spread_distribution.png",
+    "volume_vs_liquidity.png",
+    "dual_leg_coherence.png"
+  ]
+}
