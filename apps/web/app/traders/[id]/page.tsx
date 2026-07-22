@@ -129,7 +129,7 @@ export default async function TraderProfilePage({
         </div>
 
         {/* P&L card */}
-        <TraderPnlCard userId={t.user_id} profitLoss={Number(t.profit_loss_usd)} />
+        <TraderPnlCard userId={t.user_id} profitLoss={Number(t.profit_loss_usd)} userName={name} profileUrl={`/traders/${t.user_id}`} />
       </div>
 
       {/* Portfolio */}

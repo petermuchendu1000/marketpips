@@ -15,6 +15,7 @@
 import { useEffect, useMemo, useRef, useState, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { formatUSD } from '@/lib/utils'
+import { ShareChartModal } from './share-chart-modal'
 
 type Range = '1D' | '1W' | '1M' | '1Y' | 'YTD' | 'ALL'
 const RANGES: Range[] = ['1D', '1W', '1M', '1Y', 'YTD', 'ALL']
@@ -145,10 +146,11 @@ function PnlChart({ points, positive, range }: ChartProps) {
   )
 }
 
-export function TraderPnlCard({ userId, profitLoss }: { userId: string; profitLoss: number }) {
+export function TraderPnlCard({ userId, profitLoss, userName, profileUrl }: { userId: string; profitLoss: number; userName: string; profileUrl: string }) {
   const supabase = useMemo(() => createClient(), [])
   const [range, setRange] = useState<Range>('1D')
   const [points, setPoints] = useState<Point[] | null>(null)
+  const [shareOpen, setShareOpen] = useState(false)
 
   useEffect(() => {
     let alive = true
@@ -190,11 +192,34 @@ export function TraderPnlCard({ userId, profitLoss }: { userId: string; profitLo
         </div>
       </div>
 
-      {/* Headline P&L */}
-      <p className="font-mono text-[30px] font-bold leading-[38px] tabular-nums tracking-tight text-text-primary">
-        {positive ? '' : '−'}{formatUSD(Math.abs(profitLoss))}
-      </p>
+      {/* Headline P&L + share trigger */}
+      <div className="flex items-center gap-2">
+        <p className="font-mono text-[30px] font-bold leading-[38px] tabular-nums tracking-tight text-text-primary">
+          {positive ? '' : '−'}{formatUSD(Math.abs(profitLoss))}
+        </p>
+        <button
+          type="button"
+          onClick={() => setShareOpen(true)}
+          aria-label="Share Profit/Loss chart"
+          className="flex h-9 w-9 flex-none items-center justify-center rounded-lg border border-hairline text-text-secondary transition-colors hover:border-hairline-strong hover:text-text-primary"
+        >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
+            <path d="M12 15V4m0 0-4 4m4-4 4 4M5 14v5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        </button>
+      </div>
       <p className="mb-3 mt-0.5 text-xs font-medium text-text-muted">{RANGE_LABEL[range]}</p>
+
+      <ShareChartModal
+        open={shareOpen}
+        onClose={() => setShareOpen(false)}
+        userName={userName}
+        userId={userId}
+        profitLoss={profitLoss}
+        rangeLabel={RANGE_LABEL[range]}
+        points={points ?? []}
+        profileUrl={profileUrl}
+      />
 
       {points === null ? (
         <div className="skeleton h-[148px] w-full rounded-md" />
