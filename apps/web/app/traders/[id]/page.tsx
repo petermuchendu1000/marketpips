@@ -8,7 +8,6 @@ import { createClient } from '@/lib/supabase/server'
 import { formatVolume } from '@/lib/utils'
 import { traderName as resolveName, joinedMonthYear } from '@/lib/trader'
 import { TraderAvatar } from '@/components/ui/trader-avatar'
-import { TierChip } from '@/components/ui/tier-badge'
 import { tierForVolume } from '@/lib/tier'
 import { TraderPnlCard } from '@/components/profile/trader-pnl-card'
 import { TraderPortfolio } from '@/components/profile/trader-portfolio'
@@ -114,7 +113,6 @@ export default async function TraderProfilePage({
                     @{t.username}
                   </span>
                 )}
-                <TierChip tier={tier} />
               </div>
               <p className="mt-0.5 text-sm text-text-muted">
                 {joined && `Joined ${joined}`}
