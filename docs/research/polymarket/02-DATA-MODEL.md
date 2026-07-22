@@ -175,17 +175,22 @@ Companion endpoints (all keyed on `token_id`):
 
 ## 8. Canonical mapping to MarketPips schema
 
-| Polymarket concept        | Gamma/CLOB field(s)                        | MarketPips table.column (target)                    |
-|---------------------------|--------------------------------------------|-----------------------------------------------------|
-| Event                     | `event.id`, `event.slug`, `title`          | (grouping) `markets.event_*` / discovery layer      |
-| Market                    | `market.id`, `conditionId`, `question`     | `markets` (`id`, `condition_id`, `question`, `slug`)|
-| Outcome                   | `outcomes[i]`, `clobTokenIds[i]`           | `market_options` (`label`, `clob_token_id`)         |
-| Implied price             | `outcomePrices[i]`, `lastTradePrice`       | `market_options.price`, `price_history`             |
-| Order book                | `/book` bids/asks                          | `clob_orders` (resting), derived depth              |
-| Fills / trades            | Data `/trades`, CLOB fills                 | `clob_fills`                                         |
-| Positions / holders       | Data `/holders`, `/positions`              | `positions`, top-holders view                       |
-| Tick / min size           | `orderPriceMinTickSize`, `orderMinSize`    | `markets.tick_size`, `markets.min_order_size`       |
-| negRisk grouping          | `negRisk`, `negRiskRequestID`              | multi-outcome linkage (`020_…`, `023_…`)            |
-| Resolution                | `umaResolutionStatuses`, `resolvedBy`      | `markets.status`, `audit_log`, resolve RPCs         |
+| Polymarket concept        | Gamma/CLOB field(s)                        | MarketPips today                     | Status |
+|---------------------------|--------------------------------------------|--------------------------------------|--------|
+| Event                     | `event.id`, `event.slug`, `title`          | discovery layer (no `events` table)  | grouping only |
+| Market                    | `market.id`, `conditionId`, `question`     | `markets` (`id`, `slug`, `title`)    | ✅ core; ❌ no `condition_id` |
+| Outcome                   | `outcomes[i]`, `clobTokenIds[i]`           | `market_options` (`label`, `price`)  | ✅ core; ❌ no `clob_token_id` |
+| Implied price             | `outcomePrices[i]`, `lastTradePrice`       | `markets.yes_price/no_price`, `market_options.price`, `price_history` | ✅ |
+| Order book                | `/book` bids/asks                          | `clob_orders` (resting) + `price_cents` | ✅ (see precision note) |
+| Fills / trades            | Data `/trades`, CLOB fills                 | `clob_fills`                          | ✅ |
+| Positions / holders       | Data `/holders`, `/positions`              | `positions` (+ top-holders view)     | ✅ |
+| Tick / min size           | `orderPriceMinTickSize`, `orderMinSize`    | — (not stored on `markets`)          | ❌ gap |
+| negRisk grouping          | `negRisk`, `negRiskRequestID`              | multi-outcome via `market_options` (`020_…`, `023_…`) | ⚠️ no neg-risk conversion |
+| Resolution                | `umaResolutionStatuses`, `resolvedBy`      | `markets.status/resolved_outcome`, `audit_log` | ✅ centralized |
+
+> The actual MarketPips schema was introspected live (Supabase, `information_schema`). Columns
+> like `condition_id`, `clob_token_id`, `tick_size` **do not currently exist** — they are
+> recommended additions tracked in
+> [06-MARKETPIPS-GROUND-TRUTH-MAPPING](./06-MARKETPIPS-GROUND-TRUTH-MAPPING.md).
 
 Full gap analysis in [06-MARKETPIPS-GROUND-TRUTH-MAPPING](./06-MARKETPIPS-GROUND-TRUTH-MAPPING.md).
