@@ -19,6 +19,7 @@ responses. Numbers trace to `tools/polymarket-research/data/stats.json`.
 
 | # | Doc | Covers |
 |---|-----|--------|
+| 00 | [Protocol Primitives (First Principles)](./00-PRIMITIVES-AND-PROTOCOL.md) | **Byte-level ground truth**: conditionId/collectionId/positionId cryptography (verified 100%), contracts, EIP-712 Order struct, MINT/MERGE matching, fee formula (verified), L1/L2 auth |
 | 01 | [System Architecture](./01-SYSTEM-ARCHITECTURE.md) | Hybrid-decentralized CLOB, 4 public APIs, on-chain substrate (Polygon/CTF/UMA), trading params, parity lessons |
 | 02 | [Data Model](./02-DATA-MODEL.md) | Event→market→token hierarchy, identifier graph, full 89-field Gamma enumeration, book/history/holders schemas, MarketPips mapping |
 | 03 | [Market Microstructure](./03-MARKET-MICROSTRUCTURE.md) | Spreads, depth, book shape, tick lattice, volume↔liquidity — empirical |
@@ -30,6 +31,11 @@ responses. Numbers trace to `tools/polymarket-research/data/stats.json`.
 
 ## Headline findings (all live-verified)
 
+0. **On-chain identity is reproducible from raw bytes.** We re-derived Polymarket's identifiers
+   from canonical CTF source and matched them against live data: `conditionId` **295/295** and
+   full YES/NO `clobTokenId` derivation **299/299** for standard markets (100%); **0/301** for
+   neg-risk (different scheme — a clean byte-level neg-risk detector). Fee formula
+   `C·rate·p·(1−p)` verified **10/10** vs published tables. See [00](./00-PRIMITIVES-AND-PROTOCOL.md).
 1. **Architecture.** Polymarket = off-chain CLOB matching + **atomic on-chain settlement**
    (CTF Exchange on Polygon) + **UMA** resolution. Reads are fully public; only trading is
    authenticated. Three cleanly separable planes: matching / settlement / resolution.
@@ -59,6 +65,9 @@ cd tools/polymarket-research
 pip install -r requirements.txt
 python collect.py --markets 600 --events 200 --books 140   # refresh live snapshot
 python analyze.py                                           # recompute stats + charts
+python verify_conditionid.py                               # verify conditionId derivation (100% standard)
+python verify_tokenid.py                                   # verify clobTokenId derivation end-to-end
+python -c "import verify_tokenid as v; v.run_full_snapshot()"   # full-snapshot match rates
 ```
 
 Raw snapshots are stored compressed (`data/*.json.gz`); derived numbers in `data/stats.json`;
