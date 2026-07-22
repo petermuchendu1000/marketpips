@@ -2,11 +2,15 @@
 
 // components/profile/trader-portfolio.tsx
 // ------------------------------------------------------------
-// Trader profile portfolio (Polymarket parity): Positions / Activity tabs, an
-// Active | Closed segmented control, a search field, and a sortable table.
-//   Active  columns: Market · Avg · Current · Value (+ unrealized P&L %)
-//   Closed  columns: Result · Market · Total traded · Amount won (+ realized)
-// Data comes from the read-only trader_positions RPC (public aggregates only).
+// Trader-profile portfolio — Polymarket parity (docs/holder-page-pm-parity-spec.md):
+//   • Positions / Activity underline tabs (16px/600, letter-spacing -0.18px).
+//   • Active | Closed segmented control on an ink-50 track (h36, radius 7.2px,
+//     equal halves on mobile), active = raised surface.
+//   • Search field (h40, radius 9.2px, ink-50 fill, leading search icon).
+//   • "Value" sort control, right-aligned.
+//   • Position rows: market avatar + title + outcome chip (Yes/No + cents) +
+//     shares, right-aligned value + signed P&L. Green #42C772 / red #E23939.
+// Data: read-only trader_positions RPC + market_activity (public aggregates).
 import { useEffect, useMemo, useRef, useState, useCallback } from 'react'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
@@ -39,6 +43,15 @@ type Sort = 'value' | 'pnl'
 const cents = (p: number) => `${Math.round(Number(p) * 100)}¢`
 const shares = (n: number) => Number(n).toLocaleString(undefined, { maximumFractionDigits: 1 })
 
+function SearchIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden className="text-text-muted">
+      <circle cx="11" cy="11" r="7" stroke="currentColor" strokeWidth="2" />
+      <path d="m20 20-3.2-3.2" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+    </svg>
+  )
+}
+
 function OutcomeChip({ side, price }: { side: 'yes' | 'no'; price: number }) {
   return (
     <span
@@ -53,20 +66,40 @@ function OutcomeChip({ side, price }: { side: 'yes' | 'no'; price: number }) {
   )
 }
 
-function MarketCell({ row }: { row: PositionRow }) {
-  const entry = row.avg_entry_price
+function MarketAvatar({ title }: { title: string }) {
+  // Deterministic gradient tile from the market title (PM shows a market
+  // thumbnail; we render a stable placeholder tile when none is available).
+  const hue = useMemo(() => {
+    let h = 0
+    for (let i = 0; i < title.length; i++) h = (h * 31 + title.charCodeAt(i)) % 360
+    return h
+  }, [title])
   return (
-    <div className="min-w-0">
-      <Link
-        href={`/markets/${row.market_slug}`}
-        className="line-clamp-1 text-sm font-medium text-text-primary hover:text-pip-text hover:underline"
-      >
-        {row.market_title}
-      </Link>
-      <div className="mt-1 flex items-center gap-2 text-xs text-text-muted">
-        {row.option_label && <span className="truncate font-medium text-text-secondary">{row.option_label}</span>}
-        <OutcomeChip side={row.side} price={entry} />
-        <span className="tabular-nums">{shares(row.shares)} shares</span>
+    <span
+      aria-hidden
+      className="h-10 w-10 flex-none rounded-lg"
+      style={{ background: `linear-gradient(135deg, hsl(${hue} 62% 52%), hsl(${(hue + 40) % 360} 62% 42%))` }}
+    />
+  )
+}
+
+function MarketCell({ row }: { row: PositionRow }) {
+  const entry = row.current_price ?? row.avg_entry_price
+  return (
+    <div className="flex min-w-0 items-center gap-3">
+      <MarketAvatar title={row.market_title} />
+      <div className="min-w-0">
+        <Link
+          href={`/markets/${row.market_slug}`}
+          className="line-clamp-1 text-sm font-medium text-text-primary hover:text-pip-text hover:underline"
+        >
+          {row.market_title}
+        </Link>
+        <div className="mt-1 flex items-center gap-2 text-xs text-text-muted">
+          {row.option_label && <span className="truncate font-medium text-text-secondary">{row.option_label}</span>}
+          <OutcomeChip side={row.side} price={entry} />
+          <span className="tabular-nums">{shares(row.shares)} shares</span>
+        </div>
       </div>
     </div>
   )
@@ -76,7 +109,7 @@ function Pnl({ value, base }: { value: number; base: number }) {
   const pct = base > 0 ? (value / base) * 100 : 0
   const pos = value >= 0
   return (
-    <span className={`tabular-nums text-xs ${pos ? 'text-yes' : 'text-no'}`}>
+    <span className={`tabular-nums text-xs font-medium ${pos ? 'text-yes' : 'text-no'}`}>
       {pos ? '+' : '−'}{formatUSD(Math.abs(value))} ({pos ? '' : '−'}{Math.abs(pct).toFixed(2)}%)
     </span>
   )
@@ -183,7 +216,7 @@ export function TraderPortfolio({ userId }: { userId: string }) {
 
   return (
     <div>
-      {/* Tabs */}
+      {/* Tabs — underline style, 16px/600 */}
       <div role="tablist" aria-label="Portfolio view" className="mb-4 flex items-center gap-5 border-b border-hairline">
         {(['positions', 'activity'] as const).map((v) => (
           <button
@@ -191,11 +224,12 @@ export function TraderPortfolio({ userId }: { userId: string }) {
             role="tab"
             aria-selected={view === v}
             onClick={() => setView(v)}
-            className={`-mb-px border-b-2 pb-2.5 text-sm capitalize transition-colors ${
+            className={`-mb-px border-b-2 pb-2.5 text-base capitalize transition-colors ${
               view === v
-                ? 'border-pip-500 font-semibold text-text-primary'
-                : 'border-transparent font-medium text-text-muted hover:text-text-secondary'
+                ? 'border-text-primary font-semibold text-text-primary'
+                : 'border-transparent font-semibold text-text-muted hover:text-text-secondary'
             }`}
+            style={{ letterSpacing: '-0.18px' }}
           >
             {v}
           </button>
@@ -234,39 +268,49 @@ interface PositionsPanelProps {
 function PositionsPanel({ status, setStatus, sort, setSort, query, setQuery, sorted, debounced }: PositionsPanelProps) {
   return (
     <div>
-      {/* Controls: Active|Closed · search · sort */}
+      {/* Controls: Active|Closed segmented · search · sort */}
       <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div role="tablist" aria-label="Position status" className="inline-flex rounded-md bg-surface-2 p-0.5">
+        <div role="tablist" aria-label="Position status" className="inline-flex rounded-md bg-surface-2 p-1">
           {(['active', 'closed'] as Status[]).map((s) => (
             <button
               key={s}
               role="tab"
               aria-selected={status === s}
               onClick={() => setStatus(s)}
-              className={`rounded-[6px] px-3 py-1.5 text-sm font-semibold capitalize transition-colors ${
+              className={`h-9 flex-1 rounded-[7.2px] px-4 text-sm font-semibold capitalize transition-colors sm:flex-none ${
                 status === s ? 'bg-surface text-text-primary shadow-e1' : 'text-text-muted hover:text-text-secondary'
               }`}
+              style={{ letterSpacing: '-0.09px' }}
             >
               {s}
             </button>
           ))}
         </div>
         <div className="flex items-center gap-2">
-          <label htmlFor="pos-search" className="sr-only">Search positions</label>
-          <input
-            id="pos-search"
-            type="search"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search positions…"
-            className="input h-9 w-full text-sm sm:w-56"
-          />
+          <div className="relative flex-1 sm:flex-none">
+            <span className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2">
+              <SearchIcon />
+            </span>
+            <label htmlFor="pos-search" className="sr-only">Search positions</label>
+            <input
+              id="pos-search"
+              type="search"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Search positions…"
+              className="h-10 w-full rounded-[9.2px] border-0 bg-surface-2 pl-11 pr-3 text-sm text-text-primary outline-none transition-shadow placeholder:text-text-muted focus:shadow-[0_0_0_2px_var(--pip-100)] sm:w-56"
+            />
+          </div>
           <button
             type="button"
             onClick={() => setSort((s) => (s === 'value' ? 'pnl' : 'value'))}
-            className="btn btn-secondary btn-sm flex-none whitespace-nowrap"
+            className="flex h-10 flex-none items-center gap-1.5 whitespace-nowrap rounded-[9.2px] bg-surface-2 px-3.5 text-sm font-semibold text-text-primary transition-colors hover:text-pip-text"
+            style={{ letterSpacing: '-0.09px' }}
             aria-label={`Sort by ${sort === 'value' ? 'value' : 'profit and loss'}`}
           >
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden>
+              <path d="M7 4v16m0 0-3-3m3 3 3-3M17 20V4m0 0-3 3m3-3 3 3" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
             {sort === 'value' ? 'Value' : 'Profit/Loss'}
           </button>
         </div>
@@ -285,7 +329,7 @@ function PositionsPanel({ status, setStatus, sort, setSort, query, setQuery, sor
         </p>
       ) : (
         <div className="table-wrapper -mx-1 overflow-x-auto">
-          <table className="w-full min-w-[520px] border-collapse text-sm">
+          <table className="w-full min-w-[560px] border-collapse text-sm">
             <thead>
               <tr className="border-b border-hairline text-left text-[11px] font-medium uppercase tracking-wide text-text-muted">
                 {status === 'active' ? (
@@ -354,8 +398,8 @@ function PortfolioSkeleton() {
     <div className="space-y-3">
       {[0, 1, 2, 3, 4].map((i) => (
         <div key={i} className="flex items-center gap-3">
+          <div className="skeleton h-10 w-10 flex-none rounded-lg" />
           <div className="skeleton h-4 flex-1 rounded" />
-          <div className="skeleton h-4 w-12 rounded" />
           <div className="skeleton h-4 w-12 rounded" />
           <div className="skeleton h-4 w-16 rounded" />
         </div>

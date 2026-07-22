@@ -59,11 +59,12 @@ export async function generateMetadata({
   }
 }
 
+// PM-parity stat: value 18px/28px weight 500, label 12px/16px weight 500 ink-500.
 function Stat({ label, value }: { label: string; value: string }) {
   return (
     <div>
-      <p className="font-mono text-lg font-bold tabular-nums text-text-primary sm:text-xl">{value}</p>
-      <p className="mt-0.5 text-xs text-text-muted">{label}</p>
+      <p className="font-mono text-[18px] font-medium leading-[28px] tabular-nums text-text-primary">{value}</p>
+      <p className="text-xs font-medium text-text-muted">{label}</p>
     </div>
   )
 }
