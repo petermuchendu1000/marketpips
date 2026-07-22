@@ -13,6 +13,8 @@
 // monogram+brand-colour squares; people want circular identity gradients.
 import { useState } from 'react'
 import { traderOrb } from '@/lib/trader'
+import { TierBadge } from '@/components/ui/tier-badge'
+import type { TierKey } from '@/lib/tier'
 
 interface TraderAvatarProps {
   /** Stable user id — seeds the deterministic gradient. */
@@ -25,6 +27,8 @@ interface TraderAvatarProps {
   size?: number
   /** Show the corner verification pip. */
   verified?: boolean
+  /** Trader tier — when set (and not 'none'), the tier medal is the corner badge. */
+  tier?: TierKey
   className?: string
 }
 
@@ -34,12 +38,14 @@ export function TraderAvatar({
   imageUrl,
   size = 32,
   verified = false,
+  tier,
   className = '',
 }: TraderAvatarProps) {
   const [failed, setFailed] = useState(false)
   const showImage = !!imageUrl && /^https?:\/\//i.test(imageUrl) && !failed
   const orb = traderOrb(id)
   const pip = Math.max(12, Math.round(size * 0.34))
+  const showTier = !!tier && tier !== 'none'
 
   return (
     <span
@@ -68,7 +74,11 @@ export function TraderAvatar({
           style={{ backgroundColor: orb.base, backgroundImage: orb.image }}
         />
       )}
-      {verified && (
+      {showTier ? (
+        <span className="absolute -bottom-1 -right-1" style={{ lineHeight: 0 }}>
+          <TierBadge tier={tier as TierKey} size={pip + 4} ring="var(--surface)" />
+        </span>
+      ) : verified ? (
         <span
           aria-hidden="true"
           className="absolute -bottom-0.5 -right-0.5 flex items-center justify-center rounded-full ring-2"
@@ -84,7 +94,7 @@ export function TraderAvatar({
             <path d="M20 6L9 17l-5-5" />
           </svg>
         </span>
-      )}
+      ) : null}
     </span>
   )
 }

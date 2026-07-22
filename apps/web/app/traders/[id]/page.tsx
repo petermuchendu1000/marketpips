@@ -8,6 +8,8 @@ import { createClient } from '@/lib/supabase/server'
 import { formatVolume } from '@/lib/utils'
 import { traderName as resolveName, joinedMonthYear } from '@/lib/trader'
 import { TraderAvatar } from '@/components/ui/trader-avatar'
+import { TierChip } from '@/components/ui/tier-badge'
+import { tierForVolume } from '@/lib/tier'
 import { TraderPnlCard } from '@/components/profile/trader-pnl-card'
 import { TraderPortfolio } from '@/components/profile/trader-portfolio'
 import { ProfileViewPing } from '@/components/profile/profile-view-ping'
@@ -80,6 +82,7 @@ export default async function TraderProfilePage({
 
   const name = traderName(t)
   const joined = joinedMonthYear(t.joined_at)
+  const tier = tierForVolume(Number(t.volume_usd))
   const jsonLd = {
     '@context': 'https://schema.org',
     '@type': 'ProfilePage',
@@ -102,15 +105,16 @@ export default async function TraderProfilePage({
         {/* Identity card */}
         <div className="card p-5">
           <div className="flex items-start gap-4">
-            <TraderAvatar id={t.user_id} name={name} imageUrl={t.avatar_url} size={64} verified={!!t.username} />
+            <TraderAvatar id={t.user_id} name={name} imageUrl={t.avatar_url} size={64} verified={!!t.username} tier={tier.key} />
             <div className="min-w-0 flex-1">
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2">
                 <h1 className="truncate font-display text-2xl text-text-primary">{name}</h1>
                 {t.username && (
                   <span className="rounded-pill bg-surface-2 px-2 py-0.5 text-xs font-medium text-text-secondary">
                     @{t.username}
                   </span>
                 )}
+                <TierChip tier={tier} />
               </div>
               <p className="mt-0.5 text-sm text-text-muted">
                 {joined && `Joined ${joined}`}
