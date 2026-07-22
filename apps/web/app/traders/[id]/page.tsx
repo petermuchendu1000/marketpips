@@ -5,7 +5,7 @@
 import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
-import { formatUSD, formatVolume } from '@/lib/utils'
+import { formatVolume } from '@/lib/utils'
 import { traderName as resolveName, joinedMonthYear } from '@/lib/trader'
 import { TraderAvatar } from '@/components/ui/trader-avatar'
 import { TraderPnlCard } from '@/components/profile/trader-pnl-card'
@@ -122,7 +122,8 @@ export default async function TraderProfilePage({
 
           <div className="mt-5 grid grid-cols-3 gap-3 border-t border-hairline pt-4">
             <Stat label="Positions value" value={formatVolume(t.positions_value)} />
-            <Stat label="Biggest win" value={t.biggest_win_usd > 0 ? formatUSD(t.biggest_win_usd) : '—'} />
+            {/* Compact like PM ($218.5K) so three stats fit a 390px row without overlap. */}
+            <Stat label="Biggest win" value={t.biggest_win_usd > 0 ? formatVolume(t.biggest_win_usd) : '—'} />
             <Stat label="Predictions" value={Number(t.predictions).toLocaleString()} />
           </div>
         </div>

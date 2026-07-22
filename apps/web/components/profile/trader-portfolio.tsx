@@ -115,6 +115,54 @@ function Pnl({ value, base }: { value: number; base: number }) {
   )
 }
 
+// Mobile positions list — PM parity: stacked rows (NO horizontal scroll). Each
+// row = avatar + title + outcome chip + shares on the left, value + signed P&L
+// stacked on the right, all inside the viewport.
+function MobilePositions({ rows, status }: { rows: PositionRow[]; status: Status }) {
+  return (
+    <ul className="divide-y divide-hairline sm:hidden">
+      {rows.map((r) => (
+        <li key={r.position_id} className="flex items-start gap-3 py-3">
+          <MarketAvatar title={r.market_title} />
+          <div className="min-w-0 flex-1">
+            {status === 'closed' && (
+              <span
+                className="mb-1 inline-flex items-center rounded-pill px-2 py-0.5 text-[11px] font-semibold"
+                style={{
+                  background: r.is_won ? 'var(--yes-tint)' : 'var(--no-tint)',
+                  color: r.is_won ? 'var(--yes-700)' : 'var(--no-700)',
+                }}
+              >
+                {r.is_won ? 'Won' : 'Lost'}
+              </span>
+            )}
+            <Link
+              href={`/markets/${r.market_slug}`}
+              className="line-clamp-2 text-sm font-medium leading-snug text-text-primary hover:text-pip-text hover:underline"
+            >
+              {r.market_title}
+            </Link>
+            <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-text-muted">
+              {r.option_label && <span className="truncate font-medium text-text-secondary">{r.option_label}</span>}
+              <OutcomeChip side={r.side} price={r.current_price ?? r.avg_entry_price} />
+              <span className="tabular-nums">{shares(r.shares)} shares</span>
+            </div>
+          </div>
+          <div className="flex flex-none flex-col items-end text-right">
+            <span className="text-sm font-semibold tabular-nums text-text-primary">
+              {formatUSD(status === 'active' ? r.current_value_usd : r.total_payout_usd)}
+            </span>
+            <Pnl
+              value={status === 'active' ? r.unrealized_pnl_usd : r.realized_pnl_usd}
+              base={r.total_invested_usd}
+            />
+          </div>
+        </li>
+      ))}
+    </ul>
+  )
+}
+
 interface ActivityRow {
   id: string
   action: string
@@ -328,7 +376,9 @@ function PositionsPanel({ status, setStatus, sort, setSort, query, setQuery, sor
               : 'No settled positions yet.'}
         </p>
       ) : (
-        <div className="table-wrapper -mx-1 overflow-x-auto">
+        <>
+        <MobilePositions rows={sorted} status={status} />
+        <div className="table-wrapper -mx-1 hidden overflow-x-auto sm:block">
           <table className="w-full min-w-[560px] border-collapse text-sm">
             <thead>
               <tr className="border-b border-hairline text-left text-[11px] font-medium uppercase tracking-wide text-text-muted">
@@ -388,6 +438,7 @@ function PositionsPanel({ status, setStatus, sort, setSort, query, setQuery, sor
             </tbody>
           </table>
         </div>
+        </>
       )}
     </div>
   )
