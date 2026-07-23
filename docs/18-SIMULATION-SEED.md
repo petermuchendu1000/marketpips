@@ -62,13 +62,23 @@ Tiers: `lean` (~35 MB) · `intensive` (~50–90 MB, default) · `max` (~250 MB).
 
 ## Current dataset
 
-_Updated as each seeding milestone lands (see `verify` output)._
+Intensive tier seeded (DB **45 MB** — 9 % of the 500 MB free-tier cap):
+
+| Table | Rows |
+|---|---|
+| price_history | 31,279 |
+| clob_orders | 1,776 |
+| clob_fills | 9,620 |
+| btc_price_ticks | 43,226 |
+| positions | 1,834 |
+| market_activity | 9,507 |
+| comments | 1,185 |
 
 | Stage | Status |
 |---|---|
-| quant library | ✅ committed |
-| orchestrator | ✅ committed |
-| price history | ⏳ |
-| CLOB books + fills | ⏳ |
-| BTC tick feed | ⏳ |
-| traders / activity scale-up | ⏳ |
+| quant library | ✅ |
+| orchestrator | ✅ |
+| price history (cross-market factor) | ✅ |
+| CLOB books + fills (14 markets) | ✅ |
+| BTC 1-min tick feed (30 d) | ✅ |
+| traders / holders / activity | ✅ |

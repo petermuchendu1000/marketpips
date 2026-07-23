@@ -52,13 +52,13 @@ NOW = datetime.now(timezone.utc)
 TIERS = {
     "lean": dict(price_days=60, price_pts=140, intraday_top=8, intraday_pts=240,
                  clob_markets=8, clob_depth=6, clob_makers_per_level=2, clob_fills_per_book=90,
-                 btc_days=7, btc_step_min=1),
+                 traders_markets=20, holders_per_side=12, btc_days=7, btc_step_min=1),
     "intensive": dict(price_days=90, price_pts=380, intraday_top=20, intraday_pts=720,
                       clob_markets=14, clob_depth=8, clob_makers_per_level=3, clob_fills_per_book=260,
-                      btc_days=30, btc_step_min=1),
+                      traders_markets=38, holders_per_side=20, btc_days=30, btc_step_min=1),
     "max": dict(price_days=120, price_pts=760, intraday_top=40, intraday_pts=1440,
                 clob_markets=28, clob_depth=10, clob_makers_per_level=3, clob_fills_per_book=520,
-                btc_days=45, btc_step_min=1),
+                traders_markets=46, holders_per_side=30, btc_days=45, btc_step_min=1),
 }
 
 BTC_ANCHOR_FALLBACK = 66_000.0   # used only if no prior tick exists
@@ -266,6 +266,158 @@ def seed_clob(conn, cfg, rng, dry: bool) -> dict:
 
 
 # --------------------------------------------------------------------------- #
+# traders / positions / holder boards
+# --------------------------------------------------------------------------- #
+def _whale_to_minnow(n: int, top: float, rng) -> list[float]:
+    out, v = [], top
+    for _ in range(n):
+        out.append(round(v))
+        v *= float(rng.uniform(0.45, 0.82))
+    return out
+
+
+def seed_traders(conn, cfg, rng, dry: bool) -> dict:
+    cur = conn.cursor()
+    cur.execute("""select u.id, w.id from auth.users u
+                   join wallets w on w.user_id=u.id and w.currency='KES'
+                   where u.email like '%%@demo.marketpips' order by u.created_at""")
+    pairs = cur.fetchall()
+    if not pairs:
+        cur.execute("""select u.id, w.id from auth.users u
+                       join wallets w on w.user_id=u.id order by u.created_at limit 60""")
+        pairs = cur.fetchall()
+    user_ids = [p[0] for p in pairs]
+    wallet = {p[0]: p[1] for p in pairs}
+    if len(user_ids) < 4:
+        cur.close(); return {"traders": 0, "note": "no demo users"}
+
+    cur.execute("""select id, resolution_type, coalesce(yes_price,0.5), coalesce(no_price,0.5)
+                   from public.markets where status='active' and title not ilike '%%Up or Down%%'
+                   order by total_volume_usd desc nulls last limit %s""",
+                (cfg["traders_markets"],))
+    markets = cur.fetchall()
+    market_ids = [m[0] for m in markets]
+    cur.execute("select id from public.markets where status='resolved'")
+    resolved = [r[0] for r in cur.fetchall()]
+
+    multi_ids = [m[0] for m in markets if m[1] == "multiple_choice"]
+    opts: dict[str, list] = {}
+    if multi_ids:
+        cur.execute("""select id, market_id, coalesce(yes_price, price, 0.5)
+                       from public.market_options where market_id=any(%s::uuid[]) order by display_order""",
+                    (multi_ids,))
+        for oid, mid, price in cur.fetchall():
+            opts.setdefault(str(mid), []).append((str(oid), float(price)))
+
+    hps = min(cfg["holders_per_side"], len(user_ids))
+    if dry:
+        est = sum((len(opts.get(str(m[0]), [None])) * 2) for m in markets) * hps
+        return {"traders": len(user_ids), "est_positions": est}
+
+    # idempotent: clear demo-owned rows
+    cur.execute("delete from public.market_activity where user_id=any(%s::uuid[])", (user_ids,))
+    cur.execute("delete from public.positions where user_id=any(%s::uuid[])", (user_ids,))
+
+    seen: set[tuple] = set()  # (user, market, side) — positions UNIQUE key
+
+    def book(rows, market_id, oid, side, price, top, n):
+        holders = rng.choice(len(user_ids), size=min(n, len(user_ids)), replace=False)
+        for idx, sh in zip(holders, _whale_to_minnow(n, top, rng)):
+            if sh <= 0:
+                continue
+            u = user_ids[int(idx)]
+            if (u, market_id, side) in seen:
+                continue
+            seen.add((u, market_id, side))
+            entry = min(0.97, max(0.03, price + float(rng.uniform(-0.12, 0.10))))
+            cur_val = round(sh * price, 2)
+            inv = round(sh * entry, 2)
+            rows.append((u, market_id, wallet[u], oid, side, sh, inv, round(entry, 4),
+                         cur_val, round(cur_val - inv, 2), 0, 0, True, None,
+                         NOW - timedelta(days=int(rng.integers(15, 200))), NOW))
+
+    prows = []
+    for mid, rtype, yp, npx in markets:
+        mid = str(mid)
+        if rtype == "multiple_choice":
+            for oid, price in opts.get(mid, []):
+                top = 4_000_000 * price
+                book(prows, mid, oid, "yes", price, top, rng.integers(6, hps))
+                book(prows, mid, oid, "no", 1 - price, top * 0.5, rng.integers(4, max(5, hps - 4)))
+        else:
+            top = float(rng.uniform(300_000, 6_000_000))
+            book(prows, mid, None, "yes", float(yp), top * float(yp) * 2, hps)
+            book(prows, mid, None, "no", float(npx), top * float(npx) * 2, hps)
+
+    # closed positions (Closed tab + biggest-win) on resolved markets
+    def add_closed(mkt, u, sh, entry, realized, payout):
+        side = rng.choice(["yes", "no"])
+        if (u, mkt, side) in seen:
+            return
+        seen.add((u, mkt, side))
+        prows.append((u, mkt, wallet[u], None, side, sh, round(sh * entry, 2), round(entry, 4),
+                      0, 0, round(realized, 2), round(payout, 2), False, None,
+                      NOW - timedelta(days=int(rng.integers(30, 220))), NOW))
+
+    for mkt in resolved:
+        for ui in rng.choice(len(user_ids), size=min(10, len(user_ids)), replace=False):
+            u = user_ids[int(ui)]; sh = int(rng.integers(40_000, 800_000)); entry = float(rng.uniform(0.25, 0.7))
+            add_closed(mkt, u, sh, entry, sh * (1 - entry), sh * 1.0)
+        for ui in rng.choice(len(user_ids), size=min(8, len(user_ids)), replace=False):
+            u = user_ids[int(ui)]; sh = int(rng.integers(30_000, 500_000)); entry = float(rng.uniform(0.3, 0.75))
+            add_closed(mkt, u, sh, entry, -sh * entry, 0.0)
+
+    execute_values(cur,
+        "insert into public.positions (user_id,market_id,wallet_id,market_option_id,side,shares,total_invested_usd,avg_entry_price,current_value_usd,unrealized_pnl_usd,realized_pnl_usd,total_payout_usd,is_active,claimed_at,created_at,updated_at) values %s",
+        prows, template="(%s::uuid,%s::uuid,%s::uuid,%s::uuid,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)", page_size=1000)
+    conn.commit()
+    n_positions = len(prows)
+
+    # recompute profile + market + option aggregates from the seeded positions
+    cur.execute("""update profiles p set
+          total_volume_usd = a.inv * 2.3, profit_loss_usd = a.pnl,
+          total_bets = a.bets, total_wins = a.wins,
+          win_rate = case when a.bets>0 then round(a.wins::numeric/a.bets,4) else 0 end
+        from (select user_id, sum(total_invested_usd) inv,
+                     sum(unrealized_pnl_usd+realized_pnl_usd) pnl, count(*) bets,
+                     count(*) filter (where total_payout_usd>0) wins
+              from positions where user_id=any(%s::uuid[]) group by user_id) a
+        where p.id = a.user_id""", (user_ids,))
+    cur.execute("""with agg as (
+          select market_id, sum(total_invested_usd) inv,
+                 sum(total_invested_usd) filter (where side='yes') yi,
+                 sum(total_invested_usd) filter (where side='no') ni,
+                 count(*) bets, count(distinct user_id) traders
+          from positions where market_id=any(%s::uuid[]) group by market_id)
+        update markets m set total_volume_usd=round(agg.inv*2.3,2),
+          yes_volume_usd=round(coalesce(agg.yi,0)*2.3,2), no_volume_usd=round(coalesce(agg.ni,0)*2.3,2),
+          volume_24h_usd=round(agg.inv*0.12,2), total_bets=agg.bets, unique_bettors=agg.traders,
+          last_trade_at=now() from agg where m.id=agg.market_id""", (market_ids,))
+    cur.execute("""with agg as (select market_option_id, sum(total_invested_usd) inv, count(*) bets
+          from positions where market_option_id is not null and market_id=any(%s::uuid[])
+          group by market_option_id)
+        update market_options o set volume_usd=round(agg.inv*2.1,2), total_invested_usd=round(agg.inv,2)
+        from agg where o.id=agg.market_option_id""", (market_ids,))
+    conn.commit()
+
+    # activity feed from active holdings
+    cur.execute("""select distinct user_id, market_id, side from positions
+                   where user_id=any(%s::uuid[]) and is_active=true""", (user_ids,))
+    arows = []
+    for u, mkt, side in cur.fetchall():
+        for _ in range(int(rng.integers(1, 4))):
+            arows.append((mkt, u, rng.choice(["buy", "sell"]), round(float(rng.uniform(200, 90_000)), 2),
+                          side, round(float(rng.uniform(0.05, 0.95)), 4),
+                          NOW - timedelta(days=int(rng.integers(0, 40)), hours=int(rng.integers(0, 23)))))
+    execute_values(cur,
+        "insert into public.market_activity (market_id,user_id,action,amount_usd,side,price,created_at) values %s",
+        arows, template="(%s::uuid,%s::uuid,%s,%s,%s,%s,%s)", page_size=1000)
+    conn.commit()
+    cur.close()
+    return {"traders": len(user_ids), "positions": n_positions, "activity": len(arows)}
+
+
+# --------------------------------------------------------------------------- #
 # BTC real-time tick feed
 # --------------------------------------------------------------------------- #
 def seed_btc(conn, cfg, rng, dry: bool) -> dict:
@@ -323,7 +475,7 @@ def verify(conn) -> dict:
 
 def main() -> int:
     ap = argparse.ArgumentParser()
-    ap.add_argument("cmd", choices=["price", "clob", "btc", "verify", "all"])
+    ap.add_argument("cmd", choices=["price", "clob", "traders", "btc", "verify", "all"])
     ap.add_argument("--tier", choices=list(TIERS), default="intensive")
     ap.add_argument("--seed", type=int, default=2027)
     ap.add_argument("--dry-run", action="store_true")
@@ -339,6 +491,8 @@ def main() -> int:
         print("price ->", seed_price(conn, cfg, rng, args.dry_run))
     if args.cmd in ("clob", "all"):
         print("clob  ->", seed_clob(conn, cfg, rng, args.dry_run))
+    if args.cmd in ("traders", "all"):
+        print("traders->", seed_traders(conn, cfg, rng, args.dry_run))
     if args.cmd in ("btc", "all"):
         print("btc   ->", seed_btc(conn, cfg, rng, args.dry_run))
     if args.cmd in ("verify", "all"):
