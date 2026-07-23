@@ -153,7 +153,10 @@ export const CLOB_ERRORS: Record<string, { status: number; error: string }> = {
   P0005: { status: 400, error: 'Wallet not found for this currency' },
   P0006: { status: 402, error: 'Insufficient balance' },
   P0007: { status: 400, error: 'Selected option was not found for this market' },
+  // P0100 retained for back-compat; the two-sided engine (migration 033) now
+  // accepts sells, so it is no longer raised in practice.
   P0100: { status: 409, error: 'Sell orders are not yet available on this market' },
+  P0113: { status: 409, error: 'Not enough shares to sell' },
   P0101: { status: 400, error: 'A candidate (market_option_id) is required' },
   P0102: { status: 400, error: 'Order size must be greater than zero' },
   P0103: { status: 409, error: 'This market is not an order-book market' },
