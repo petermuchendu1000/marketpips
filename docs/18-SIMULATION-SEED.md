@@ -49,10 +49,14 @@ SEED_DB_URL="postgresql://…:5432/postgres" \
 
 - **price** — enhanced history for every active market (shared cross-market
   factor) + dense intraday history for the top markets by volume.
-- **clob** — flips a curated set of markets to `pricing_engine='clob'`, enables
-  `flags.clob`, ensures USD maker/taker wallets, and seeds multi-maker resting
-  books (BUY YES bids + BUY NO synthesised asks per the migration-030 contract)
-  plus autocorrelated taker fills.
+- **clob** — seeds multi-maker resting books (BUY YES bids + BUY NO synthesised
+  asks per the migration-030 contract) plus autocorrelated taker fills.
+  **Safe by default:** it only seeds order-book *data* onto markets that are
+  already `pricing_engine='clob'`; it does **not** flip real markets or toggle
+  the global `flags.clob` feature flag (doing so silently changes the live
+  betting-panel UI). To intentionally flip a curated set + enable the flag, pass
+  `--enable-clob-ui`, or use `tools/clob-seed/seed_clob_demo.py` for an isolated
+  demo market.
 - **btc** — Merton jump-diffusion 1-minute tick feed over the trailing window
   (`source='sim'`) and re-anchors open Up/Down windows to the live feed.
   `btc_windows` is `UNIQUE(market_id)` (cron-managed current window), so no
@@ -67,12 +71,17 @@ Intensive tier seeded (DB **45 MB** — 9 % of the 500 MB free-tier cap):
 | Table | Rows |
 |---|---|
 | price_history | 31,279 |
-| clob_orders | 1,776 |
-| clob_fills | 9,620 |
+| clob_orders | 0 (reverted — see note) |
+| clob_fills | 0 (reverted — see note) |
 | btc_price_ticks | 43,226 |
 | positions | 1,834 |
 | market_activity | 9,507 |
 | comments | 1,185 |
+
+> Note: the initial run flipped 14 real markets to `pricing_engine='clob'` and
+> enabled `flags.clob`, which changed the live betting-panel UI. That was
+> reverted (all markets back to `amm`, flag removed, CLOB rows cleared) and the
+> `clob` stage is now non-destructive by default (opt-in via `--enable-clob-ui`).
 
 | Stage | Status |
 |---|---|
