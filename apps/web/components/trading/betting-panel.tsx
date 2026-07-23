@@ -316,7 +316,11 @@ export function BettingPanel({ market, options, initialSide, initialOptionId, in
     const d = new Date(iso)
     return Number.isNaN(d.getTime())
       ? null
-      : d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })
+      // Pin an explicit locale so the SSR string matches the client render
+      // (a locale-less `undefined` resolves to the server locale on the server
+      // and the browser locale on the client -> hydration mismatch). 'en-GB'
+      // matches the market page's own date formatting ("28 Feb 2027").
+      : d.toLocaleDateString('en-GB', { month: 'short', day: 'numeric', year: 'numeric' })
   }, [market.resolves_at, market.closes_at])
 
   // Deferred auth: snapshot the fully-built bet into localStorage and send the

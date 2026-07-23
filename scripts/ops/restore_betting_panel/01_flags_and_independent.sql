@@ -36,11 +36,18 @@
 BEGIN;
 
 -- 1. Feature flags (upsert; matches the SETTINGS_SCHEMA keys the app reads) ---
-INSERT INTO public.platform_settings (key, value) VALUES
-  ('flags.independent_options', 'true'::jsonb),
-  ('flags.pm_ticket',           'true'::jsonb),
-  ('flags.clob',                'true'::jsonb)
-ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value;
+--    CRITICAL: is_public MUST be true. platform_settings has RLS
+--      "Settings readable" USING (is_public OR has_capability('settings:write'))
+--    so a row inserted with the default is_public=false is INVISIBLE to the anon
+--    SSR client -> isFeatureEnabled() reads NULL -> falls back to the OFF default,
+--    i.e. the flag value is ignored no matter what it is. All three flags are
+--    isPublic:true in SETTINGS_SCHEMA (lib/admin/settings.ts), so they must be
+--    is_public=true here too.
+INSERT INTO public.platform_settings (key, value, is_public) VALUES
+  ('flags.independent_options', 'true'::jsonb, true),
+  ('flags.pm_ticket',           'true'::jsonb, true),
+  ('flags.clob',                'true'::jsonb, true)
+ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, is_public = EXCLUDED.is_public;
 
 -- 2. Opt the multi-outcome markets into the independent per-candidate model ---
 --    Only active multiple_choice markets that still carry >2 options. The RPC is
