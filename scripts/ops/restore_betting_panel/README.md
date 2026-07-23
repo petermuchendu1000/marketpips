@@ -42,6 +42,20 @@ export SEED_DB_URL="postgresql://…:5432/postgres"
 python3 02_seed_clob_multi.py
 ```
 
+## ⚠️ Gotcha: platform_settings.is_public (RLS)
+`platform_settings` has RLS `Settings readable USING (is_public OR
+has_capability('settings:write'))`. A flag row inserted with the default
+`is_public=false` is **invisible to the anon SSR client**, so `isFeatureEnabled()`
+reads NULL and falls back to the OFF default — the flag value is ignored. Every
+flag the public app reads (all three here) MUST be `is_public=true`. Step 01's
+upsert sets it explicitly; do not drop that column from the insert.
+
+## Client hydration (date formatting)
+`betting-panel.tsx` formatted the resolve date with `toLocaleDateString(undefined, …)`,
+which resolves to the server locale on the server and the browser locale on the
+client → a React hydration mismatch ("28 Feb 2027" vs "Feb 28, 2027"). Pinned to
+`'en-GB'` to match the market page's own date format.
+
 ## Rollback / kill-switches (deploy ≠ release)
 - Kill the order book instantly: `flags.clob=false` → markets fall back to the
   independent AMM Yes/No lines (still have No buttons).
