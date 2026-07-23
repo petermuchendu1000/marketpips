@@ -169,16 +169,33 @@ def _ensure_usd_wallets(cur, n_users: int) -> list[tuple[str, str]]:
     return out
 
 
-def seed_clob(conn, cfg, rng, dry: bool) -> dict:
+def seed_clob(conn, cfg, rng, dry: bool, enable_ui: bool = False) -> dict:
     cur = conn.cursor()
-    # curated target set: top active non-BTC markets by volume
-    cur.execute("""select id, resolution_type, coalesce(yes_price,0.5)
-                   from public.markets
-                   where status='active' and title not ilike '%%Up or Down%%'
-                   order by total_volume_usd desc nulls last limit %s""",
-                (cfg["clob_markets"],))
+    # SAFETY: by default we only seed order-book DATA onto markets that are
+    # ALREADY pricing_engine='clob'. We do NOT flip real markets or toggle the
+    # global flags.clob feature flag, because that silently changes the live
+    # betting-panel UI (CLOB drawer vs AMM buy panel) for those markets. To flip
+    # a curated set + enable the flag on purpose, pass --enable-clob-ui (or use
+    # the sanctioned isolated-demo tool tools/clob-seed/seed_clob_demo.py).
+    if enable_ui:
+        cur.execute("""select id, resolution_type, coalesce(yes_price,0.5)
+                       from public.markets
+                       where status='active' and title not ilike '%%Up or Down%%'
+                       order by total_volume_usd desc nulls last limit %s""",
+                    (cfg["clob_markets"],))
+    else:
+        cur.execute("""select id, resolution_type, coalesce(yes_price,0.5)
+                       from public.markets
+                       where status='active' and pricing_engine='clob'
+                       order by total_volume_usd desc nulls last limit %s""",
+                    (cfg["clob_markets"],))
     markets = cur.fetchall()
     market_ids = [m[0] for m in markets]
+    if not markets:
+        cur.close()
+        return {"clob_markets": 0,
+                "note": "no pricing_engine='clob' markets; pass --enable-clob-ui to flip a curated set, "
+                        "or run tools/clob-seed/seed_clob_demo.py for an isolated demo market"}
 
     multi_ids = [m[0] for m in markets if m[1] == "multiple_choice"]
     opts: dict[str, list] = {}
@@ -196,11 +213,13 @@ def seed_clob(conn, cfg, rng, dry: bool) -> dict:
                 "est_fills": books * cfg["clob_fills_per_book"]}
 
     wallets = _ensure_usd_wallets(cur, 40)
-    # flip target markets to CLOB + enable the flag
-    cur.execute("""insert into platform_settings(key,value) values ('flags.clob','true'::jsonb)
-                   on conflict (key) do update set value='true'::jsonb""")
-    cur.execute("update public.markets set pricing_engine='clob', updated_at=now() where id=any(%s::uuid[])",
-                (market_ids,))
+    # Only flip engine + enable the global flag when explicitly opted in. This is
+    # what changes the live betting-panel UI, so it must never be the default.
+    if enable_ui:
+        cur.execute("""insert into platform_settings(key,value) values ('flags.clob','true'::jsonb)
+                       on conflict (key) do update set value='true'::jsonb""")
+        cur.execute("update public.markets set pricing_engine='clob', updated_at=now() where id=any(%s::uuid[])",
+                    (market_ids,))
     # idempotent reset
     cur.execute("delete from public.clob_fills where market_id=any(%s::uuid[])", (market_ids,))
     cur.execute("delete from public.clob_orders where market_id=any(%s::uuid[])", (market_ids,))
@@ -479,6 +498,10 @@ def main() -> int:
     ap.add_argument("--tier", choices=list(TIERS), default="intensive")
     ap.add_argument("--seed", type=int, default=2027)
     ap.add_argument("--dry-run", action="store_true")
+    ap.add_argument("--enable-clob-ui", action="store_true",
+                    help="clob: flip a curated set of real markets to pricing_engine='clob' and "
+                         "enable the global flags.clob feature flag. This CHANGES the live betting-panel "
+                         "UI for those markets. Off by default (seeds book data only on already-clob markets).")
     args = ap.parse_args()
 
     cfg = TIERS[args.tier]
@@ -490,7 +513,7 @@ def main() -> int:
     if args.cmd in ("price", "all"):
         print("price ->", seed_price(conn, cfg, rng, args.dry_run))
     if args.cmd in ("clob", "all"):
-        print("clob  ->", seed_clob(conn, cfg, rng, args.dry_run))
+        print("clob  ->", seed_clob(conn, cfg, rng, args.dry_run, enable_ui=args.enable_clob_ui))
     if args.cmd in ("traders", "all"):
         print("traders->", seed_traders(conn, cfg, rng, args.dry_run))
     if args.cmd in ("btc", "all"):
