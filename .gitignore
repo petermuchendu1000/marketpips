@@ -57,3 +57,4 @@ tools/polymarket-research/data/*.json
 !tools/polymarket-research/data/stats.json
 !tools/polymarket-research/data/MANIFEST.json
 scripts/sim/backups/
+__pycache__/
