@@ -12,6 +12,7 @@ import {
 import { securityHeaders } from '@/lib/security/headers'
 import { safeRedirectPath } from '@/lib/security/sanitize'
 import { REQUEST_ID_HEADER, resolveRequestId } from '@/lib/observability/request-id'
+import { requiresAuth, isAdminRoute } from '@/lib/security/route-protection'
 
 const ADMIN_PORTAL_ROLE_SET = new Set<string>(ADMIN_PORTAL_ROLES)
 
@@ -27,17 +28,8 @@ function applySecurityHeaders(res: NextResponse, requestId?: string): NextRespon
   return res
 }
 
-// Protected routes that require authentication
-const PROTECTED_ROUTES = [
-  '/portfolio',
-  '/settings',
-  '/api/orders',
-  '/api/payments',
-  '/api/markets', // POST only (handled in route)
-]
-
-// Admin-only routes
-const ADMIN_ROUTES = ['/admin']
+// Route-protection rules live in lib/security/route-protection.ts (pure +
+// unit-tested). See that file for the order-book regression history.
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
@@ -95,11 +87,13 @@ export async function middleware(request: NextRequest) {
   // Refresh session
   const { data: { user } } = await supabase.auth.getUser()
 
-  // Protect routes
-  const isProtected = PROTECTED_ROUTES.some((r) => pathname.startsWith(r))
-  const isAdmin = ADMIN_ROUTES.some((r) => pathname.startsWith(r))
+  // Protect routes. Reads on public prefixes (e.g. GET /api/markets/[id]/book)
+  // pass through; writes and fully-gated routes require a user. See
+  // lib/security/route-protection.ts.
+  const isAdmin = isAdminRoute(pathname)
+  const needsAuth = requiresAuth(pathname, request.method)
 
-  if ((isProtected || isAdmin) && !user) {
+  if ((needsAuth || isAdmin) && !user) {
     const loginUrl = new URL('/auth/login', request.url)
     loginUrl.searchParams.set('next', pathname)
     return NextResponse.redirect(loginUrl)
