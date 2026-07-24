@@ -36,7 +36,16 @@ import {
 } from '@/lib/trading'
 import { serializePendingBet, parsePendingBet, PENDING_BET_KEY } from '@/lib/pending-bet'
 import { normalizeOutcomes, isMultiOutcome, type Outcome } from '@/lib/markets/outcomes'
-import { formatCurrency, usdToLocal } from '@/lib/currency'
+import { formatCurrency, usdToLocal, localToUsd } from '@/lib/currency'
+import { useClobBook } from '@/components/trading/order-book-table'
+import {
+  clampPriceCents,
+  formatCents,
+  estimateClobBuyShares,
+  estimateClobSellProceedsUsd,
+  clobAvailableShares,
+  buildClobOrderPayload,
+} from '@/lib/clob'
 import { CURRENCIES } from '@/types'
 import type { CurrencyCode, Market, MarketOption } from '@/types'
 import { EntityAvatar } from '@/components/ui/entity-avatar'
@@ -53,6 +62,15 @@ interface PmTicketProps {
   initialOptionId?: string
   initialAmount?: string
   independent?: boolean
+  /**
+   * Order-book (CLOB) market. When true the ticket routes BOTH buy and sell
+   * through the CLOB matching engine (`engine:'clob'` → clob_place_order) instead
+   * of the AMM/LMSR `place_bet*` RPCs — the single source of truth for order-book
+   * markets. Gated identically to the CandidateList book (pricing_engine==='clob'
+   * AND flags.clob) so the 39 AMM markets are never touched. Enables the real
+   * "market / limit Sell from your position" flow.
+   */
+  clob?: boolean
   /**
    * Window close time (ISO). When provided, the ticket freezes client-side the
    * instant the clock crosses it — even if the server row is still 'active' (the
@@ -256,6 +274,7 @@ export function PmTicket({
   independent = false,
   closesAt,
   variant = 'panel',
+  clob = false,
 }: PmTicketProps) {
   const isSheet = variant === 'sheet'
   const { user } = useAuth()
@@ -287,6 +306,8 @@ export function PmTicket({
     shares: number
     avgPrice: number
     payoutUsd: number
+    kind: 'buy' | 'sell'
+    headlineLocal: number
   } | null>(null)
 
   // Sell tab: the user's current active holding in this market (buy-only engine,
@@ -294,6 +315,21 @@ export function PmTicket({
   const [sellPosition, setSellPosition] = useState<
     { shares: number; side: 'yes' | 'no' | null; currentValueUsd: number; label: string } | null | undefined
   >(undefined)
+
+  // ---- CLOB (order-book) trading state --------------------------------------
+  // Top-of-book for the SELECTED candidate + side, polled only while this is a
+  // CLOB market. Reuses the exact public book hook the drawer/ladder use, so the
+  // ticket's buy/sell price estimates can never drift from the visible book.
+  const { book: clobBook } = useClobBook(market.slug, selectedOptionId, side, clob && !!selectedOptionId)
+  // The user's sellable holding in the selected candidate + side. CLOB exits are
+  // per-candidate-per-side, so available = shares − reserved_shares (shares
+  // already escrowed by resting sell orders). undefined = not yet loaded.
+  const [clobPos, setClobPos] = useState<
+    { shares: number; reserved: number; available: number; avgEntry: number } | null | undefined
+  >(undefined)
+  const [sellSize, setSellSize] = useState('')
+  // Bumped after a fill to force the position/book to re-read post-trade.
+  const [clobRefresh, setClobRefresh] = useState(0)
 
   const wallet = wallets.find((w) => w.currency === preferredCurrency)
   const balance = wallet?.available_balance ?? 0
@@ -363,6 +399,9 @@ export function PmTicket({
   const amountNum = parseFloat(amount) || 0
 
   const preview = useMemo(() => {
+    // CLOB markets price from the live order book, not the LMSR curve — never
+    // show an AMM-derived preview on a book market (it would mis-state fills).
+    if (clob) return null
     if (amountNum <= 0) return null
     try {
       if (isMulti) {
@@ -405,7 +444,7 @@ export function PmTicket({
     } catch {
       return null
     }
-  }, [amountNum, preferredCurrency, side, isMulti, indepMulti, selectedOutcome, selYesPrice, selNoPrice, market, rates])
+  }, [clob, amountNum, preferredCurrency, side, isMulti, indepMulti, selectedOutcome, selYesPrice, selNoPrice, market, rates])
 
   const previewAvgPrice = preview && 'avgPrice' in preview ? preview.avgPrice : preview?.price ?? currentPrice
   const payoutLocal = preview ? usdToLocal(preview.potentialPayoutUsd, preferredCurrency, rates) : 0
@@ -413,8 +452,36 @@ export function PmTicket({
   const belowMin = amountNum > 0 && !meetsMinBet(amountNum, preferredCurrency, rates)
   const overBalance = balance > 0 && amountNum > balance
   const limitInvalid = orderType === 'limit' && (limitPrice <= 0 || limitPrice >= 1)
-  const canSubmit =
-    isOpen && action === 'buy' && !!selectedOutcome && amountNum > 0 && !belowMin && !overBalance && !limitInvalid && !loading
+
+  // ---- CLOB estimates (from the live top-of-book) ---------------------------
+  const clobBestBid = clobBook?.best_bid ?? null // cents
+  const clobBestAsk = clobBook?.best_ask ?? null // cents
+  // Market BUY: local $ spent → est. shares at the best ask (server reconfirms
+  // against the live book and never overspends — this is a conservative hint).
+  const clobBuyUsd = clob ? localToUsd(amountNum, preferredCurrency, rates) : 0
+  const clobBuyEstShares = clob ? estimateClobBuyShares(clobBuyUsd, clobBestAsk) : 0
+  // Sell size (shares) clamped to what's actually exitable (available).
+  const sellSizeNum = parseFloat(sellSize) || 0
+  const clobAvail = clobPos?.available ?? 0
+  // SELL price used for the proceeds estimate: entered limit, else best bid.
+  const clobSellPriceCents = orderType === 'limit' ? parseFloat(limitCents) || 0 : clobBestBid ?? 0
+  const clobSellProceedsUsd = estimateClobSellProceedsUsd(sellSizeNum, clobSellPriceCents)
+  const clobSellLimitInvalid = orderType === 'limit' && (clobSellPriceCents <= 0 || clobSellPriceCents >= 100)
+
+  // CLOB submit gates (buy = market/amount; sell = market|limit from position).
+  const clobBuyOk = clob && isOpen && action === 'buy' && !!selectedOutcome && amountNum > 0 && !overBalance && !!clobBestAsk
+  const clobSellOk =
+    clob &&
+    isOpen &&
+    action === 'sell' &&
+    !!selectedOutcome &&
+    sellSizeNum > 0 &&
+    sellSizeNum <= clobAvail &&
+    (orderType === 'limit' ? !clobSellLimitInvalid : !!clobBestBid)
+
+  const canSubmit = clob
+    ? (action === 'buy' ? clobBuyOk : clobSellOk) && !loading
+    : isOpen && action === 'buy' && !!selectedOutcome && amountNum > 0 && !belowMin && !overBalance && !limitInvalid && !loading
 
   // Additive quick-add chips (+$1/+$5/+$20/+$100 equivalents in local currency).
   const chips = useMemo(() => {
@@ -511,6 +578,45 @@ export function PmTicket({
     }
   }, [action, user, sellPosition, supabase, market.id, market.title, options])
 
+  // CLOB: load the user's position in the SELECTED candidate + side so the Sell
+  // tab knows exactly how many shares can be exited (available = shares −
+  // reserved). Re-reads whenever the selection/side changes or a fill lands.
+  useEffect(() => {
+    if (!clob || !user || !selectedOptionId) {
+      setClobPos(undefined)
+      return
+    }
+    let cancelled = false
+    setClobPos(undefined)
+    supabase
+      .from('positions')
+      .select('shares, reserved_shares, avg_entry_price')
+      .eq('market_id', market.id)
+      .eq('user_id', user.id)
+      .eq('market_option_id', selectedOptionId)
+      .eq('side', side)
+      .eq('is_active', true)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (cancelled) return
+        const shares = Number(data?.shares ?? 0)
+        if (!data || shares <= 0) {
+          setClobPos(null)
+          return
+        }
+        const reserved = Number(data.reserved_shares ?? 0)
+        setClobPos({
+          shares,
+          reserved,
+          available: clobAvailableShares(shares, reserved),
+          avgEntry: Number(data.avg_entry_price ?? 0),
+        })
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [clob, user, selectedOptionId, side, market.id, supabase, clobRefresh])
+
   // PM ticket prices render to one decimal (e.g. 19.8¢, 80.3¢); trailing .0 is
   // dropped so round prices read cleanly (20¢). Matches live PM order ticket.
   const cents = (p: number) => {
@@ -539,7 +645,93 @@ export function PmTicket({
     router.push(`${route}?next=${encodeURIComponent(`/markets/${market.slug}`)}`)
   }
 
+  // CLOB order placement — routes buy AND sell through the order-book engine
+  // (engine:'clob' → clob_place_order). Buys are market/amount-denominated (the
+  // API converts $ → shares via the best ask, never overspending). Sells are
+  // share-denominated from the user's position and can be market (fill now at
+  // the best bid) or limit (rest on the book). AMM RPCs are never touched here.
+  const handleClobTrade = async () => {
+    if (!user) return goToAuth('/auth/login')
+    if (!selectedOutcome) return setError('Choose a candidate to continue.')
+    setError('')
+
+    let payload: Record<string, unknown>
+    if (action === 'buy') {
+      if (amountNum <= 0) return setError('Enter an amount to continue.')
+      if (overBalance) return setError(`Insufficient balance — you have ${formatCurrency(balance, preferredCurrency)}.`)
+      if (!clobBestAsk) return setError('No resting liquidity to fill a market buy right now.')
+      payload = buildClobOrderPayload({
+        marketId: market.id,
+        marketOptionId: selectedOutcome.id,
+        outcomeSide: side,
+        action: 'buy',
+        orderType: 'market',
+        currency: preferredCurrency,
+        amountLocal: amountNum,
+      })
+    } else {
+      if (sellSizeNum <= 0) return setError('Enter how many shares to sell.')
+      if (sellSizeNum > clobAvail)
+        return setError(`You can sell at most ${clobAvail.toFixed(2)} shares.`)
+      if (orderType === 'limit' && clobSellLimitInvalid)
+        return setError('Enter a limit price between 0.1¢ and 99.9¢.')
+      if (orderType === 'market' && !clobBestBid)
+        return setError('No resting bids to fill a market sell right now.')
+      payload = buildClobOrderPayload({
+        marketId: market.id,
+        marketOptionId: selectedOutcome.id,
+        outcomeSide: side,
+        action: 'sell',
+        orderType,
+        currency: preferredCurrency,
+        size: sellSizeNum,
+        priceCents: clobSellPriceCents,
+      })
+    }
+
+    setLoading(true)
+    try {
+      const res = await fetch('/api/orders', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      })
+      const data = await res.json()
+      const rpc = data?.data ?? {}
+      if (res.ok && (data.success || rpc.order_id)) {
+        const filled = Number(rpc.filled_shares ?? 0)
+        const resting = Number(rpc.resting_shares ?? 0)
+        const avgCents = Number(rpc.avg_fill_price_cents ?? clobSellPriceCents ?? 0)
+        const notionalUsd = Number(
+          rpc.notional_usd ?? (action === 'sell' ? clobSellProceedsUsd : clobBuyUsd),
+        )
+        setReceipt({
+          label: `${selectedOutcome.label} · ${side.toUpperCase()}`,
+          tone: side,
+          shares: filled || resting || (action === 'sell' ? sellSizeNum : clobBuyEstShares),
+          avgPrice: avgCents / 100,
+          payoutUsd: notionalUsd,
+          kind: action,
+          headlineLocal: amountNum,
+        })
+        window.dispatchEvent(new CustomEvent('marketpips:bet-placed', { detail: { marketId: market.id } }))
+        setSellSize('')
+        setAmount('')
+        setClobRefresh((n) => n + 1)
+        await refreshWallets()
+        router.refresh()
+      } else {
+        setError(data.error ?? 'Order failed. Please try again.')
+      }
+    } catch {
+      setError('Network error. Please try again.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
   const handleTrade = async () => {
+    if (clob) return handleClobTrade()
     if (!user) return goToAuth('/auth/login')
     if (isMulti && !selectedOutcome) return setError('Choose an option to continue.')
     if (amountNum <= 0) return setError('Enter an amount to continue.')
@@ -573,6 +765,8 @@ export function PmTicket({
           shares: rpc.shares ?? preview?.shares ?? 0,
           avgPrice: rpc.avg_fill_price ?? rpc.new_price ?? previewAvgPrice,
           payoutUsd: rpc.potential_payout_usd ?? preview?.potentialPayoutUsd ?? 0,
+          kind: 'buy',
+          headlineLocal: amountNum,
         })
         window.dispatchEvent(new CustomEvent('marketpips:bet-placed', { detail: { marketId: market.id } }))
         await refreshWallets()
@@ -600,7 +794,10 @@ export function PmTicket({
         </div>
         <h3 className="font-display text-lg text-text-primary">Order filled</h3>
         <p className="mb-4 mt-1 text-sm text-text-secondary">
-          {formatCurrency(amountNum, preferredCurrency)} on <strong className={toneText}>{receipt.label}</strong>
+          {receipt.kind === 'sell'
+            ? `Sold ${receipt.shares.toFixed(2)} shares of `
+            : `${formatCurrency(receipt.headlineLocal, preferredCurrency)} on `}
+          <strong className={toneText}>{receipt.label}</strong>
         </p>
         <dl className="mb-5 space-y-2 rounded-md border border-hairline bg-surface-2 p-4 text-sm">
           <div className="flex items-center justify-between">
@@ -612,7 +809,7 @@ export function PmTicket({
             <dd className="font-semibold tabular-nums text-text-primary">{cents(receipt.avgPrice)}</dd>
           </div>
           <div className="flex items-center justify-between">
-            <dt className="text-text-muted">To win</dt>
+            <dt className="text-text-muted">{receipt.kind === 'sell' ? 'Proceeds' : 'To win'}</dt>
             <dd className={`font-semibold tabular-nums ${toneText}`}>{formatCurrency(payoutLocalReceipt, preferredCurrency)}</dd>
           </div>
         </dl>
@@ -830,6 +1027,19 @@ export function PmTicket({
               <span className="text-xs font-medium tabular-nums text-text-muted">{cents(previewAvgPrice)}</span>
             </>
           )}
+          {clob && amountNum > 0 && (
+            <>
+              <div className="flex items-center gap-1.5">
+                <span className="text-base font-medium text-[#484E56]">To win</span>
+                <span className={`text-[18px] font-semibold tabular-nums ${side === 'yes' ? 'text-[#42C772]' : 'text-[#E23939]'}`}>
+                  {formatCurrency(usdToLocal(clobBuyEstShares, preferredCurrency, rates), preferredCurrency)}
+                </span>
+              </div>
+              <span className="text-xs font-medium tabular-nums text-text-muted">
+                {clobBestAsk ? `${formatCents(clobBestAsk)} · ${clobBuyEstShares.toFixed(1)} shares` : 'No resting liquidity'}
+              </span>
+            </>
+          )}
         </div>
 
         {/* 5. Quick-add chips (centered) */}
@@ -983,6 +1193,230 @@ export function PmTicket({
         </div>
 
         {action === 'sell' ? (
+          clob ? (
+            <div className="text-sm">
+              {/* Which candidate + side you're exiting */}
+              <div className="mb-3 flex items-center justify-between">
+                <span className="text-text-muted">Selling</span>
+                <span className="font-semibold text-text-primary">
+                  {selectedOutcome?.label}
+                  <span className={`ml-1.5 ${side === 'yes' ? 'text-yes' : 'text-no'}`}>
+                    {side === 'yes' ? 'Yes' : 'No'}
+                  </span>
+                </span>
+              </div>
+
+              {/* Yes/No selector — exit either leg of your position */}
+              <div className="mb-3 grid grid-cols-2 gap-2">
+                {(['yes', 'no'] as Side[]).map((s) => (
+                  <button
+                    key={s}
+                    type="button"
+                    onClick={() => {
+                      setSide(s)
+                      setSellSize('')
+                      setError('')
+                    }}
+                    aria-pressed={side === s}
+                    className="rounded-lg py-2 text-sm font-semibold transition-colors"
+                    style={
+                      side === s
+                        ? { background: s === 'yes' ? 'var(--yes)' : 'var(--no)', color: '#fff' }
+                        : { background: 'var(--surface-2)', color: 'var(--text-3)' }
+                    }
+                  >
+                    {s === 'yes' ? yesLabel : noLabel}
+                  </button>
+                ))}
+              </div>
+
+              {!user ? (
+                <p className="rounded-md border border-hairline bg-surface-2 p-4 text-center text-text-secondary">
+                  Log in to sell your position.
+                </p>
+              ) : clobPos === undefined ? (
+                <div className="h-16 skeleton rounded-md" />
+              ) : !clobPos || clobPos.available <= 0 ? (
+                <p className="rounded-md border border-hairline bg-surface-2 p-4 text-center text-text-secondary">
+                  You don’t hold any {side === 'yes' ? yesLabel : noLabel} shares in{' '}
+                  <span className="font-medium text-text-primary">{selectedOutcome?.label}</span>. Switch to{' '}
+                  <button
+                    type="button"
+                    onClick={() => setAction('buy')}
+                    className="font-semibold text-pip-500 hover:underline"
+                  >
+                    Buy
+                  </button>{' '}
+                  to open one.
+                </p>
+              ) : (
+                <>
+                  {/* Position summary for the selected candidate + side */}
+                  <div className="rounded-md border border-hairline bg-surface-2 p-3">
+                    <div className="mb-1 flex items-center justify-between">
+                      <span className="text-text-muted">Available to sell</span>
+                      <span className="font-semibold tabular-nums text-text-primary">
+                        {clobPos.available.toFixed(2)} shares
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-text-muted">Avg entry</span>
+                      <span className="font-semibold tabular-nums text-text-primary">
+                        {formatCents(clobPos.avgEntry * 100)}
+                      </span>
+                    </div>
+                    {clobPos.reserved > 0 && (
+                      <div className="mt-1 flex items-center justify-between text-xs">
+                        <span className="text-text-muted">Reserved (open sells)</span>
+                        <span className="tabular-nums text-text-muted">{clobPos.reserved.toFixed(2)}</span>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Market / Limit toggle */}
+                  <div className="mt-3 grid grid-cols-2 gap-2">
+                    {(['market', 'limit'] as OrderType[]).map((t) => (
+                      <button
+                        key={t}
+                        type="button"
+                        onClick={() => {
+                          setOrderType(t)
+                          setError('')
+                        }}
+                        aria-pressed={orderType === t}
+                        className={`rounded-lg border py-2 text-sm font-semibold capitalize transition-colors ${
+                          orderType === t
+                            ? 'border-pip-400 bg-surface-2 text-text-primary'
+                            : 'border-hairline text-text-muted hover:text-text-secondary'
+                        }`}
+                      >
+                        {t}
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* Limit price (limit sells only) */}
+                  {orderType === 'limit' && (
+                    <div className="mt-3 flex items-center justify-between rounded-md border border-hairline px-3 py-2">
+                      <label htmlFor="pm-clob-sell-limit" className="text-sm text-text-secondary">
+                        Limit price
+                      </label>
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          aria-label="Decrease limit price"
+                          onClick={() => setLimitCents(String(clampPriceCents((parseFloat(limitCents) || 0) - 1)))}
+                          className="flex h-6 w-6 items-center justify-center rounded-full border border-hairline text-text-secondary transition-colors hover:border-pip-400 hover:text-pip-500"
+                        >
+                          −
+                        </button>
+                        <div className="flex items-center gap-0.5">
+                          <input
+                            id="pm-clob-sell-limit"
+                            inputMode="decimal"
+                            value={limitCents}
+                            onChange={(e) => setLimitCents(e.target.value.replace(/[^0-9.]/g, '').slice(0, 4))}
+                            placeholder={clobBestBid ? String(clobBestBid) : '50'}
+                            className="w-10 bg-transparent text-right text-sm font-semibold tabular-nums text-text-primary outline-none"
+                          />
+                          <span className="text-sm text-text-muted">¢</span>
+                        </div>
+                        <button
+                          type="button"
+                          aria-label="Increase limit price"
+                          onClick={() => setLimitCents(String(clampPriceCents((parseFloat(limitCents) || 0) + 1)))}
+                          className="flex h-6 w-6 items-center justify-center rounded-full border border-hairline text-text-secondary transition-colors hover:border-pip-400 hover:text-pip-500"
+                        >
+                          +
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Shares input */}
+                  <div className="mt-4 flex items-center justify-between">
+                    <span className="text-base font-medium text-text-primary">Shares</span>
+                    <input
+                      aria-label="Shares to sell"
+                      inputMode="decimal"
+                      value={sellSize}
+                      onChange={(e) => {
+                        setSellSize(e.target.value.replace(/[^0-9.]/g, ''))
+                        setError('')
+                      }}
+                      placeholder="0"
+                      className="max-w-[8rem] bg-transparent text-right text-[28px] font-semibold leading-none tabular-nums text-text-primary outline-none placeholder:text-text-muted"
+                      style={{ width: `${Math.max(1, sellSize.length || 1)}ch` }}
+                    />
+                  </div>
+
+                  {/* % quick-picks + Max */}
+                  <div className="mt-3 flex flex-wrap items-center justify-end gap-2">
+                    {[0.25, 0.5, 0.75].map((f) => (
+                      <button
+                        key={f}
+                        type="button"
+                        onClick={() => {
+                          setSellSize((clobPos.available * f).toFixed(2))
+                          setError('')
+                        }}
+                        className="rounded-md border border-hairline px-3 py-1.5 text-xs font-semibold text-text-muted transition-colors hover:bg-surface-2"
+                      >
+                        {Math.round(f * 100)}%
+                      </button>
+                    ))}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSellSize(clobPos.available.toFixed(2))
+                        setError('')
+                      }}
+                      className="rounded-md border border-hairline px-3 py-1.5 text-xs font-semibold text-text-muted transition-colors hover:bg-surface-2"
+                    >
+                      Max
+                    </button>
+                  </div>
+
+                  {/* Estimated proceeds */}
+                  {sellSizeNum > 0 && (
+                    <div className="mt-4 space-y-1.5 rounded-md bg-surface-2 px-3 py-3 text-sm">
+                      <div className="flex items-center justify-between text-text-muted">
+                        <span>{orderType === 'limit' ? 'Limit price' : 'Est. price'}</span>
+                        <span className="tabular-nums">
+                          {clobSellPriceCents > 0 ? formatCents(clobSellPriceCents) : '—'}
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between border-t border-hairline pt-1.5">
+                        <span className="text-text-secondary">
+                          {orderType === 'limit' ? 'Max proceeds' : 'Est. proceeds'}
+                        </span>
+                        <span className={`text-base font-bold tabular-nums ${side === 'yes' ? 'text-yes' : 'text-no'}`}>
+                          {formatCurrency(usdToLocal(clobSellProceedsUsd, preferredCurrency, rates), preferredCurrency)}
+                        </span>
+                      </div>
+                    </div>
+                  )}
+
+                  {error && <p className="mt-3 text-sm font-medium text-no">{error}</p>}
+
+                  <button
+                    type="button"
+                    onClick={handleTrade}
+                    disabled={!canSubmit}
+                    className="btn mt-4 h-[43px] w-full rounded-md text-sm font-semibold text-white transition-colors disabled:opacity-50"
+                    style={{ background: 'var(--no)' }}
+                  >
+                    {loading ? 'Placing…' : 'Sell'}
+                  </button>
+                  <p className="mt-2 text-center text-[11px] leading-relaxed text-text-muted">
+                    {orderType === 'limit'
+                      ? 'Your order rests on the book until a buyer matches your price.'
+                      : 'Fills immediately against the best available bids.'}
+                  </p>
+                </>
+              )}
+            </div>
+          ) : (
           <div className="text-sm">
             {sellPosition === undefined ? (
               <div className="space-y-2">
@@ -1031,6 +1465,7 @@ export function PmTicket({
               </div>
             )}
           </div>
+          )
         ) : (
           <>
             {/* Yes/No ¢ pills (binary + independent multi). Simplex multi shows the
@@ -1178,6 +1613,33 @@ export function PmTicket({
                   <span className="text-text-secondary">To win</span>
                   <span className={`text-base font-bold tabular-nums ${outcomeTone}`}>
                     {formatCurrency(payoutLocal, preferredCurrency)}
+                  </span>
+                </div>
+              </div>
+            )}
+
+            {/* CLOB buy estimate — priced off the live best ask (the server
+                reconfirms against the book and never overspends). */}
+            {clob && amountNum > 0 && (
+              <div className="mt-4 space-y-1.5 rounded-md bg-surface-2 px-3 py-3 text-sm">
+                <div className="flex items-center justify-between text-text-muted">
+                  <span>Est. price</span>
+                  <span className="tabular-nums">
+                    {clobBestAsk
+                      ? `${formatCents(clobBestAsk)} · ${clobBuyEstShares.toFixed(1)} shares`
+                      : 'No resting liquidity'}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-text-secondary">Total</span>
+                  <span className="font-semibold tabular-nums text-text-primary">
+                    {formatCurrency(amountNum, preferredCurrency)}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between border-t border-hairline pt-1.5">
+                  <span className="text-text-secondary">To win</span>
+                  <span className={`text-base font-bold tabular-nums ${outcomeTone}`}>
+                    {formatCurrency(usdToLocal(clobBuyEstShares, preferredCurrency, rates), preferredCurrency)}
                   </span>
                 </div>
               </div>

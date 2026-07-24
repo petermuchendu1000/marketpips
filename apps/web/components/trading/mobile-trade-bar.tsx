@@ -34,11 +34,14 @@ export function MobileTradeBar({
   initialSide,
   initialOptionId,
   closesAt,
+  clob = false,
 }: {
   market: Market
   options?: MarketOption[]
   /** Phase C: candidates trade as independent Yes/No lines. */
   independent?: boolean
+  /** Order-book market: route the sheet ticket through the CLOB engine. */
+  clob?: boolean
   /** Option B: render the beginner-first guided flow inside the sheet. */
   guided?: boolean
   /** Polymarket-style compact ticket (dark launch); precedence over guided. */
@@ -289,6 +292,7 @@ export function MobileTradeBar({
                     independent={independent}
                     closesAt={closesAt}
                     variant="sheet"
+                    clob={clob}
                   />
                 ) : guided ? (
                   <GuidedBetFlow
