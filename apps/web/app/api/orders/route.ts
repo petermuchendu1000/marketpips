@@ -45,6 +45,7 @@ const BET_ERRORS: Record<string, { status: number; error: string }> = {
   P0007: { status: 400, error: 'Selected option was not found for this market' },
   P0008: { status: 422, error: 'Could not compute a valid trade size' },
   P0009: { status: 409, error: 'This market is not open for per-candidate Yes/No trading' },
+  P0120: { status: 409, error: 'This is an order-book market — use order-book (CLOB) trading' },
 }
 
 export async function POST(req: NextRequest) {
