@@ -11,6 +11,10 @@ import {
   clobErrorFor,
   CLOB_MIN_CENTS,
   CLOB_MAX_CENTS,
+  estimateClobBuyShares,
+  estimateClobSellProceedsUsd,
+  clobAvailableShares,
+  buildClobOrderPayload,
 } from '@/lib/clob'
 
 describe('clob price ticks', () => {
@@ -122,5 +126,69 @@ describe('clobErrorFor (SQLSTATE → HTTP)', () => {
   })
   it('returns null for unknown codes', () => {
     expect(clobErrorFor('P9999 nope')).toBeNull()
+  })
+})
+
+describe('CLOB ticket estimate helpers', () => {
+  it('estimateClobBuyShares: budget / (ask/100), floored to 6dp', () => {
+    // $47.60 at 23.8¢ → 200 shares exactly.
+    expect(estimateClobBuyShares(47.6, 23.8)).toBe(200)
+    // $10 at 20¢ → 50 shares.
+    expect(estimateClobBuyShares(10, 20)).toBe(50)
+  })
+  it('estimateClobBuyShares: guards zero/negative/null price + budget', () => {
+    expect(estimateClobBuyShares(10, null)).toBe(0)
+    expect(estimateClobBuyShares(10, 0)).toBe(0)
+    expect(estimateClobBuyShares(0, 20)).toBe(0)
+    expect(estimateClobBuyShares(-5, 20)).toBe(0)
+  })
+  it('estimateClobSellProceedsUsd: size × price/100', () => {
+    // 100 shares at 22.6¢ → $22.60.
+    expect(estimateClobSellProceedsUsd(100, 22.6)).toBeCloseTo(22.6, 10)
+    expect(estimateClobSellProceedsUsd(0, 50)).toBe(0)
+    expect(estimateClobSellProceedsUsd(10, null)).toBe(0)
+  })
+  it('clobAvailableShares: shares − reserved, never negative', () => {
+    expect(clobAvailableShares(1000, 250)).toBe(750)
+    expect(clobAvailableShares(100, 0)).toBe(100)
+    expect(clobAvailableShares(100, 200)).toBe(0) // over-reserved → clamp to 0
+    expect(clobAvailableShares(0, 0)).toBe(0)
+  })
+})
+
+describe('buildClobOrderPayload', () => {
+  const ids = {
+    marketId: '11111111-1111-1111-1111-111111111111',
+    marketOptionId: '22222222-2222-2222-2222-222222222222',
+    outcomeSide: 'yes' as const,
+    currency: 'KES' as const,
+  }
+  it('market buy: amount-denominated, always market, no price', () => {
+    const p = buildClobOrderPayload({ ...ids, action: 'buy', orderType: 'market', amountLocal: 500 })
+    expect(p).toMatchObject({ engine: 'clob', action: 'buy', order_type: 'market', amount_local: 500 })
+    expect(p).not.toHaveProperty('price_cents')
+    expect(p).not.toHaveProperty('size')
+    // The result is a valid CLOB order body.
+    expect(clobOrderSchema.safeParse(p).success).toBe(true)
+  })
+  it('forces buys to market even if a limit type slips through', () => {
+    const p = buildClobOrderPayload({ ...ids, action: 'buy', orderType: 'limit', amountLocal: 100, priceCents: 40 })
+    expect(p.order_type).toBe('market')
+    expect(p).not.toHaveProperty('price_cents')
+  })
+  it('market sell: share-denominated, no price', () => {
+    const p = buildClobOrderPayload({ ...ids, action: 'sell', orderType: 'market', size: 100 })
+    expect(p).toMatchObject({ action: 'sell', order_type: 'market', size: 100 })
+    expect(p).not.toHaveProperty('price_cents')
+    expect(clobOrderSchema.safeParse(p).success).toBe(true)
+  })
+  it('limit sell: share-denominated + clamped price on the 0.1¢ grid', () => {
+    const p = buildClobOrderPayload({ ...ids, action: 'sell', orderType: 'limit', size: 100, priceCents: 22.64 })
+    expect(p).toMatchObject({ action: 'sell', order_type: 'limit', size: 100, price_cents: 22.6 })
+    expect(clobOrderSchema.safeParse(p).success).toBe(true)
+  })
+  it('clamps an out-of-band limit price into the tradable band', () => {
+    expect(buildClobOrderPayload({ ...ids, action: 'sell', orderType: 'limit', size: 5, priceCents: 250 }).price_cents).toBe(CLOB_MAX_CENTS)
+    expect(buildClobOrderPayload({ ...ids, action: 'sell', orderType: 'limit', size: 5, priceCents: 0 }).price_cents).toBe(CLOB_MIN_CENTS)
   })
 })

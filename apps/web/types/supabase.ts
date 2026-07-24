@@ -1004,6 +1004,7 @@ export type Database = {
           created_at: string | null
           updated_at: string | null
           market_option_id: string | null
+          reserved_shares: number | null
         }
         Insert: {
           id?: string
@@ -1023,6 +1024,7 @@ export type Database = {
           created_at?: string | null
           updated_at?: string | null
           market_option_id?: string | null
+          reserved_shares?: number | null
         }
         Update: {
           id?: string
@@ -1042,6 +1044,7 @@ export type Database = {
           created_at?: string | null
           updated_at?: string | null
           market_option_id?: string | null
+          reserved_shares?: number | null
         }
         Relationships: [
           {

@@ -171,3 +171,69 @@ export function clobErrorFor(message: string): { status: number; error: string }
   const code = Object.keys(CLOB_ERRORS).find((c) => message.includes(c))
   return code ? CLOB_ERRORS[code] : null
 }
+
+// ---------------------------------------------------------------------------
+// Ticket helpers — pure math + payload construction shared by the order ticket
+// (pm-ticket) so the on-screen estimate and the submitted order can never drift
+// from each other, and both stay unit-tested (lib/__tests__/clob.test.ts).
+// ---------------------------------------------------------------------------
+
+/** Shares (max 6 dp, floored) a budget buys at a price. 0 if price invalid. */
+export function estimateClobBuyShares(amountUsd: number, bestAskCents: number | null): number {
+  if (!bestAskCents || bestAskCents <= 0 || amountUsd <= 0) return 0
+  return Math.floor((amountUsd / (bestAskCents / 100)) * 1e6) / 1e6
+}
+
+/** Proceeds ($) from selling `size` shares at `priceCents`. 0 if inputs invalid. */
+export function estimateClobSellProceedsUsd(size: number, priceCents: number | null): number {
+  if (!priceCents || priceCents <= 0 || size <= 0) return 0
+  return size * (priceCents / 100)
+}
+
+/** Exitable shares in a position: total minus what's escrowed by resting sells. */
+export function clobAvailableShares(shares: number, reservedShares: number): number {
+  return Math.max(0, (shares || 0) - (reservedShares || 0))
+}
+
+export interface ClobTicketPayloadInput {
+  marketId: string
+  marketOptionId: string
+  outcomeSide: 'yes' | 'no'
+  action: 'buy' | 'sell'
+  orderType: 'market' | 'limit'
+  currency: (typeof CURRENCIES)[number]
+  /** Buy: local $ amount (market/amount-denominated). */
+  amountLocal?: number
+  /** Sell: shares to exit (share-denominated). */
+  size?: number
+  /** Limit price in cents (limit orders only). */
+  priceCents?: number
+}
+
+/**
+ * Build the exact `/api/orders` body for a CLOB order. Buys are market/amount-
+ * denominated (the API converts $ → shares via the best ask). Sells are share-
+ * denominated and may be market or limit. Never emits a price on a market order;
+ * always clamps a limit price to the tradable 0.1¢ grid. Mirrors clobOrderSchema.
+ */
+export function buildClobOrderPayload(i: ClobTicketPayloadInput): Record<string, unknown> {
+  const base = {
+    engine: 'clob' as const,
+    market_id: i.marketId,
+    market_option_id: i.marketOptionId,
+    outcome_side: i.outcomeSide,
+    action: i.action,
+    currency: i.currency,
+  }
+  if (i.action === 'buy') {
+    // Buys always go through the market path (amount-denominated).
+    return { ...base, order_type: 'market', amount_local: i.amountLocal }
+  }
+  // Sell — share-denominated; limit adds a clamped price, market does not.
+  return {
+    ...base,
+    order_type: i.orderType,
+    size: i.size,
+    ...(i.orderType === 'limit' ? { price_cents: clampPriceCents(i.priceCents ?? 0) } : {}),
+  }
+}

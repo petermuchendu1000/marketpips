@@ -265,6 +265,8 @@ export interface Position {
   /** Set for multiple_choice positions (references market_options.id). */
   market_option_id: string | null
   shares: number
+  /** Shares escrowed by resting sell orders (CLOB); available = shares − this. */
+  reserved_shares: number | null
   total_invested_usd: number
   avg_entry_price: number
   current_value_usd: number

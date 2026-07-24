@@ -352,6 +352,7 @@ export default async function MarketPage({
                   initialSide={initialSide}
                   initialOptionId={initialOptionId}
                   closesAt={btcClosesAt}
+                  clob={clob}
                 />
               ) : guidedBets ? (
                 <GuidedBetFlow
@@ -398,6 +399,7 @@ export default async function MarketPage({
           initialSide={initialSide}
           initialOptionId={initialOptionId}
           closesAt={btcClosesAt}
+          clob={clob}
         />
       )}
 
