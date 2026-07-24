@@ -7,8 +7,6 @@ import { MarketHeader } from '@/components/markets/market-header'
 import { PriceChart } from '@/components/markets/price-chart'
 import { OutcomesChart } from '@/components/markets/outcomes-chart'
 import { BtcLiveChart } from '@/components/markets/btc-live-chart'
-import { BettingPanel } from '@/components/trading/betting-panel'
-import { GuidedBetFlow } from '@/components/trading/guided-bet-flow'
 import { PmTicket } from '@/components/trading/pm-ticket'
 import { CandidateList } from '@/components/trading/candidate-list'
 import { MobileTradeBar } from '@/components/trading/mobile-trade-bar'
@@ -191,13 +189,10 @@ export default async function MarketPage({
     (await isFeatureEnabled(supabase, 'flags.clob'))
 
   // Beginner-first "Guided 2-Step" checkout (Option B), dark-launched behind a
-  // flag so deploy ≠ release. When on, it replaces the pro ticket on the market
-  // page + mobile sheet; same LMSR economics, first-timer-friendly UX.
-  const guidedBets = await isFeatureEnabled(supabase, 'flags.guided_bet_flow')
-
-  // Polymarket-style compact order ticket (dark launch). Takes precedence over
-  // the guided flow when enabled; both share the same LMSR economics + API.
-  const pmTicket = await isFeatureEnabled(supabase, 'flags.pm_ticket')
+  // The order ticket is the Polymarket-style compact ticket, wired to the CLOB
+  // order-book engine. It is the single, canonical trade surface (the legacy
+  // AMM/LMSR guided + pro betting panels were retired when the platform moved
+  // to CLOB-only trading).
 
   // Deep-link pre-arm — a Yes/No/Up/Down tap on a market card lands here with
   // ?side=yes|no (& ?option=<id> for multi-outcome boards). We VALIDATE both
@@ -344,35 +339,15 @@ export default async function MarketPage({
                 market is open, the sticky bottom bar + sheet takes over — hide
                 this instance so the ticket isn't duplicated below the fold. */}
             <div className={market.status === 'active' ? 'hidden lg:block' : ''}>
-              {pmTicket ? (
-                <PmTicket
-                  market={market}
-                  options={options}
-                  independent={independent}
-                  initialSide={initialSide}
-                  initialOptionId={initialOptionId}
-                  closesAt={btcClosesAt}
-                  clob={clob}
-                />
-              ) : guidedBets ? (
-                <GuidedBetFlow
-                  market={market}
-                  options={options}
-                  hideOptionList={isMulti}
-                  independent={independent}
-                  initialSide={initialSide}
-                  initialOptionId={initialOptionId}
-                />
-              ) : (
-                <BettingPanel
-                  market={market}
-                  options={options}
-                  hideOptionList={isMulti}
-                  independent={independent}
-                  initialSide={initialSide}
-                  initialOptionId={initialOptionId}
-                />
-              )}
+              <PmTicket
+                market={market}
+                options={options}
+                independent={independent}
+                initialSide={initialSide}
+                initialOptionId={initialOptionId}
+                closesAt={btcClosesAt}
+                clob={clob}
+              />
             </div>
 
             {/* Real-time position & P&L (only renders when the user holds one) */}
@@ -394,8 +369,6 @@ export default async function MarketPage({
           market={market}
           options={options}
           independent={independent}
-          guided={guidedBets}
-          pmTicket={pmTicket}
           initialSide={initialSide}
           initialOptionId={initialOptionId}
           closesAt={btcClosesAt}

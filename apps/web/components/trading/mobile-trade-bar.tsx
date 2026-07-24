@@ -14,8 +14,6 @@
 // It hosts the SAME <BettingPanel/> inside the sheet — one source of truth, no
 // duplicated trading logic. The desktop sidebar panel is unchanged.
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { BettingPanel } from './betting-panel'
-import { GuidedBetFlow } from './guided-bet-flow'
 import { PmTicket } from './pm-ticket'
 import {
   normalizeOutcomes,
@@ -23,14 +21,11 @@ import {
 } from '@/lib/markets/outcomes'
 import { parsePendingBet, PENDING_BET_KEY } from '@/lib/pending-bet'
 import type { Market, MarketOption } from '@/types'
-import { IconX } from '@/components/ui/icons'
 
 export function MobileTradeBar({
   market,
   options,
   independent = false,
-  guided = false,
-  pmTicket = false,
   initialSide,
   initialOptionId,
   closesAt,
@@ -42,10 +37,6 @@ export function MobileTradeBar({
   independent?: boolean
   /** Order-book market: route the sheet ticket through the CLOB engine. */
   clob?: boolean
-  /** Option B: render the beginner-first guided flow inside the sheet. */
-  guided?: boolean
-  /** Polymarket-style compact ticket (dark launch); precedence over guided. */
-  pmTicket?: boolean
   /** Deep-link pre-arm: the side tapped on a market card (?side=). */
   initialSide?: 'yes' | 'no'
   /** Deep-link pre-arm: the candidate tapped on a market card (?option=). */
@@ -241,18 +232,15 @@ export function MobileTradeBar({
             style={dragY > 0 ? { transform: `translateY(${dragY}px)` } : undefined}
           >
             <div
-              className={`mx-auto flex max-h-[88vh] flex-col overflow-hidden bg-[color:var(--surface)] ${
-                pmTicket ? 'rounded-t-3xl' : 'rounded-t-2xl border-t border-hairline'
-              }`}
+              className="mx-auto flex max-h-[88vh] flex-col overflow-hidden rounded-t-3xl bg-[color:var(--surface)]"
               style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
             >
-              {/* Grab handle (swipe or tap to dismiss). PM's mobile Buy sheet has
-                  NO title/X-close chrome — the drag handle + backdrop tap are the
-                  only dismiss affordances, and the PM ticket renders its own
-                  header (Buy pill + sliders). Guided/pro panels keep the titled
-                  header with an explicit close control. */}
+              {/* Grab handle (swipe or tap to dismiss). The CLOB ticket has NO
+                  title/X-close chrome — the drag handle + backdrop tap are the
+                  only dismiss affordances, and the ticket renders its own header
+                  (Buy pill + sliders). */}
               <div
-                className={pmTicket ? 'flex-none pb-1 pt-2.5' : 'flex-none px-4 pb-3 pt-2.5'}
+                className="flex-none pb-1 pt-2.5"
                 onTouchStart={onTouchStart}
                 onTouchMove={onTouchMove}
                 onTouchEnd={onTouchEnd}
@@ -263,55 +251,21 @@ export function MobileTradeBar({
                   aria-label="Close"
                   className="mx-auto block h-[5px] w-[60px] rounded-full bg-[color:var(--surface-2)]"
                 />
-                {!pmTicket && (
-                  <div className="mt-2.5 flex items-center justify-between gap-3">
-                    <h2 className="min-w-0 flex-1 truncate font-display text-sm text-text-primary">
-                      {market.title}
-                    </h2>
-                    <button
-                      type="button"
-                      onClick={close}
-                      aria-label="Close order ticket"
-                      className="flex-none rounded-sm p-1 text-text-muted transition-colors hover:text-text-primary"
-                    >
-                      <IconX size={18} />
-                    </button>
-                  </div>
-                )}
               </div>
 
-              {/* The single source-of-truth order ticket (PM ticket / guided / pro). */}
-              <div className={`min-h-0 flex-1 overflow-y-auto ${pmTicket ? 'pb-5' : 'px-4 pb-4'}`}>
-                {pmTicket ? (
-                  <PmTicket
-                    market={market}
-                    options={options}
-                    initialSide={pendingSide}
-                    initialOptionId={pendingOptionId}
-                    initialAmount={resumedAmount}
-                    independent={independent}
-                    closesAt={closesAt}
-                    variant="sheet"
-                    clob={clob}
-                  />
-                ) : guided ? (
-                  <GuidedBetFlow
-                    market={market}
-                    options={options}
-                    initialSide={pendingSide}
-                    initialOptionId={pendingOptionId}
-                    independent={independent}
-                  />
-                ) : (
-                  <BettingPanel
-                    market={market}
-                    options={options}
-                    initialSide={pendingSide}
-                    initialOptionId={pendingOptionId}
-                    initialAmount={resumedAmount}
-                    independent={independent}
-                  />
-                )}
+              {/* The single source-of-truth order ticket (CLOB order-book). */}
+              <div className="min-h-0 flex-1 overflow-y-auto pb-5">
+                <PmTicket
+                  market={market}
+                  options={options}
+                  initialSide={pendingSide}
+                  initialOptionId={pendingOptionId}
+                  initialAmount={resumedAmount}
+                  independent={independent}
+                  closesAt={closesAt}
+                  variant="sheet"
+                  clob={clob}
+                />
               </div>
             </div>
           </div>
